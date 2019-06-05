@@ -1,146 +1,93 @@
-import functools
-import logging
-import re
-import sys
-from dataclasses import dataclass
-from datetime import datetime
+"""Crawler classes for scraping text articles for the web."""
 
-import pytz
+import logging
+from datetime import datetime
+from typing import Optional
+
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 
-logging.basicConfig(level=logging.DEBUG)
-
-
-def add_debug_logging(func):
-    """Logs on func entrance and exit"""
-    @functools.wraps(func)
-    def wrapper_add_debug_logging(*args, **kwargs):
-        args_repr = [repr(arg)[:100] for arg in args]
-        kwargs_repr = [f'{k}={v!r}'[:100] for k, v in kwargs.items()]
-        func_args = ', '.join(args_repr + kwargs_repr)
-        logging.debug(f'Calling {func.__name__}({func_args})')
-        try:
-            value = func(*args, *kwargs)
-        except BaseException:
-            logging.debug(
-                f'{func.__name__} raised exception: %s',
-                sys.exc_info()[0]
-            )
-            raise
-
-        logging.debug(f'{func.__name__} returned {value!r}')
-        return value
-    return wrapper_add_debug_logging
+import indexdb
+import utils
 
 
-def add_method_debug_logging(cls):
-    """Applys the add_debug_logging decorator to all methods in class"""
-    for attr_name in cls.__dict__:
-        attr = getattr(cls, attr_name)
-        if callable(attr) and not isinstance(attr, type):
-            setattr(cls, attr_name, add_debug_logging(attr))
-    return cls
-
-
-class MalformedPageError(Exception):
+class CannotParseArticleError(Exception):
+    """Indicates crawler was unable to parse any article from a page."""
     pass
 
 
-@dataclass
-class ArticleMetadata:
-    """Contains the metadata for an article.
+@utils.add_method_debug_logging
+class NhkNewsWebCrawler(object):
+    """Crawls and scrapes articles from the NHK News Web website."""
+    _SOURCE_NAME = 'NHK News Web'
+    _ARTICLE_DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
+    _ARTICLE_SECTION_CLASS = 'detail-no-js'
+    _ARTICLE_TITLE_CLASS = 'contentTitle'
 
-    Does not contain the actual full text of the article.
-    """
-    title: str = None
-    character_count: int = None
-    source_url: str = None
-    source_name: str = None
-    creation_datetime: datetime = None
-    scraped_datetime: datetime = None
-
-
-@dataclass
-class Article:
-    """In addition to metadata, contains the full text of an article"""
-    metadata: ArticleMetadata = ArticleMetadata()
-    body_text: str = None
-
-
-@add_method_debug_logging
-class Crawler:
-    """Crawls and scrapes articles for the web"""
-    SOURCE_NAME = 'NHK News Web'
-    ARTICLE_DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
-    ARTICLE_SECTION_CLASS = 'detail-no-js'
-    ARTICLE_TITLE_CLASS = 'contentTitle'
-
-    ARTICLE_BODY_IDS = [
+    _ARTICLE_BODY_IDS = [
         'news_textbody',
         'news_textmore',
     ]
-    ARTICLE_BODY_CLASSES = [
+    _ARTICLE_BODY_CLASSES = [
         'news_add',
     ]
 
-    ALLOWABLE_TAGS_IN_TEXT = {
-        'a', 'b', 'blockquote', 'br', 'em', 'strong', 'sup'
-    }
-
-    HTML_TAG_REGEX = re.compile(r'<.*?>')
-
-    JAPAN_TIMEZONE = pytz.timezone('Japan')
-
     def __init__(self, timeout=10):
+        """Initializes the crawler with a timeout for web requests."""
         self.session = None
         self.timeout = timeout
 
     def __enter__(self):
+        """Initializes a requests Session to use for all web requests."""
         self.session = requests.Session()
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
+        """Closes the requests Session."""
         if self.session:
             self.session.close()
 
-    def _contains_valid_child_text(self, tag):
-        for descendant in tag.descendants:
-            if (descendant.name is not None and
-                    descendant.name not in self.ALLOWABLE_TAGS_IN_TEXT):
-                logging.debug(
-                    f'Child text contains invalid {descendant.name} tag: %s',
-                    str(tag)
-                )
-                return False
-        return True
+    def _parse_title(self, article_section: Tag) -> Optional[str]:
+        """Parses the title from NHK article HTML.
 
-    def _get_valid_child_text(self, tag):
-        if not self._contains_valid_child_text(tag):
-            return None
+        Args:
+            article_section: Tag containing NHK article HTML.
 
-        return re.sub(self.HTML_TAG_REGEX, '', str(tag))
-
-    def _get_article_title(self, article_section):
+        Returns:
+            The parsed title from article_section, or None if the title could
+            not be parsed.
+        """
         title_spans = article_section.find_all(
-            'span', class_=self.ARTICLE_TITLE_CLASS
+            'span', class_=self._ARTICLE_TITLE_CLASS
         )
 
         if len(title_spans) != 1:
             logging.error(f'Found {len(title_spans)} title spans')
             return None
 
-        title = self._get_valid_child_text(title_spans[0])
+        title = utils.parse_valid_child_text(title_spans[0])
         if title is None:
             logging.error(
-                'Unable to determine title from span tag: %s',
-                str(title_spans[0])
+                f'Unable to determine title from span tag: {title_spans[0]!s}'
             )
             return None
 
         return title
 
-    def _get_article_creation_datetime(self, article_section):
+    def _parse_publication_datetime(
+        self, article_section: Tag
+    ) -> Optional[datetime]:
+        """Parses the publication datetime from NHK article HTML.
+
+        Args:
+            article_section: Tag containing NHK article HTML.
+
+        Returns:
+            UTC datetime for the publication datetime parsed from
+            article_section, or None if the publication datetime could not be
+            parsed.
+        """
         time_tags = article_section.find_all('time')
 
         if len(time_tags) != 1:
@@ -149,14 +96,13 @@ class Crawler:
 
         if not time_tags[0].has_attr('datetime'):
             logging.error(
-                'Time tag has no datetime attribute: %s',
-                str(time_tags[0])
+                f'Time tag has no datetime attribute: {time_tags[0]!s}'
             )
             return None
 
         try:
-            creation_datetime = datetime.strptime(
-                time_tags[0]['datetime'], self.ARTICLE_DATETIME_FORMAT
+            publication_datetime = datetime.strptime(
+                time_tags[0]['datetime'], self._ARTICLE_DATETIME_FORMAT
             )
         except ValueError:
             logging.error(
@@ -164,13 +110,19 @@ class Crawler:
             )
             return None
 
-        local_creation_datetime = self.JAPAN_TIMEZONE.localize(
-            creation_datetime, is_dst=None
-        )
-        return local_creation_datetime.astimezone(pytz.utc)
+        return utils.convert_jst_to_utc(publication_datetime)
 
-    def _get_body_section_text(self, tag):
-        section_text = self._get_valid_child_text(tag)
+    def _parse_body_div(self, tag: Tag) -> Optional[str]:
+        """Parses the body text from a division of an NHK article.
+
+        Args:
+            tag: Tag containing a division of an NHK article.
+
+        Returns:
+            The parsed body text from tag, or None if the crawler was unable to
+            parse body text from tag.
+        """
+        section_text = utils.parse_valid_child_text(tag)
         if section_text is not None:
             return section_text
 
@@ -180,69 +132,120 @@ class Crawler:
             if child.name is None:
                 continue
 
-            child_text = self._get_valid_child_text(child)
+            child_text = utils.parse_valid_child_text(child)
             if child_text is None:
-                logging.error(
-                    f'Unable to determine body text from tag: %s',
-                    str(child)
+                logging.debug(
+                    f'Unable to determine body text from tag: {child!s}'
                 )
                 continue
 
-            text_sections.append(child_text)
+            if len(child_text) > 0:
+                text_sections.append(child_text)
 
         return '\n'.join(text_sections) if len(text_sections) > 0 else None
 
-    def _get_article_body_text(self, article_section):
+    def _parse_body_text(self, article_section: Tag) -> Optional[str]:
+        """Parses the body text from NHK article HTML.
+
+        Args:
+            article_section: Tag containing NHK article HTML.
+
+        Returns:
+            The parsed body text from article_section, or None if no body text
+            could be parsed.
+        """
         body_tags = []
-        for id_ in self.ARTICLE_BODY_IDS:
+        for id_ in self._ARTICLE_BODY_IDS:
             divs = article_section.find_all('div', id=id_)
             logging.debug(f'Found {len(divs)} with id {id_}')
             body_tags += divs
 
-        for class_ in self.ARTICLE_BODY_CLASSES:
+        for class_ in self._ARTICLE_BODY_CLASSES:
             divs = article_section.find_all('div', class_=class_)
             logging.debug(f'Found {len(divs)} with class {class_}')
             body_tags += divs
 
         body_text_sections = []
         for tag in body_tags:
-            text = self._get_body_section_text(tag)
-            if text is not None:
+            text = self._parse_body_div(tag)
+            if text is not None and len(text) > 0:
                 body_text_sections.append(text)
 
-        return '\n\n'.join(body_text_sections)
+        if len(body_text_sections) == 0:
+            return None
+        else:
+            return '\n\n'.join(body_text_sections)
 
-    def _get_article_data(self, article_section, url):
-        article_data = Article()
-        article_data.metadata.scraped_datetime = datetime.utcnow()
-        article_data.metadata.source_url = url
-        article_data.metadata.source_name = self.SOURCE_NAME
+    def _parse_article(
+        self, article_section: Tag, url: str
+    ) -> indexdb.Article:
+        """Parses data from NHK article HTML.
 
-        article_data.metadata.title = self._get_article_title(article_section)
-        article_data.metadata.creation_datetime = (
-            self._get_article_creation_datetime(article_section)
+        This function is best effort. If the parsing for any data for the
+        article fails, the parsing failures will be logged as errors if
+        unexpected, and the attribute for that data will be None in the
+        returned Article object.
+
+        Args:
+            article_section: Tag containing NHK article HTML.
+            url: url where article_section was found.
+
+        Returns:
+            Article object containing the parsed data from article_section.
+        """
+        article_data = indexdb.Article()
+        article_data.scraped_datetime = datetime.utcnow()
+        article_data.source_url = url
+        article_data.source_name = self._SOURCE_NAME
+
+        article_data.title = self._parse_title(article_section)
+        article_data.publication_datetime = (
+            self._parse_publication_datetime(article_section)
         )
 
-        article_data.body_text = self._get_article_body_text(article_section)
-        article_data.metadata.character_count = (
-            sum(c.isalnum() for c in article_data.metadata.title) +
+        article_data.body_text = self._parse_body_text(article_section)
+        article_data.character_count = (
+            sum(c.isalnum() for c in article_data.title) +
             sum(c.isalnum() for c in article_data.body_text)
         )
 
         return article_data
 
-    def scrape_article(self, url):
+    def scrape_article(self, url: str) -> indexdb.Article:
+        """Scrapes and parses an NHK News Web article.
+
+        This function is generally best effort. An exception will be raised if
+        the page at url can't be reached or if the page format can't be parsed
+        at all, but if anything from the page can be parsed, an Article object
+        will be returned with whatever the crawler could successfully parse.
+
+        Args:
+            url: url to a page containing an NHK News Web article.
+
+        Returns:
+            Article object with the parsed data from the article. If an
+            attribute is None in the returned object, the crawler was unable to
+            parse the data for that attribute from the article.
+
+        Raises:
+            HTTPError: An error occurred making a GET request to url.
+            CannotParseArticleError: The page at url was not in an expected
+                format, so the crawler could not parse any information from it.
+        """
         logging.info(f'Navigating to {url}')
-        response = requests.get(url, timeout=self.timeout)
+        if self.session is None:
+            response = requests.get(url, timeout=self.timeout)
+        else:
+            response = self.session.get(url, timeout=self.timeout)
         logging.info(f'Response received with status {response.status_code}')
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, 'html.parser')
         article_sections = soup.find_all(
-            'section', class_=self.ARTICLE_SECTION_CLASS
+            'section', class_=self._ARTICLE_SECTION_CLASS
         )
         if len(article_sections) != 1:
             logging.error(f'Found {len(article_sections)} for {url}')
-            raise MalformedPageError()
+            raise CannotParseArticleError()
 
-        return self._get_article_data(article_sections[0], url)
+        return self._parse_article(article_sections[0], url)
