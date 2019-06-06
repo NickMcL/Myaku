@@ -8,8 +8,10 @@ import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
-import indexdb
-import utils
+import reibun.indexdb as indexdb
+import reibun.utils as utils
+
+_log = logging.getLogger(__name__)
 
 
 class CannotParseArticleError(Exception):
@@ -63,12 +65,12 @@ class NhkNewsWebCrawler(object):
         )
 
         if len(title_spans) != 1:
-            logging.error(f'Found {len(title_spans)} title spans')
+            _log.error(f'Found {len(title_spans)} title spans')
             return None
 
         title = utils.parse_valid_child_text(title_spans[0])
         if title is None:
-            logging.error(
+            _log.error(
                 f'Unable to determine title from span tag: {title_spans[0]!s}'
             )
             return None
@@ -91,11 +93,11 @@ class NhkNewsWebCrawler(object):
         time_tags = article_section.find_all('time')
 
         if len(time_tags) != 1:
-            logging.error(f'Found {len(time_tags)} time tags')
+            _log.error(f'Found {len(time_tags)} time tags')
             return None
 
         if not time_tags[0].has_attr('datetime'):
-            logging.error(
+            _log.error(
                 f'Time tag has no datetime attribute: {time_tags[0]!s}'
             )
             return None
@@ -105,7 +107,7 @@ class NhkNewsWebCrawler(object):
                 time_tags[0]['datetime'], self._ARTICLE_DATETIME_FORMAT
             )
         except ValueError:
-            logging.error(
+            _log.error(
                 'Failed to parse datetime: %s', time_tags[0]['datetime']
             )
             return None
@@ -134,7 +136,7 @@ class NhkNewsWebCrawler(object):
 
             child_text = utils.parse_valid_child_text(child)
             if child_text is None:
-                logging.debug(
+                _log.debug(
                     f'Unable to determine body text from tag: {child!s}'
                 )
                 continue
@@ -157,12 +159,12 @@ class NhkNewsWebCrawler(object):
         body_tags = []
         for id_ in self._ARTICLE_BODY_IDS:
             divs = article_section.find_all('div', id=id_)
-            logging.debug(f'Found {len(divs)} with id {id_}')
+            _log.debug(f'Found {len(divs)} with id {id_}')
             body_tags += divs
 
         for class_ in self._ARTICLE_BODY_CLASSES:
             divs = article_section.find_all('div', class_=class_)
-            logging.debug(f'Found {len(divs)} with class {class_}')
+            _log.debug(f'Found {len(divs)} with class {class_}')
             body_tags += divs
 
         body_text_sections = []
@@ -232,20 +234,14 @@ class NhkNewsWebCrawler(object):
             CannotParseArticleError: The page at url was not in an expected
                 format, so the crawler could not parse any information from it.
         """
-        logging.info(f'Navigating to {url}')
-        if self.session is None:
-            response = requests.get(url, timeout=self.timeout)
-        else:
-            response = self.session.get(url, timeout=self.timeout)
-        logging.info(f'Response received with status {response.status_code}')
-        response.raise_for_status()
+        response = utils.get_request_raise_on_error(url, self.session)
 
         soup = BeautifulSoup(response.content, 'html.parser')
         article_sections = soup.find_all(
             'section', class_=self._ARTICLE_SECTION_CLASS
         )
         if len(article_sections) != 1:
-            logging.error(f'Found {len(article_sections)} for {url}')
+            _log.error(f'Found {len(article_sections)} for {url}')
             raise CannotParseArticleError()
 
         return self._parse_article(article_sections[0], url)

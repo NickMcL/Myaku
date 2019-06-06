@@ -12,7 +12,10 @@ from datetime import datetime
 from typing import Callable, Optional
 
 import pytz
+import requests
 from bs4.element import NavigableString, Tag
+
+_log = logging.getLogger(__name__)
 
 HTML_TAG_REGEX = re.compile(r'<.*?>')
 
@@ -22,22 +25,72 @@ _ALLOWABLE_HTML_TAGS_IN_TEXT = {
 
 _JAPAN_TIMEZONE = pytz.timezone('Japan')
 
+_LOGGING_FORMAT = (
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
-def log_debug_to_file(filepath: str = './debug.log') -> None:
-    """Sets the root logger to write debug level or higher to a file."""
-    f = open(filepath, 'w')
-    f.close()
 
-    fh = logging.FileHandler(filepath)
-    fh.setLevel(logging.DEBUG)
+def toggle_reibun_debug_log(enable: bool = True, filepath: str = None) -> None:
+    """Toggles the debug logger for the reibun package.
 
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    fh.setFormatter(formatter)
+    By default, logs to stdout. If filepath is given, logs to that file
+    instead.
 
-    logging.getLogger().addHandler(fh)
-    logging.getLogger().setLevel(logging.DEBUG)
+    Args:
+        enable: If True, enables the logger; if False, disables the logger.
+        filepath: If given, the file will be truncated, and the logger will be
+            set to write to it.
+    """
+    package_log = logging.getLogger(__package__)
+    for handler in package_log.handlers[:]:
+        package_log.removeHandler(handler)
+
+    if not enable:
+        return
+
+    reibun_handler = None
+    if filepath is not None:
+        f = open(filepath, 'w')
+        f.close()
+        reibun_handler = logging.FileHandler(filepath)
+    else:
+        reibun_handler = logging.StreamHandler(sys.stdout)
+
+    reibun_handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter(_LOGGING_FORMAT)
+    reibun_handler.setFormatter(formatter)
+
+    package_log.addHandler(reibun_handler)
+    package_log.setLevel(logging.DEBUG)
+
+
+def get_request_raise_on_error(
+    url: str, session: requests.sessions.Session = None, **kwargs
+) -> requests.models.Response:
+    """Makes a GET request to url, then raises if status code >= 400.
+
+    Args:
+        url: URL to make the GET request to.
+        session: If provided, this Session will be used to make the GET
+            request.
+        kwargs: Will be passed to the requests.get function call.
+
+    Returns:
+        The reponse from the GET request.
+
+    Raises:
+        HTTPError: The GET request returned with a status code >= 400
+    """
+    _log.debug(f'Making GET request to {url}')
+    if session:
+        response = session.get(url, **kwargs)
+    else:
+        response = requests.get(url, **kwargs)
+    _log.debug(f'Reponse received with code {response.status_code}')
+    response.raise_for_status()
+
+    return response
 
 
 def convert_jst_to_utc(dt: datetime) -> datetime:
@@ -74,7 +127,7 @@ def parse_valid_child_text(tag: Tag) -> Optional[str]:
     for descendant in tag.descendants:
         if (descendant.name is not None and
                 descendant.name not in _ALLOWABLE_HTML_TAGS_IN_TEXT):
-            logging.debug(
+            _log.debug(
                 f'Child text contains invalid {descendant.name} '
                 f'tag: {tag!s}',
             )
@@ -87,6 +140,13 @@ def parse_valid_child_text(tag: Tag) -> Optional[str]:
         return re.sub(HTML_TAG_REGEX, '', str(tag))
     else:
         return None
+
+
+def _get_full_name(func: Callable) -> str:
+    """Gets the fully qualified name of the funcion."""
+    if func.__module__:
+        return f'{func.__module__}.{func.__qualname__}'
+    return func.__qualname__
 
 
 def add_debug_logging(func: Callable) -> Callable:
@@ -102,20 +162,19 @@ def add_debug_logging(func: Callable) -> Callable:
     """
     @functools.wraps(func)
     def wrapper_add_debug_logging(*args, **kwargs):
+        func_name = _get_full_name(func)
+
         args_repr = [repr(arg)[:100] for arg in args]
         kwargs_repr = [f'{k}={v!r}'[:100] for k, v in kwargs.items()]
         func_args = ', '.join(args_repr + kwargs_repr)
-        logging.debug(f'Calling {func.__name__}({func_args})')
+        _log.debug(f'Calling {func_name}({func_args})')
         try:
             value = func(*args, *kwargs)
         except BaseException:
-            logging.debug(
-                f'{func.__name__} raised exception: %s',
-                sys.exc_info()[0]
-            )
+            _log.exception(f'{func_name} raised an exception')
             raise
 
-        logging.debug(f'{func.__name__} returned {value!r}')
+        _log.debug(f'{func_name} returned {value!r}')
         return value
     return wrapper_add_debug_logging
 
