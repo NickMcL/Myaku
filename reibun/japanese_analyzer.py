@@ -20,18 +20,10 @@ _log = logging.getLogger(__name__)
 _RESOURCE_FILE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 _MECAB_NEOLOGD_DIR_NAME = 'mecab-ipadic-neologd'
-_MECABRC_PATH = os.path.join(_RESOURCE_FILE_DIR, 'mecabrc')
-_MECABRC_CONTENT_FORMAT = 'dicdir = {dict_path}\n'
-_MECAB_PYTHON_MECABRC_KEY = 'MECABRC'
 
 _JMDICT_XML_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.xml')
 _JMDICT_GZ_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.gz')
 _JMDICT_LATEST_FTP_URL = 'ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz'
-
-_JMDICT_KANJI_ELEMENT_TAG = 'k_ele'
-_JMDICT_KANJI_REP_ELEMENT_TAG = 'keb'
-_JMDICT_READING_ELEMENT_TAG = 'r_ele'
-_JMDICT_READING_REP_ELEMENT_TAG = 'reb'
 
 utils.toggle_reibun_debug_log()
 
@@ -62,8 +54,21 @@ def _update_jmdict_files() -> None:
     os.remove(_JMDICT_GZ_FILEPATH)
 
 
-class InitFailureError(Exception):
-    """Raised when an analyzer fails to initialize."""
+class ResourceLoadError(Exception):
+    """Raised if a necessary external resource fails to load.
+
+    For example, if an analyzer fails to load a dictionary file necessary for
+    its operation, this exception will be raised.
+    """
+    pass
+
+
+class ResourceNotReadyError(Exception):
+    """Raised if a resource is used before it is ready to be used.
+
+    For example, trying to use an external resource such as a dictionary before
+    it has been loaded.
+    """
     pass
 
 
@@ -72,54 +77,8 @@ class JapaneseTextAnalyzer(object):
     """Analyzes Japanese text to determine used words and phrases."""
 
     def __init__(self) -> None:
-        self._jmdict_entries = self._load_jmdict_entries(_JMDICT_XML_FILEPATH)
+        self._jmdict = JMdict(_JMDICT_XML_FILEPATH)
         self._mecab_tagger = self._init_mecab_tagger()
-
-    @utils.skip_method_debug_logging
-    def _get_jmdict_reprs(self, jmdict_entry: ElementTree.Element) -> Set[str]:
-        """Get all representations for a given JMdict XML element.
-
-        Because many Japanese words can be written using kanji as well as kana,
-        there are often different ways to write the same word. JMdict entries
-        include each or these representations as seperate elements, so this
-        function parses all of the representations for a given entry and adds
-        them to a set.
-
-        DEBUG_SKIP
-
-        Args:
-            jmdict_entry: An XML entry element from a JMdict XML file.
-
-        Returns:
-            A set of all of the representations for the given entry.
-        """
-        reprs = set()
-        for element in jmdict_entry:
-            if element.tag == _JMDICT_KANJI_ELEMENT_TAG:
-                reprs.add(element.find(_JMDICT_KANJI_REP_ELEMENT_TAG).text)
-            elif element.tag == _JMDICT_READING_ELEMENT_TAG:
-                reprs.add(element.find(_JMDICT_READING_REP_ELEMENT_TAG).text)
-
-        return reprs
-
-    def _load_jmdict_entries(self, filepath: str) -> Set[str]:
-        """Loads string entries from a JMdict XML file into a set."""
-        if not os.path.exists(filepath):
-            _log.error(f'JMdict file not found at {_JMDICT_XML_FILEPATH}')
-            raise InitFailureError(
-                f'JMdict file not found at {_JMDICT_XML_FILEPATH}'
-            )
-
-        _log.debug(f'Loading JMdict file from {_JMDICT_XML_FILEPATH}')
-        tree = ElementTree.parse(filepath)
-        _log.debug('Loading of JMdict file complete')
-
-        entries = set()
-        root = tree.getroot()
-        for entry in root:
-            entries.update(self._get_jmdict_reprs(entry))
-
-        return entries
 
     def _get_mecab_neologd_dict_path(self) -> Optional[str]:
         """Attempts to find the path to the NEologd dict in the system.
@@ -173,3 +132,125 @@ class JapaneseTextAnalyzer(object):
         if neologd_path:
             return MeCab.Tagger(f'-Ochasen -d {neologd_path}')
         return MeCab.Tagger('-Ochasen')
+
+
+@utils.add_method_debug_logging
+class JMdict(object):
+    """Object representation of a JMdict dictionary."""
+
+    # JMdict entries can have several representations stored as sub-elements of
+    # different types within the entry XML. This map maps the tag for each of
+    # these sub-element types to the tag within that sub-element that holds the
+    # string representation for that representation of the entry.
+    _JMDICT_ELEMENT_REPR_MAP = {
+        'k_ele': 'keb',  # kanji representation sub-element
+        'r_ele': 'reb'   # kana representation sub-element
+    }
+
+    def __init__(self, jmdict_xml_filepath: str = None) -> None:
+        self._jmdict_entries = None
+
+        if jmdict_xml_filepath is not None:
+            self.load_jmdict(jmdict_xml_filepath)
+
+    @utils.skip_method_debug_logging
+    def _parse_jmdict_reprs(
+        self, jmdict_entry: ElementTree.Element
+    ) -> Set[str]:
+        """Parse all string representations for a given JMdict XML entry.
+
+        Because many Japanese words can be written using kanji as well as kana,
+        there are often different ways to write the same word. JMdict entries
+        include each of these representations as separate elements, so this
+        function parses all of the representations for a given entry and
+        returns them in a set.
+
+        Args:
+            jmdict_entry: An XML entry element from a JMdict XML file.
+
+        Returns:
+            A set of all of the string representations of the given entry.
+
+        Raises:
+            ResourceLoadError: The passed entry had malformed JMdict XML, so it
+            could not be parsed.
+        """
+        repr_strs = set()
+        repr_elements = (
+            e for e in jmdict_entry if e.tag in self._JMDICT_ELEMENT_REPR_MAP
+        )
+
+        for element in repr_elements:
+            repr_str = element.findtext(
+                self._JMDICT_ELEMENT_REPR_MAP[element.tag]
+            )
+            if repr_str is None or repr_str == '':
+                element_str = ElementTree.tostring(jmdict_entry).decode()
+                utils.log_and_raise(
+                    _log, ResourceLoadError,
+                    f'Malformed JMdict XML. No '
+                    f'{self._JMDICT_ELEMENT_REPR_MAP[element.tag]} element or '
+                    f'text found within {element.tag} element: {element_str}'
+                )
+
+            repr_strs.add(repr_str)
+
+        if len(repr_strs) == 0:
+            element_str = ElementTree.tostring(jmdict_entry).decode()
+            repr_element_tags = list(self._JMDICT_ELEMENT_REPR_MAP.keys())
+            utils.log_and_raise(
+                _log, ResourceLoadError,
+                f'Malformed JMdict XML. No {repr_element_tags} elements found '
+                f'within {jmdict_entry.tag} element: {element_str}'
+            )
+
+        return repr_strs
+
+    def load_jmdict(self, xml_filepath: str) -> None:
+        """Loads data from a JMdict XML file.
+
+        Args:
+            xml_filepath: Path to an JMdict XML file.
+
+        Raises:
+            ResourceLoadError: There was an issue with the passed JMdict XML
+                file that prevented it from being loaded.
+        """
+        if not os.path.exists(xml_filepath):
+            utils.log_and_raise(
+                _log, ResourceLoadError,
+                f'JMdict file not found at {_JMDICT_XML_FILEPATH}'
+            )
+
+        _log.debug(f'Reading JMdict XML file at {_JMDICT_XML_FILEPATH}')
+        tree = ElementTree.parse(xml_filepath)
+        _log.debug('Reading of JMdict XML file complete')
+
+        self._jmdict_entries = set()
+        root = tree.getroot()
+        for entry in root:
+            self._jmdict_entries.update(self._parse_jmdict_reprs(entry))
+
+    def contains_entry(self, entry: str) -> bool:
+        """Tests if entry is in the loaded JMdict entries.
+
+        Args:
+            entry: entry to check for in the loaded JMdict entries.
+
+        Returns:
+            True if the entry is in the loaded JMdict entries, False otherwise.
+
+        Raises:
+            ResourceNotReadyError: JMdict data has not been loaded into this
+                JMdict object yet.
+        """
+        if self._jmdict_entries is None:
+            utils.log_and_raise(
+                _log, ResourceNotReadyError,
+                'JMdict object used before loading any JMdict data.'
+            )
+        return entry in self._jmdict_entries
+
+    def __contains__(self, entry) -> bool:
+        """Simply calls self.contains_entry."""
+        return self.contains_entry(entry)

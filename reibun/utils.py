@@ -65,6 +65,12 @@ def toggle_reibun_debug_log(enable: bool = True, filepath: str = None) -> None:
     package_log.setLevel(logging.DEBUG)
 
 
+def log_and_raise(log: logging.Logger, exc: Exception, error_msg: str) -> None:
+    """Logs and raises the exception with the given error message."""
+    log.error(error_msg)
+    raise exc(error_msg)
+
+
 def get_request_raise_on_error(
     url: str, session: requests.sessions.Session = None, **kwargs
 ) -> requests.models.Response:

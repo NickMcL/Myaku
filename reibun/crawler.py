@@ -241,7 +241,11 @@ class NhkNewsWebCrawler(object):
             'section', class_=self._ARTICLE_SECTION_CLASS
         )
         if len(article_sections) != 1:
-            _log.error(f'Found {len(article_sections)} for {url}')
-            raise CannotParseArticleError()
+            _log.error(
+                f'Found {len(article_sections)} article sections for {url}'
+            )
+            raise CannotParseArticleError(
+                f'Page at {url} not in expected article fromat'
+            )
 
         return self._parse_article(article_sections[0], url)
