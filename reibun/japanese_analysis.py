@@ -18,9 +18,6 @@ import reibun.utils as utils
 _log = logging.getLogger(__name__)
 
 _RESOURCE_FILE_DIR = os.path.dirname(os.path.realpath(__file__))
-
-_MECAB_NEOLOGD_DIR_NAME = 'mecab-ipadic-neologd'
-
 _JMDICT_XML_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.xml')
 _JMDICT_GZ_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.gz')
 _JMDICT_LATEST_FTP_URL = 'ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz'
@@ -28,8 +25,8 @@ _JMDICT_LATEST_FTP_URL = 'ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz'
 utils.toggle_reibun_debug_log()
 
 
-def update_dictionary_files() -> None:
-    """Downloads the latest versions of dict files used for JPN analysis."""
+def update_resources() -> None:
+    """Downloads the latest versions of resources used for JPN analysis."""
     _update_jmdict_files()
 
 
@@ -77,61 +74,9 @@ class JapaneseTextAnalyzer(object):
     """Analyzes Japanese text to determine used words and phrases."""
 
     def __init__(self) -> None:
+        """Inits the resources needed for text analysis."""
         self._jmdict = JMdict(_JMDICT_XML_FILEPATH)
-        self._mecab_tagger = self._init_mecab_tagger()
-
-    def _get_mecab_neologd_dict_path(self) -> Optional[str]:
-        """Attempts to find the path to the NEologd dict in the system.
-
-        This function is best effort. Logs warning if NEologd dictionary cannot
-        be found on the system.
-
-        Returns:
-            The path to the directory containing the NEologd dictionary, or
-            None if the NEologd dictionary could not be found.
-        """
-        output = subprocess.run(['mecab-config', '--version'])
-        if output.returncode != 0:
-            _log.warning(
-                'MeCab is not installed on this system, so the '
-                'mecab-ipadic-NEologd dictionary cannot be used.'
-            )
-            return None
-
-        output = subprocess.run(
-            ['mecab-config', '--dicdir'], capture_output=True
-        )
-        if output.returncode != 0:
-            _log.warning(
-                'MeCab dictionary directory could not be retrieved, so the '
-                'mecab-ipadic-NEologd dictionary cannot be used.'
-            )
-            return None
-
-        neologd_path = os.path.join(
-            output.stdout.decode(sys.stdout.encoding).strip(),
-            _MECAB_NEOLOGD_DIR_NAME
-        )
-        if not os.path.exists(neologd_path):
-            _log.warning(
-                'mecab-ipadic-NEologd is not installed on this system, so the '
-                'mecab-ipadic-NEologd dictionary cannot be used.'
-            )
-            return None
-
-        return neologd_path
-
-    def _init_mecab_tagger(self) -> MeCab.Tagger:
-        """Init and return the MeCab tagger used by the analyzer.
-
-        Attempts to use the mecab-ipadic-NEologd dictionary if available on the
-        system. Logs warning if NEologd cannot be used, and, in that case,
-        mecab-python3 will use the default mecab-ipadic dictionary instead.
-        """
-        neologd_path = self._get_mecab_neologd_dict_path()
-        if neologd_path:
-            return MeCab.Tagger(f'-Ochasen -d {neologd_path}')
-        return MeCab.Tagger('-Ochasen')
+        self._mecab_tagger = MecabTagger()
 
 
 @utils.add_method_debug_logging
@@ -254,3 +199,81 @@ class JMdict(object):
     def __contains__(self, entry) -> bool:
         """Simply calls self.contains_entry."""
         return self.contains_entry(entry)
+
+
+@utils.add_method_debug_logging
+class MecabTagger:
+    """Object representation of a MeCab tagger.
+
+    mecab-python3 provides a wrapper for MeCab in the MeCab module, but that
+    wrapper doesn't handle many things such as configuring MeCab settings or
+    parsing MeCab tagger output, so this class builds on top of that wrapper to
+    make the MeCab tagger easier to work with in Python.
+    """
+    _MECAB_NEOLOGD_DIR_NAME = 'mecab-ipadic-neologd'
+
+    def __init__(self, use_default_ipadic: bool = False) -> None:
+        """Inits the MeCab tagger wrapper.
+
+        Unless use_default_ipadic is True, attempts to use the ipadic-NEologd
+        dictionary if available on the system. Logs warning if NEologd cannot
+        be used and then uses the default ipadic dictionary instead.
+
+        Args:
+            use_default_ipadic: If True, forces tagger to use the default
+                ipadic dictionary instead of the ipadic-NEologd dictionary.
+        """
+        self._mecab_tagger = None
+
+        if use_default_ipadic:
+            neologd_path = None
+        else:
+            neologd_path = self._get_mecab_neologd_dict_path()
+
+        if neologd_path is None:
+            self._mecab_tagger = MeCab.Tagger('-Ochasen')
+        else:
+            self._mecab_tagger = MeCab.Tagger(f'-Ochasen -d {neologd_path}')
+
+    def _get_mecab_neologd_dict_path(self) -> Optional[str]:
+        """Attempts to find the path to the NEologd dict in the system.
+
+        This function is best effort. Logs warning if NEologd dictionary cannot
+        be found on the system and then returns None.
+
+        Returns:
+            The path to the directory containing the NEologd dictionary, or
+            None if the NEologd dictionary could not be found.
+        """
+        output = subprocess.run(
+            ['mecab-config', '--version'], capture_output=True
+        )
+        if output.returncode != 0:
+            _log.warning(
+                'MeCab is not installed on this system, so the '
+                'mecab-ipadic-NEologd dictionary cannot be used.'
+            )
+            return None
+
+        output = subprocess.run(
+            ['mecab-config', '--dicdir'], capture_output=True
+        )
+        if output.returncode != 0:
+            _log.warning(
+                'MeCab dictionary directory could not be retrieved, so the '
+                'mecab-ipadic-NEologd dictionary cannot be used.'
+            )
+            return None
+
+        neologd_path = os.path.join(
+            output.stdout.decode(sys.stdout.encoding).strip(),
+            self._MECAB_NEOLOGD_DIR_NAME
+        )
+        if not os.path.exists(neologd_path):
+            _log.warning(
+                'mecab-ipadic-NEologd is not installed on this system, so the '
+                'mecab-ipadic-NEologd dictionary cannot be used.'
+            )
+            return None
+
+        return neologd_path
