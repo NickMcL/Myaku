@@ -41,7 +41,7 @@ def toggle_reibun_debug_log(enable: bool = True, filepath: str = None) -> None:
         filepath: If given, the file will be truncated, and the logger will be
             set to write to it.
     """
-    package_log = logging.getLogger(__package__)
+    package_log = logging.getLogger('reibun')
     for handler in package_log.handlers[:]:
         package_log.removeHandler(handler)
 
@@ -54,7 +54,7 @@ def toggle_reibun_debug_log(enable: bool = True, filepath: str = None) -> None:
         f.close()
         reibun_handler = logging.FileHandler(filepath)
     else:
-        reibun_handler = logging.StreamHandler(sys.stdout)
+        reibun_handler = logging.StreamHandler(sys.stderr)
 
     reibun_handler.setLevel(logging.DEBUG)
 
@@ -149,23 +149,34 @@ def _get_full_name(func: Callable) -> str:
     return func.__qualname__
 
 
+def _cap_string_len(string: str, max_chars: int = 100) -> str:
+    """Caps string to a max length.
+
+    Adds an indicator to the end of the string if some of the string was
+    removed in capping it.
+    """
+    if len(string) <= max_chars:
+        return string
+    return string[:100] + '...'
+
+
 def add_debug_logging(func: Callable) -> Callable:
     """Logs params and return value on func entrance and exit.
 
     Also logs any exception if raised from func.
-
-    Args:
-        func: function to have this decorator applied to it.
-
-    Returns:
-        func with this decorator applied.
     """
     @functools.wraps(func)
     def wrapper_add_debug_logging(*args, **kwargs):
         func_name = _get_full_name(func)
 
-        args_repr = [repr(arg)[:100] for arg in args]
-        kwargs_repr = [f'{k}={v!r}'[:100] for k, v in kwargs.items()]
+        args_repr = []
+        for arg in args:
+            args_repr.append(_cap_string_len(repr(arg)))
+
+        kwargs_repr = []
+        for k, v in kwargs.items():
+            kwargs_repr.append(_cap_string_len(f'{k}={v!r}'))
+
         func_args = ', '.join(args_repr + kwargs_repr)
         _log.debug(f'Calling {func_name}({func_args})')
         try:
@@ -174,7 +185,8 @@ def add_debug_logging(func: Callable) -> Callable:
             _log.exception(f'{func_name} raised an exception')
             raise
 
-        _log.debug(f'{func_name} returned {value!r}')
+        short_value = _cap_string_len(repr(value))
+        _log.debug(f'{func_name} returned {short_value}')
         return value
     return wrapper_add_debug_logging
 
@@ -192,6 +204,18 @@ def add_method_debug_logging(cls: type) -> type:
     """
     for attr_name in cls.__dict__:
         attr = getattr(cls, attr_name)
-        if callable(attr) and not isinstance(attr, type):
+        if (callable(attr)
+                and not isinstance(attr, type)
+                and 'DEBUG_SKIP' not in attr.__dict__):
             setattr(cls, attr_name, add_debug_logging(attr))
     return cls
+
+
+def skip_method_debug_logging(func: Callable) -> Callable:
+    """Causes method not be logged when add_method_debug_logging is applied.
+
+    If a method gets called a high number of times, it can be excluded from
+    being logged with skip_method_debug_logging with this decorator.
+    """
+    func.__dict__['DEBUG_SKIP'] = None
+    return func
