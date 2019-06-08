@@ -205,11 +205,9 @@ class NhkNewsWebCrawler(object):
             self._parse_publication_datetime(article_section)
         )
 
-        article_data.body_text = self._parse_body_text(article_section)
-        article_data.character_count = (
-            sum(c.isalnum() for c in article_data.title) +
-            sum(c.isalnum() for c in article_data.body_text)
-        )
+        body_text = self._parse_body_text(article_section)
+        article_data.full_text = f'{article_data.title}\n\n{body_text}'
+        article_data.alnum_count = utils.alnum_count(article_data.full_text)
 
         return article_data
 

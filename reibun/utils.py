@@ -112,6 +112,11 @@ def convert_jst_to_utc(dt: datetime) -> datetime:
     return local_dt.astimezone(pytz.utc)
 
 
+def alnum_count(string: str) -> int:
+    """Returns the number of alphanumeric characters in the string."""
+    return sum(c.isalnum() for c in string)
+
+
 def parse_valid_child_text(tag: Tag) -> Optional[str]:
     """Parses the child text within an HTML tag if valid.
 
@@ -155,15 +160,15 @@ def _get_full_name(func: Callable) -> str:
     return func.__qualname__
 
 
-def _cap_string_len(string: str, max_chars: int = 100) -> str:
-    """Caps string to a max length.
+def shorten_str(string: str, max_chars: int = 100) -> str:
+    """Shorten string to a max length.
 
     Adds an indicator to the end of the string if some of the string was
-    removed in capping it.
+    removed by shortening it.
     """
     if len(string) <= max_chars:
         return string
-    return string[:100] + '...'
+    return string[:max_chars] + '...'
 
 
 def add_debug_logging(func: Callable) -> Callable:
@@ -175,14 +180,8 @@ def add_debug_logging(func: Callable) -> Callable:
     def wrapper_add_debug_logging(*args, **kwargs):
         func_name = _get_full_name(func)
 
-        args_repr = []
-        for arg in args:
-            args_repr.append(_cap_string_len(repr(arg)))
-
-        kwargs_repr = []
-        for k, v in kwargs.items():
-            kwargs_repr.append(_cap_string_len(f'{k}={v!r}'))
-
+        args_repr = [shorten_str(repr(arg)) for arg in args]
+        kwargs_repr = [shorten_str(f'{k}={v!r}') for k, v in kwargs.items()]
         func_args = ', '.join(args_repr + kwargs_repr)
         _log.debug(f'Calling {func_name}({func_args})')
         try:
@@ -191,7 +190,7 @@ def add_debug_logging(func: Callable) -> Callable:
             _log.exception(f'{func_name} raised an exception')
             raise
 
-        short_value = _cap_string_len(repr(value))
+        short_value = shorten_str(repr(value))
         _log.debug(f'{func_name} returned {short_value}')
         return value
     return wrapper_add_debug_logging

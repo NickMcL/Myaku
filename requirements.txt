@@ -6,6 +6,7 @@ entrypoints==0.3
 flake8==3.7.7
 idna==2.8
 mccabe==0.6.1
+mecab-python3==0.996.2
 pycodestyle==2.5.0
 pyflakes==2.1.1
 pymongo==3.8.0

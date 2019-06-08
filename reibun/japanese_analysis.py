@@ -8,12 +8,14 @@ import subprocess
 import sys
 import urllib
 from contextlib import closing
-from typing import Optional, Set
+from dataclasses import dataclass
+from typing import List, Optional, Set
 from xml.etree import ElementTree
 
 import MeCab
 
 import reibun.utils as utils
+from reibun.datatypes import Article, FoundLexicalItem
 
 _log = logging.getLogger(__name__)
 
@@ -69,14 +71,90 @@ class ResourceNotReadyError(Exception):
     pass
 
 
+class TextAnalysisError(Exception):
+    """Raised if an unexpected error occurs during text analysis."""
+    pass
+
+
 @utils.add_method_debug_logging
 class JapaneseTextAnalyzer(object):
-    """Analyzes Japanese text to determine used words and phrases."""
+    """Analyzes Japanese text to determine used lexical items."""
+
+    # Parts of speech considered non-lexical items
+    _NONLEXICAL_ITEM_POS = {
+        '\u8a18\u53f7',  # Symbols (kigou)
+    }
 
     def __init__(self) -> None:
         """Inits the resources needed for text analysis."""
         self._jmdict = JMdict(_JMDICT_XML_FILEPATH)
         self._mecab_tagger = MecabTagger()
+
+    def find_article_lexical_items(self, article: Article) -> None:
+        """Finds all lexical items in an article.
+
+        Adds all of the found lexical items to the found_lexical_items list
+        attr of the given Article.
+
+        Args:
+            article: Article whose full_text will be analyzed to find lexical
+                items.
+        """
+        text_blocks = [b for b in article.full_text.splitlines() if b != '']
+        _log.debug(f'Article {article} split into {len(text_blocks)} blocks')
+
+        if article.found_lexical_items is None:
+            article.found_lexical_items = []
+
+        offset = 0
+        for text_block in text_blocks:
+            found_lexical_items = self._find_lexical_items(
+                text_block, offset, article.alnum_count
+            )
+
+            _log.debug(
+                f'Found {len(found_lexical_items)} lexical items in block '
+                f'"{utils.shorten_str(text_block, 15)}"'
+            )
+            article.found_lexical_items.extend(found_lexical_items)
+
+            offset += utils.alnum_count(text_block)
+
+    def _find_lexical_items(
+        self, text: str, offset: int, article_len: int
+    ) -> List[FoundLexicalItem]:
+        """Finds all lexical items in a block of text.
+
+        Args:
+            text: Text block that will be analyzed for lexical items.
+            offset: The alnum character offset of the text block in its
+                article.
+            article_len: The total number of alnum characters in the article
+                for the text block.
+
+        Returns:
+            The found lexical items in the text.
+        """
+        mecab_tokens = self._mecab_tagger.parse(text)
+
+        found_lexical_items = []
+        for token in mecab_tokens:
+            is_nonlexical = any(
+                t in self._NONLEXICAL_ITEM_POS for t in token.parts_of_speech
+            )
+            if is_nonlexical:
+                offset += utils.alnum_count(token.surface_form)
+                continue
+
+            found_lexical_item = FoundLexicalItem(
+                token.base_form, token.surface_form, offset,
+                offset / article_len, token.parts_of_speech
+            )
+            found_lexical_items.append(found_lexical_item)
+
+            offset += utils.alnum_count(token.surface_form)
+
+        return found_lexical_items
 
 
 @utils.add_method_debug_logging
@@ -201,6 +279,30 @@ class JMdict(object):
         return self.contains_entry(entry)
 
 
+@dataclass
+class MecabToken:
+    """A text token with tags from MeCab.
+
+    Note that all of the attributes will generally contain all Japanese
+    characters since MeCab's tags are in Japanese.
+
+    Attributes:
+        surface_form: The form of the token used in the text.
+        reading: The (best guess) reading of the token in katakana.
+        base_form: The base (dictionary) form of the token.
+        parts_of_speech: The parts of speech of the token. Possibly multiple,
+            so it is a list.
+        conjugated_type: The name of the conjugation type of the token.
+        conjugated_form: The name of the conjugated form of the token.
+    """
+    surface_form: str
+    reading: str
+    base_form: str
+    parts_of_speech: List[str]
+    conjugated_type: str = None
+    conjugated_form: str = None
+
+
 @utils.add_method_debug_logging
 class MecabTagger:
     """Object representation of a MeCab tagger.
@@ -211,6 +313,9 @@ class MecabTagger:
     make the MeCab tagger easier to work with in Python.
     """
     _MECAB_NEOLOGD_DIR_NAME = 'mecab-ipadic-neologd'
+    _END_OF_SECTION_MARKER = 'EOS'
+    _POS_SPLITTER = '-'
+    _EXPECTED_TOKEN_TAG_COUNTS = {4, 5, 6}
 
     def __init__(self, use_default_ipadic: bool = False) -> None:
         """Inits the MeCab tagger wrapper.
@@ -234,6 +339,46 @@ class MecabTagger:
             self._mecab_tagger = MeCab.Tagger('-Ochasen')
         else:
             self._mecab_tagger = MeCab.Tagger(f'-Ochasen -d {neologd_path}')
+
+    def parse(self, text: str) -> List[MecabToken]:
+        """Parses the text with MeCab and returns the resulting tokens.
+
+        Raises:
+            TextAnalysisError: MeCab gave an unexpected output when parsing the
+                text.
+        """
+        mecab_out = self._mecab_tagger.parse(text)
+        parsed_tokens = (
+            line.split() for line in mecab_out.splitlines() if line != ''
+        )
+
+        mecab_tokens = []
+        for parsed_token_tags in parsed_tokens:
+            if (len(parsed_token_tags) == 1
+                    and parsed_token_tags[0] == self._END_OF_SECTION_MARKER):
+                continue
+
+            if len(parsed_token_tags) not in self._EXPECTED_TOKEN_TAG_COUNTS:
+                utils.log_and_raise(
+                    _log, TextAnalysisError,
+                    f'Unexpected number of MeCab tags '
+                    f'({len(parsed_token_tags)}) for token '
+                    f'{parsed_token_tags} in {text}'
+                )
+
+            mecab_token = MecabToken(
+                parsed_token_tags[0], parsed_token_tags[1],
+                parsed_token_tags[2],
+                parsed_token_tags[3].split(self._POS_SPLITTER)
+            )
+            if len(parsed_token_tags) >= 5:
+                mecab_token.conjugated_type = parsed_token_tags[4]
+            if len(parsed_token_tags) >= 6:
+                mecab_token.conjugated_form = parsed_token_tags[5]
+
+            mecab_tokens.append(mecab_token)
+
+        return mecab_tokens
 
     def _get_mecab_neologd_dict_path(self) -> Optional[str]:
         """Attempts to find the path to the NEologd dict in the system.
