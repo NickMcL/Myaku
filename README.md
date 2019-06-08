@@ -6,7 +6,7 @@ expressions and vocabulary
 
 Reibun is licensed under the GNU Affero General Public License v3.0 license.
 
-Reibun used the [JMdict][1] dictionary files in accordance with the [licence
+Reibun uses the [JMdict][1] dictionary files in accordance with the [licence
 provisions][2] of the [Electronic Dictionaries Research Group][3].
 
 [1]: http://www.edrdg.org/jmdict/j_jmdict.html
