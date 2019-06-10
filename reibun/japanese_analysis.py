@@ -8,14 +8,13 @@ import subprocess
 import sys
 import urllib
 from contextlib import closing
-from dataclasses import dataclass
-from typing import List, Optional, Set
+from typing import List, Set
 from xml.etree import ElementTree
 
 import MeCab
 
 import reibun.utils as utils
-from reibun.datatypes import Article, FoundLexicalItem
+from reibun.datatypes import JpnArticle, FoundJpnLexicalItem
 
 _log = logging.getLogger(__name__)
 
@@ -23,8 +22,6 @@ _RESOURCE_FILE_DIR = os.path.dirname(os.path.realpath(__file__))
 _JMDICT_XML_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.xml')
 _JMDICT_GZ_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.gz')
 _JMDICT_LATEST_FTP_URL = 'ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz'
-
-utils.toggle_reibun_debug_log()
 
 
 def update_resources() -> None:
@@ -35,29 +32,29 @@ def update_resources() -> None:
 def _update_jmdict_files() -> None:
     """Downloads and unpacks the latest JMdict files."""
     _log.debug(
-        f'Downloading JMdict gz file from {_JMDICT_LATEST_FTP_URL} to '
-        f'{_JMDICT_GZ_FILEPATH}'
+        f'Downloading JMdict gz file from "{_JMDICT_LATEST_FTP_URL}" to '
+        f'"{_JMDICT_GZ_FILEPATH}"'
     )
     with closing(urllib.request.urlopen(_JMDICT_LATEST_FTP_URL)) as response:
         with open(_JMDICT_GZ_FILEPATH, 'wb') as jmdict_gz_file:
             shutil.copyfileobj(response, jmdict_gz_file)
 
     _log.debug(
-        f'Decompressing {_JMDICT_GZ_FILEPATH} to {_JMDICT_XML_FILEPATH}'
+        f'Decompressing "{_JMDICT_GZ_FILEPATH}" to "{_JMDICT_XML_FILEPATH}"'
     )
     with gzip.open(_JMDICT_GZ_FILEPATH, 'rb') as jmdict_decomp_file:
         with open(_JMDICT_XML_FILEPATH, 'wb') as jmdict_xml_file:
             shutil.copyfileobj(jmdict_decomp_file, jmdict_xml_file)
 
-    _log.debug(f'Removing {_JMDICT_GZ_FILEPATH}')
+    _log.debug(f'Removing "{_JMDICT_GZ_FILEPATH}"')
     os.remove(_JMDICT_GZ_FILEPATH)
 
 
 class ResourceLoadError(Exception):
     """Raised if a necessary external resource fails to load.
 
-    For example, if an analyzer fails to load a dictionary file necessary for
-    its operation, this exception will be raised.
+    For example, an analyzer fails to load a dictionary file necessary for
+    its operation.
     """
     pass
 
@@ -72,7 +69,7 @@ class ResourceNotReadyError(Exception):
 
 
 class TextAnalysisError(Exception):
-    """Raised if an unexpected error occurs during text analysis."""
+    """Raised if an unexpected error occurs related to text analysis."""
     pass
 
 
@@ -80,28 +77,26 @@ class TextAnalysisError(Exception):
 class JapaneseTextAnalyzer(object):
     """Analyzes Japanese text to determine used lexical items."""
 
-    # Parts of speech considered non-lexical items
-    _NONLEXICAL_ITEM_POS = {
-        '\u8a18\u53f7',  # Symbols (kigou)
-    }
+    _SYMBOL_PART_OF_SPEECH = '\u8a18\u53f7'  # Japanese word for symbol (kigou)
 
     def __init__(self) -> None:
-        """Inits the resources needed for text analysis."""
+        """Loads the external resources needed for text analysis."""
         self._jmdict = JMdict(_JMDICT_XML_FILEPATH)
         self._mecab_tagger = MecabTagger()
 
-    def find_article_lexical_items(self, article: Article) -> None:
-        """Finds all lexical items in an article.
+    def find_article_lexical_items(self, article: JpnArticle) -> None:
+        """Finds all Japanese lexical items in an article.
 
         Adds all of the found lexical items to the found_lexical_items list
-        attr of the given Article.
+        attr of the given JpnArticle.
 
         Args:
-            article: Article whose full_text will be analyzed to find lexical
-                items.
+            article: Japnaese article whose full_text will be analyzed to find
+                lexical items.
         """
-        text_blocks = [b for b in article.full_text.splitlines() if b != '']
-        _log.debug(f'Article {article} split into {len(text_blocks)} blocks')
+        article_blocks = article.full_text.splitlines()
+        text_blocks = [b for b in article_blocks if len(b) > 0]
+        _log.debug(f'Article "{article}" split into {len(text_blocks)} blocks')
 
         if article.found_lexical_items is None:
             article.found_lexical_items = []
@@ -118,43 +113,52 @@ class JapaneseTextAnalyzer(object):
             )
             article.found_lexical_items.extend(found_lexical_items)
 
-            offset += utils.alnum_count(text_block)
+            offset += utils.get_alnum_count(text_block)
 
     def _find_lexical_items(
-        self, text: str, offset: int, article_len: int
-    ) -> List[FoundLexicalItem]:
-        """Finds all lexical items in a block of text.
+        self, text: str, offset: int, article_alnum_count: int
+    ) -> List[FoundJpnLexicalItem]:
+        """Finds all Japanese lexical items in a block of text.
 
         Args:
             text: Text block that will be analyzed for lexical items.
             offset: The alnum character offset of the text block in its
                 article.
-            article_len: The total number of alnum characters in the article
-                for the text block.
+            article_alnum_count: The total number of alnum characters in the
+                article for the text block.
 
         Returns:
-            The found lexical items in the text.
+            The found Japanese lexical items in the text.
         """
-        mecab_tokens = self._mecab_tagger.parse(text)
+        mecab_lexical_items = self._mecab_tagger.parse(text)
 
         found_lexical_items = []
-        for token in mecab_tokens:
-            is_nonlexical = any(
-                t in self._NONLEXICAL_ITEM_POS for t in token.parts_of_speech
-            )
-            if is_nonlexical:
-                offset += utils.alnum_count(token.surface_form)
+        for mecab_li in mecab_lexical_items:
+            # Mecab includes symbols such as periods and commas in the output
+            # of its parse. Strictly speaking, these aren't lexical items, so
+            # we discard them here.
+            if self._is_symbol(mecab_li):
+                offset += utils.get_alnum_count(mecab_li.surface_form)
                 continue
 
-            found_lexical_item = FoundLexicalItem(
-                token.base_form, token.surface_form, offset,
-                offset / article_len, token.parts_of_speech
-            )
-            found_lexical_items.append(found_lexical_item)
+            mecab_li.text_pos_abs = offset
+            mecab_li.text_pos_percent = offset / article_alnum_count
+            found_lexical_items.append(mecab_li)
 
-            offset += utils.alnum_count(token.surface_form)
+            offset += utils.get_alnum_count(mecab_li.surface_form)
 
         return found_lexical_items
+
+    @utils.skip_method_debug_logging
+    def _is_symbol(self, lexical_item: FoundJpnLexicalItem) -> bool:
+        """Returns True if the Japanese lexical item is a non-alnum symbol.
+
+        Symbols include things like periods, commas, quote characters, etc.
+        """
+        for part_of_speech in lexical_item.parts_of_speech:
+            if part_of_speech == self._SYMBOL_PART_OF_SPEECH:
+                return True
+        return False
 
 
 @utils.add_method_debug_logging
@@ -212,8 +216,9 @@ class JMdict(object):
                 utils.log_and_raise(
                     _log, ResourceLoadError,
                     f'Malformed JMdict XML. No '
-                    f'{self._JMDICT_ELEMENT_REPR_MAP[element.tag]} element or '
-                    f'text found within {element.tag} element: {element_str}'
+                    f'"{self._JMDICT_ELEMENT_REPR_MAP[element.tag]}" element '
+                    f'or text found within "{element.tag}" element: '
+                    f'"{element_str}"'
                 )
 
             repr_strs.add(repr_str)
@@ -223,8 +228,8 @@ class JMdict(object):
             repr_element_tags = list(self._JMDICT_ELEMENT_REPR_MAP.keys())
             utils.log_and_raise(
                 _log, ResourceLoadError,
-                f'Malformed JMdict XML. No {repr_element_tags} elements found '
-                f'within {jmdict_entry.tag} element: {element_str}'
+                f'Malformed JMdict XML. No "{repr_element_tags}" elements '
+                f'found within "{jmdict_entry.tag}" element: "{element_str}"'
             )
 
         return repr_strs
@@ -242,10 +247,10 @@ class JMdict(object):
         if not os.path.exists(xml_filepath):
             utils.log_and_raise(
                 _log, ResourceLoadError,
-                f'JMdict file not found at {_JMDICT_XML_FILEPATH}'
+                f'JMdict file not found at "{_JMDICT_XML_FILEPATH}"'
             )
 
-        _log.debug(f'Reading JMdict XML file at {_JMDICT_XML_FILEPATH}')
+        _log.debug(f'Reading JMdict XML file at "{_JMDICT_XML_FILEPATH}"')
         tree = ElementTree.parse(xml_filepath)
         _log.debug('Reading of JMdict XML file complete')
 
@@ -279,30 +284,6 @@ class JMdict(object):
         return self.contains_entry(entry)
 
 
-@dataclass
-class MecabToken:
-    """A text token with tags from MeCab.
-
-    Note that all of the attributes will generally contain all Japanese
-    characters since MeCab's tags are in Japanese.
-
-    Attributes:
-        surface_form: The form of the token used in the text.
-        reading: The (best guess) reading of the token in katakana.
-        base_form: The base (dictionary) form of the token.
-        parts_of_speech: The parts of speech of the token. Possibly multiple,
-            so it is a list.
-        conjugated_type: The name of the conjugation type of the token.
-        conjugated_form: The name of the conjugated form of the token.
-    """
-    surface_form: str
-    reading: str
-    base_form: str
-    parts_of_speech: List[str]
-    conjugated_type: str = None
-    conjugated_form: str = None
-
-
 @utils.add_method_debug_logging
 class MecabTagger:
     """Object representation of a MeCab tagger.
@@ -315,14 +296,15 @@ class MecabTagger:
     _MECAB_NEOLOGD_DIR_NAME = 'mecab-ipadic-neologd'
     _END_OF_SECTION_MARKER = 'EOS'
     _POS_SPLITTER = '-'
+    _TOKEN_SPLITTER = '\t'
     _EXPECTED_TOKEN_TAG_COUNTS = {4, 5, 6}
 
     def __init__(self, use_default_ipadic: bool = False) -> None:
         """Inits the MeCab tagger wrapper.
 
-        Unless use_default_ipadic is True, attempts to use the ipadic-NEologd
-        dictionary if available on the system. Logs warning if NEologd cannot
-        be used and then uses the default ipadic dictionary instead.
+        Unless use_default_ipadic is True, uses the ipadic-NEologd dictionary
+        and will raise a ResourceLoadError if NEologd is not available on the
+        system.
 
         Args:
             use_default_ipadic: If True, forces tagger to use the default
@@ -331,28 +313,22 @@ class MecabTagger:
         self._mecab_tagger = None
 
         if use_default_ipadic:
-            neologd_path = None
-        else:
-            neologd_path = self._get_mecab_neologd_dict_path()
-
-        if neologd_path is None:
             self._mecab_tagger = MeCab.Tagger('-Ochasen')
         else:
+            neologd_path = self._get_mecab_neologd_dict_path()
             self._mecab_tagger = MeCab.Tagger(f'-Ochasen -d {neologd_path}')
 
-    def parse(self, text: str) -> List[MecabToken]:
-        """Parses the text with MeCab and returns the resulting tokens.
+    def parse(self, text: str) -> List[FoundJpnLexicalItem]:
+        """Returns the lexical items found by MeCab in the text.
 
         Raises:
             TextAnalysisError: MeCab gave an unexpected output when parsing the
                 text.
         """
         mecab_out = self._mecab_tagger.parse(text)
-        parsed_tokens = (
-            line.split() for line in mecab_out.splitlines() if line != ''
-        )
+        parsed_tokens = self._parse_mecab_output(mecab_out)
 
-        mecab_tokens = []
+        found_lexical_items = []
         for parsed_token_tags in parsed_tokens:
             if (len(parsed_token_tags) == 1
                     and parsed_token_tags[0] == self._END_OF_SECTION_MARKER):
@@ -363,62 +339,82 @@ class MecabTagger:
                     _log, TextAnalysisError,
                     f'Unexpected number of MeCab tags '
                     f'({len(parsed_token_tags)}) for token '
-                    f'{parsed_token_tags} in {text}'
+                    f'{parsed_token_tags} in "{text}"'
                 )
 
-            mecab_token = MecabToken(
-                parsed_token_tags[0], parsed_token_tags[1],
-                parsed_token_tags[2],
-                parsed_token_tags[3].split(self._POS_SPLITTER)
+            found_lexical_item = FoundJpnLexicalItem(
+                surface_form=parsed_token_tags[0],
+                reading=parsed_token_tags[1],
+                base_form=parsed_token_tags[2],
+                parts_of_speech=parsed_token_tags[3].split(self._POS_SPLITTER)
             )
             if len(parsed_token_tags) >= 5:
-                mecab_token.conjugated_type = parsed_token_tags[4]
+                found_lexical_item.conjugated_type = parsed_token_tags[4]
             if len(parsed_token_tags) >= 6:
-                mecab_token.conjugated_form = parsed_token_tags[5]
+                found_lexical_item.conjugated_form = parsed_token_tags[5]
 
-            mecab_tokens.append(mecab_token)
+            found_lexical_items.append(found_lexical_item)
 
-        return mecab_tokens
+        return found_lexical_items
 
-    def _get_mecab_neologd_dict_path(self) -> Optional[str]:
-        """Attempts to find the path to the NEologd dict in the system.
+    def _parse_mecab_output(self, output: str) -> List[List[str]]:
+        """Parses the individual tags from MeCab chasen output.
 
-        This function is best effort. Logs warning if NEologd dictionary cannot
-        be found on the system and then returns None.
+        Args:
+            output: MeCab chasen output.
 
         Returns:
-            The path to the directory containing the NEologd dictionary, or
-            None if the NEologd dictionary could not be found.
+            A list where each entry is a list of the tokens parsed from one
+            line of the output.
+        """
+        parsed_tokens = []
+        for line in output.splitlines():
+            if len(line) == 0:
+                continue
+            tokens = [
+                t for t in line.split(self._TOKEN_SPLITTER) if len(t) > 0
+            ]
+            parsed_tokens.append(tokens)
+
+        return parsed_tokens
+
+    def _get_mecab_neologd_dict_path(self) -> str:
+        """Finds the path to the NEologd dict in the system.
+
+        Returns:
+            The path to the directory containing the NEologd dictionary.
+
+        Raises:
         """
         output = subprocess.run(
             ['mecab-config', '--version'], capture_output=True
         )
         if output.returncode != 0:
-            _log.warning(
+            utils.log_and_raise(
+                _log, ResourceLoadError,
                 'MeCab is not installed on this system, so the '
-                'mecab-ipadic-NEologd dictionary cannot be used.'
+                'mecab-ipadic-NEologd dictionary cannot be used'
             )
-            return None
 
         output = subprocess.run(
             ['mecab-config', '--dicdir'], capture_output=True
         )
         if output.returncode != 0:
-            _log.warning(
+            utils.log_and_raise(
+                _log, ResourceLoadError,
                 'MeCab dictionary directory could not be retrieved, so the '
-                'mecab-ipadic-NEologd dictionary cannot be used.'
+                'mecab-ipadic-NEologd dictionary cannot be used'
             )
-            return None
 
         neologd_path = os.path.join(
             output.stdout.decode(sys.stdout.encoding).strip(),
             self._MECAB_NEOLOGD_DIR_NAME
         )
         if not os.path.exists(neologd_path):
-            _log.warning(
+            utils.log_and_raise(
+                _log, ResourceLoadError,
                 'mecab-ipadic-NEologd is not installed on this system, so the '
-                'mecab-ipadic-NEologd dictionary cannot be used.'
+                'mecab-ipadic-NEologd dictionary cannot be used'
             )
-            return None
 
         return neologd_path

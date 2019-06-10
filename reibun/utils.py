@@ -11,6 +11,8 @@ import sys
 from datetime import datetime
 from typing import Callable, Optional
 
+import charguana
+import jaconv
 import pytz
 import requests
 from bs4.element import NavigableString, Tag
@@ -28,6 +30,8 @@ _JAPAN_TIMEZONE = pytz.timezone('Japan')
 _LOGGING_FORMAT = (
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+_KATAKANA_CHARS = set(charguana.get_charset('katakana'))
 
 
 def toggle_reibun_debug_log(enable: bool = True, filepath: str = None) -> None:
@@ -88,7 +92,7 @@ def get_request_raise_on_error(
     Raises:
         HTTPError: The GET request returned with a status code >= 400
     """
-    _log.debug(f'Making GET request to {url}')
+    _log.debug(f'Making GET request to url "{url}"')
     if session:
         response = session.get(url, **kwargs)
     else:
@@ -112,9 +116,25 @@ def convert_jst_to_utc(dt: datetime) -> datetime:
     return local_dt.astimezone(pytz.utc)
 
 
-def alnum_count(string: str) -> int:
+def get_alnum_count(string: str) -> int:
     """Returns the number of alphanumeric characters in the string."""
     return sum(c.isalnum() for c in string)
+
+
+def normalize_char_width(string: str) -> str:
+    """Normalizes character widths in string to a set standard.
+
+    Converts all katakana to full-width, and converts all latin alphabet and
+    numeric characters to half-width
+    """
+    out_str = jaconv.h2z(string, kana=True, ascii=False, digit=False)
+    out_str = jaconv.z2h(out_str, kana=False, ascii=True, digit=True)
+    return out_str
+
+
+def is_all_katakana(string: str) -> bool:
+    """Returns True is string is all katakana chars, False otherwise."""
+    return all(char in _KATAKANA_CHARS for char in string)
 
 
 def parse_valid_child_text(tag: Tag) -> Optional[str]:
@@ -140,7 +160,7 @@ def parse_valid_child_text(tag: Tag) -> Optional[str]:
                 descendant.name not in _ALLOWABLE_HTML_TAGS_IN_TEXT):
             _log.debug(
                 f'Child text contains invalid {descendant.name} '
-                f'tag: {tag!s}',
+                f'tag: "{tag}"',
             )
             return None
 
@@ -161,7 +181,7 @@ def _get_full_name(func: Callable) -> str:
 
 
 def shorten_str(string: str, max_chars: int = 100) -> str:
-    """Shorten string to a max length.
+    """Shorten string to a max length + a shortened indicator.
 
     Adds an indicator to the end of the string if some of the string was
     removed by shortening it.

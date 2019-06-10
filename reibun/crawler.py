@@ -8,8 +8,8 @@ import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
-import reibun.indexdb as indexdb
 import reibun.utils as utils
+from reibun.datatypes import JpnArticle
 
 _log = logging.getLogger(__name__)
 
@@ -65,13 +65,17 @@ class NhkNewsWebCrawler(object):
         )
 
         if len(title_spans) != 1:
-            _log.error(f'Found {len(title_spans)} title spans')
+            _log.error(
+                f'Found {len(title_spans)} title spans in: '
+                f'"{article_section}"'
+            )
             return None
 
         title = utils.parse_valid_child_text(title_spans[0])
         if title is None:
             _log.error(
-                f'Unable to determine title from span tag: {title_spans[0]!s}'
+                f'Unable to determine title from span tag '
+                f'"{title_spans[0]}" in: "{article_section}"'
             )
             return None
 
@@ -93,12 +97,15 @@ class NhkNewsWebCrawler(object):
         time_tags = article_section.find_all('time')
 
         if len(time_tags) != 1:
-            _log.error(f'Found {len(time_tags)} time tags')
+            _log.error(
+                f'Found {len(time_tags)} time tags in: "{article_section}"'
+            )
             return None
 
         if not time_tags[0].has_attr('datetime'):
             _log.error(
-                f'Time tag has no datetime attribute: {time_tags[0]!s}'
+                f'Time tag "{time_tags[0]}" has no datetime attribute in: '
+                f'"{article_section}"'
             )
             return None
 
@@ -108,7 +115,8 @@ class NhkNewsWebCrawler(object):
             )
         except ValueError:
             _log.error(
-                'Failed to parse datetime: %s', time_tags[0]['datetime']
+                f'Failed to parse datetime "{time_tags[0]["datetime"]}" of '
+                f'"{time_tags[0]}" in: "{article_section}"'
             )
             return None
 
@@ -137,7 +145,7 @@ class NhkNewsWebCrawler(object):
             child_text = utils.parse_valid_child_text(child)
             if child_text is None:
                 _log.debug(
-                    f'Unable to determine body text from tag: {child!s}'
+                    f'Unable to determine body text from tag: "{child}"'
                 )
                 continue
 
@@ -159,12 +167,12 @@ class NhkNewsWebCrawler(object):
         body_tags = []
         for id_ in self._ARTICLE_BODY_IDS:
             divs = article_section.find_all('div', id=id_)
-            _log.debug(f'Found {len(divs)} with id {id_}')
+            _log.debug(f'Found {len(divs)} with id "{id_}"')
             body_tags += divs
 
         for class_ in self._ARTICLE_BODY_CLASSES:
             divs = article_section.find_all('div', class_=class_)
-            _log.debug(f'Found {len(divs)} with class {class_}')
+            _log.debug(f'Found {len(divs)} with class "{class_}"')
             body_tags += divs
 
         body_text_sections = []
@@ -180,7 +188,7 @@ class NhkNewsWebCrawler(object):
 
     def _parse_article(
         self, article_section: Tag, url: str
-    ) -> indexdb.Article:
+    ) -> JpnArticle:
         """Parses data from NHK article HTML.
 
         This function is best effort. If the parsing for any data for the
@@ -195,7 +203,7 @@ class NhkNewsWebCrawler(object):
         Returns:
             Article object containing the parsed data from article_section.
         """
-        article_data = indexdb.Article()
+        article_data = JpnArticle()
         article_data.scraped_datetime = datetime.utcnow()
         article_data.source_url = url
         article_data.source_name = self._SOURCE_NAME
@@ -207,11 +215,13 @@ class NhkNewsWebCrawler(object):
 
         body_text = self._parse_body_text(article_section)
         article_data.full_text = f'{article_data.title}\n\n{body_text}'
-        article_data.alnum_count = utils.alnum_count(article_data.full_text)
+        article_data.alnum_count = utils.get_alnum_count(
+            article_data.full_text
+        )
 
         return article_data
 
-    def scrape_article(self, url: str) -> indexdb.Article:
+    def scrape_article(self, url: str) -> JpnArticle:
         """Scrapes and parses an NHK News Web article.
 
         This function is generally best effort. An exception will be raised if
@@ -240,10 +250,11 @@ class NhkNewsWebCrawler(object):
         )
         if len(article_sections) != 1:
             _log.error(
-                f'Found {len(article_sections)} article sections for {url}'
+                f'Found {len(article_sections)} article sections for url '
+                f'"{url}"'
             )
             raise CannotParseArticleError(
-                f'Page at {url} not in expected article fromat'
+                f'Page at url "{url}" not in expected article fromat'
             )
 
         return self._parse_article(article_sections[0], url)
