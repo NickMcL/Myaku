@@ -11,7 +11,6 @@ import sys
 from datetime import datetime
 from typing import Callable, Optional
 
-import charguana
 import jaconv
 import pytz
 import requests
@@ -30,8 +29,6 @@ _JAPAN_TIMEZONE = pytz.timezone('Japan')
 _LOGGING_FORMAT = (
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-
-_KATAKANA_CHARS = set(charguana.get_charset('katakana'))
 
 
 def toggle_reibun_debug_log(enable: bool = True, filepath: str = None) -> None:
@@ -130,11 +127,6 @@ def normalize_char_width(string: str) -> str:
     out_str = jaconv.h2z(string, kana=True, ascii=False, digit=False)
     out_str = jaconv.z2h(out_str, kana=False, ascii=True, digit=True)
     return out_str
-
-
-def is_all_katakana(string: str) -> bool:
-    """Returns True is string is all katakana chars, False otherwise."""
-    return all(char in _KATAKANA_CHARS for char in string)
 
 
 def parse_valid_child_text(tag: Tag) -> Optional[str]:
