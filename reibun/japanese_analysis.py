@@ -3,6 +3,7 @@
 import gzip
 import logging
 import os
+import shelve
 import shutil
 import subprocess
 import sys
@@ -10,6 +11,7 @@ import urllib
 from collections import defaultdict
 from contextlib import closing
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, List, Tuple, Union
 from xml.etree import ElementTree
 
@@ -20,7 +22,9 @@ from reibun.datatypes import FoundJpnLexicalItem, JpnArticle
 
 _log = logging.getLogger(__name__)
 
-_RESOURCE_FILE_DIR = os.path.dirname(os.path.realpath(__file__))
+_RESOURCE_FILE_DIR = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'resources'
+)
 _JMDICT_XML_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.xml')
 _JMDICT_GZ_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.gz')
 _JMDICT_LATEST_FTP_URL = 'ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz'
@@ -204,6 +208,8 @@ class JMdictEntry(object):
 @utils.add_method_debug_logging
 class JMdict(object):
     """Object representation of a JMdict dictionary."""
+
+    _SHELF_PATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_shelf')
 
     _REPR_ELEMENT_TAGS = {
         'k_ele',  # Kanji representation
@@ -474,6 +480,10 @@ class JMdict(object):
             ResourceLoadError: There was an issue with the passed JMdict XML
                 file that prevented it from being loaded.
         """
+        xml_last_modified_time = os.path.getmtime(xml_filepath)
+        if self._load_from_shelf_if_newer(xml_last_modified_time):
+            return
+
         if not os.path.exists(xml_filepath):
             utils.log_and_raise(
                 _log, ResourceLoadError,
@@ -494,11 +504,74 @@ class JMdict(object):
                 self._mecab_decomp_map[mecab_decomp].append(entry_obj)
                 self._entry_map[entry_obj.text_form].append(entry_obj)
 
+        self._write_to_shelf()
+
     @utils.skip_method_debug_logging
     def _get_mecab_decomb(self, entry: JMdictEntry) -> Tuple[str, ...]:
         """Get the MeCab decomposition of the text form of the entry."""
         lexical_items = self._mecab_tagger.parse(entry.text_form)
         return tuple(item.base_form for item in lexical_items)
+
+    def _load_from_shelf_if_newer(self, comp_timestamp: float) -> bool:
+        """Loads JMdict maps from shelf if shelf is newer than given timestamp.
+
+        If the shelf file for JMdict exists and was last modified after the
+        given timestamp, loads JMdict data from the shelf.
+
+        Args:
+            comp_timestamp: Unix timestamp to compare the shelf last modified
+                time against to see if the shelf is newer.
+
+        Returns:
+            True if the shelf file was newer and JMdict data was loaded from
+            the shelf, or False if the shelf did not exist or was older and no
+            JMdict data was loaded.
+        """
+        if not os.path.exists(self._SHELF_PATH):
+            _log.debug(
+                f'Shelf file does not exist at "{self._SHELF_PATH}", so no '
+                f'data loaded from the shelf'
+            )
+            return False
+
+        shelf_timestamp = os.path.getmtime(self._SHELF_PATH)
+        shelf_dt_timestamp = datetime.utcfromtimestamp(shelf_timestamp)
+        comp_dt_timestamp = datetime.utcfromtimestamp(comp_timestamp)
+        if shelf_timestamp <= comp_timestamp:
+            _log.debug(
+                f'Shelf file ({self._SHELF_PATH}) last modified time '
+                f'({shelf_dt_timestamp.isoformat()}) is before compare last '
+                f'modified time ({comp_dt_timestamp.isoformat()}), so no data '
+                f'loaded from the shelf'
+            )
+            return False
+
+        _log.debug(
+            f'Shelf file ({self._SHELF_PATH}) last modified time '
+            f'({shelf_dt_timestamp.isoformat()}) is after compare last '
+            f'modified time ({comp_dt_timestamp.isoformat()}), so loading '
+            f'data from the shelf'
+        )
+        with shelve.open(self._SHELF_PATH, 'r') as shelf:
+            self._entry_map = defaultdict(list)
+            self._mecab_decomp_map = defaultdict(list)
+            mecab_decomp_map_items = shelf['_mecab_decomp_map_items']
+            for mecab_decomp, entry_list in mecab_decomp_map_items:
+                self._mecab_decomp_map[mecab_decomp] = entry_list
+                for entry in entry_list:
+                    self._entry_map[entry.text_form].append(entry)
+
+        return True
+
+    def _write_to_shelf(self) -> None:
+        """Writes current JMdict objects to shelf."""
+        _log.debug(
+            f'Writing current JMdict maps to shelf at "{self._SHELF_PATH}"'
+        )
+        with shelve.open(self._SHELF_PATH, 'c') as shelf:
+            shelf['_mecab_decomp_map_items'] = list(
+                self._mecab_decomp_map.items()
+            )
 
     def contains_entry(self, entry: Union[str, Tuple[str, ...]]) -> bool:
         """Tests if entry is in the JMdict entries.
