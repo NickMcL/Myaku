@@ -7,14 +7,16 @@ import shutil
 import subprocess
 import sys
 import urllib
+from collections import defaultdict
 from contextlib import closing
-from typing import List, Set
+from dataclasses import dataclass
+from typing import Any, List, Tuple, Union
 from xml.etree import ElementTree
 
 import MeCab
 
 import reibun.utils as utils
-from reibun.datatypes import JpnArticle, FoundJpnLexicalItem
+from reibun.datatypes import FoundJpnLexicalItem, JpnArticle
 
 _log = logging.getLogger(__name__)
 
@@ -161,78 +163,296 @@ class JapaneseTextAnalyzer(object):
         return False
 
 
+@dataclass
+class JMdictEntry(object):
+    """Stores the data for an entry from JMdict.
+
+    This class does NOT map exactly to the format official JMdict XML uses to
+    store entries. A proper entry from JMdict XML contains all text form
+    representations (readings and writings) of an entry, but this class holds
+    only a single text form from an entry and the subset of info from that
+    entry related to that text form. This form is used because it is easier to
+    work with for text analysis.
+
+    Attributes:
+        entry_id: The unique ID of the JMdict XML entry that the data for this
+            entry came from.
+        text_form: The Japanese text representation of the entry. The defining
+            part of the entry.
+        text_form_info: Info related to this specific text form that may not
+            apply to other text forms of the same entry.
+        text_form_freq: Info related to how frequently this entry is used in
+            Japanese. See JMdict schema for how to decode this info.
+        parts_of_speech: Parts of speech that apply to this entry.
+        fields: The fields of application for this entry (e.g. food term,
+            baseball term, etc.)
+        dialect: The dialects that apply for this entry (e.g. kansaiben).
+        misc: Other miscellaneous info recorded for this entry from JMdict.
+    """
+    entry_id: str = None
+    text_form: str = None
+    text_form_info: Tuple[str, ...] = None
+    text_form_freq: Tuple[str, ...] = None
+    parts_of_speech: Tuple[str, ...] = None
+    fields: Tuple[str, ...] = None
+    dialects: Tuple[str, ...] = None
+    misc: Tuple[str, ...] = None
+
+
 @utils.add_method_debug_logging
 class JMdict(object):
     """Object representation of a JMdict dictionary."""
 
-    # JMdict entries can have several representations stored as sub-elements of
-    # different types within the entry XML. This map maps the tag for each of
-    # these sub-element types to the tag within that sub-element that holds the
-    # string representation for that representation of the entry.
-    _JMDICT_ELEMENT_REPR_MAP = {
-        'k_ele': 'keb',  # kanji representation sub-element
-        'r_ele': 'reb'   # kana representation sub-element
+    _REPR_ELEMENT_TAGS = {
+        'k_ele',  # kanji representation
+        'r_ele',  # reading (kana) representation
     }
 
+    _SENSE_ELEMENT_TAG = 'sense'
+
+    _ENTRY_ID_TAG = 'ent_seq'
+
+    _REPR_TEXT_FORM_TAG = {
+        'k_ele': 'keb',
+        'r_ele': 'reb',
+    }
+
+    _REPR_OPTIONAL_TAGS = {
+        'k_ele': ['ke_inf', 'ke_pri'],
+        'r_ele': ['re_inf', 're_pri'],
+    }
+
+    _SENSE_OPTIONAL_TAGS = {
+        'stagk',  # Applicable kanji representation
+        'stagr',  # Applicable reading (kana) representation
+        'pos',
+        'field',
+        'misc',  # Categorized extra info
+        'dial',
+        's_inf',  # Uncategorized extra info
+    }
+
+    _TAG_TO_OBJ_ATTR_MAP = {
+        'ent_seq': 'entry_id',
+        'keb': 'text_form',
+        'reb': 'text_form',
+        'ke_inf': 'text_form_info',
+        're_inf': 'text_form_info',
+        'ke_pri': 'text_form_freq',
+        're_pri': 'text_form_freq',
+        'stagk': 'applicable_elements',
+        'stagr': 'applicable_elements',
+        'pos': 'parts_of_speech',
+        'field': 'fields',
+        'misc': 'misc',
+        'dial': 'dialects',
+        's_inf': 'misc',
+    }
+
+    _TUPPLE_TAGS = {
+        'ke_inf',
+        're_inf',
+        'ke_pri',
+        're_pri',
+        'stagk',
+        'stagr',
+        'pos',
+        'field',
+        'misc',
+        'dial',
+        's_inf',
+    }
+
+    @dataclass
+    class _JMdictSense(object):
+        """Stores the data for a sense element for a JMdict entry.
+
+        A sense of a JMdict entry holds various info about the entry that can
+        apply to some or all of the representational elements of the entry.
+
+        This class is only used during processing internal to the JMdict class.
+        This information is then exposed publicly via the JMdictEntry class.
+
+        Attributes:
+            applicable_reprs: Tuple of representations of the entry that this
+                sense applys to. If empty, applies to all reprs of the entry.
+            parts_of_speech: Parts of speech that the entry can be.
+            fields: The fields of application for this entry (e.g. food term,
+                baseball term, etc.)
+            dialect: The dialects that apply for this entry (e.g. kansaiben).
+            misc: Other miscellaneous info recorded for this entry in JMdict.
+        """
+        applicable_elements: Tuple[str, ...] = None
+        parts_of_speech: Tuple[str, ...] = None
+        fields: Tuple[str, ...] = None
+        dialects: Tuple[str, ...] = None
+        misc: Tuple[str, ...] = None
+
     def __init__(self, jmdict_xml_filepath: str = None) -> None:
-        self._jmdict_entries = None
+        self._entry_map = None
+        self._mecab_decomp_map = None
+        self._mecab_tagger = MecabTagger()
 
         if jmdict_xml_filepath is not None:
             self.load_jmdict(jmdict_xml_filepath)
 
     @utils.skip_method_debug_logging
-    def _parse_jmdict_reprs(
-        self, jmdict_entry: ElementTree.Element
-    ) -> Set[str]:
-        """Parse all string representations for a given JMdict XML entry.
+    def _parse_entry_xml(
+        self, entry: ElementTree.Element
+    ) -> List[JMdictEntry]:
+        """Parse all elements from a given JMdict XML entry.
 
         Because many Japanese words can be written using kanji as well as kana,
         there are often different ways to write the same word. JMdict entries
         include each of these representations as separate elements, so this
-        function parses all of the representations for a given entry and
-        returns them in a set.
+        function parses all of these elements plus the corresponding sense
+        information and merges the info together into JMdictEntry objects.
 
         Args:
-            jmdict_entry: An XML entry element from a JMdict XML file.
+            entry: An XML entry element from a JMdict XML file.
 
         Returns:
-            A set of all of the string representations of the given entry.
+            A list of all of the elements for the given entry.
 
         Raises:
             ResourceLoadError: The passed entry had malformed JMdict XML, so it
             could not be parsed.
         """
-        repr_strs = set()
-        repr_elements = (
-            e for e in jmdict_entry if e.tag in self._JMDICT_ELEMENT_REPR_MAP
-        )
+        repr_objs = []
+        sense_objs = []
+        for element in entry:
+            if element.tag in self._REPR_ELEMENT_TAGS:
+                repr_obj = JMdictEntry()
+                self._parse_text_elements(
+                    repr_obj, entry, [self._ENTRY_ID_TAG], required=True
+                )
+                self._parse_text_elements(
+                    repr_obj, element, [self._REPR_TEXT_FORM_TAG[element.tag]],
+                    required=True
+                )
+                self._parse_text_elements(
+                    repr_obj, element, self._REPR_OPTIONAL_TAGS[element.tag],
+                    required=False
+                )
+                repr_objs.append(repr_obj)
 
-        for element in repr_elements:
-            repr_str = element.findtext(
-                self._JMDICT_ELEMENT_REPR_MAP[element.tag]
-            )
-            if repr_str is None or repr_str == '':
-                element_str = ElementTree.tostring(jmdict_entry).decode()
+            elif element.tag == self._SENSE_ELEMENT_TAG:
+                sense_obj = self._JMdictSense()
+                self._parse_text_elements(
+                    sense_obj, element, self._SENSE_OPTIONAL_TAGS,
+                    required=False
+                )
+                sense_objs.append(sense_obj)
+
+            elif element.tag != self._ENTRY_ID_TAG:
+                entry_str = ElementTree.tostring(entry).decode('utf-8')
                 utils.log_and_raise(
                     _log, ResourceLoadError,
-                    f'Malformed JMdict XML. No '
-                    f'"{self._JMDICT_ELEMENT_REPR_MAP[element.tag]}" element '
-                    f'or text found within "{element.tag}" element: '
-                    f'"{element_str}"'
+                    f'Malformed JMdict XML. Unknown tag "{element.tag}" found '
+                    f'with "{entry.tag}" tag: "{entry_str}"'
                 )
 
-            repr_strs.add(repr_str)
+        self._add_sense_data(repr_objs, sense_objs)
+        return repr_objs
 
-        if len(repr_strs) == 0:
-            element_str = ElementTree.tostring(jmdict_entry).decode()
-            repr_element_tags = list(self._JMDICT_ELEMENT_REPR_MAP.keys())
+    @utils.skip_method_debug_logging
+    def _add_sense_data(
+        self, entries: List[JMdictEntry], senses: List['JMdict._JMdictSense']
+    ) -> None:
+        """Adds the data from the sense objs to the entry objs."""
+        for sense in senses:
+            for entry in entries:
+                if (sense.applicable_elements is not None
+                        and len(sense.applicable_elements) > 0
+                        and entry.text_form not in sense.applicable_elements):
+                    continue
+
+                entry.parts_of_speech = sense.parts_of_speech
+                entry.fields = sense.fields
+                entry.dialects = sense.dialects
+                entry.misc = sense.misc
+
+    @utils.skip_method_debug_logging
+    def _parse_text_elements(
+        self, storage_obj: Any, parent_element: ElementTree.Element,
+        element_tags: List[str], required: bool = False
+    ) -> None:
+        """Parses text-containing elements and stores the data in a object.
+
+        Args:
+            storage_obj: An object with attribute names mapped to by the
+                _TAG_TO_OBJ_ATTR_MAP.
+            parent_element: The XML element whose children to parse for the
+                text-containing elements.
+            element_tags: The tags of the elements to parse.
+            required: If True, will raise an error if any of the elements are
+                not found within the children of the parent element.
+
+        Raises:
+            ResourceLoadError: A required element was not found, or an element
+                was found with no parsable text within it.
+        """
+        for tag in element_tags:
+            if required:
+                elements = self._find_all_raise_if_none(tag, parent_element)
+            else:
+                elements = parent_element.findall(tag)
+
+            for ele in elements:
+                self._raise_if_no_text(ele, parent_element)
+                if tag in self._TUPPLE_TAGS:
+                    self._append_to_tuple_attr(
+                        storage_obj, self._TAG_TO_OBJ_ATTR_MAP[tag], ele.text
+                    )
+                else:
+                    setattr(
+                        storage_obj, self._TAG_TO_OBJ_ATTR_MAP[tag], ele.text
+                    )
+
+    @utils.skip_method_debug_logging
+    def _append_to_tuple_attr(
+        self, storage_obj: Any, attr_name: str, append_item: str
+    ) -> None:
+        """Creates new tuple for attr of storage object with item appended."""
+        current_val = getattr(storage_obj, attr_name)
+        if current_val is None:
+            setattr(storage_obj, attr_name, (append_item,))
+        else:
+            setattr(storage_obj, attr_name, current_val + (append_item,))
+
+    @utils.skip_method_debug_logging
+    def _find_all_raise_if_none(
+        self, tag: str, parent_element: ElementTree.Element
+    ) -> List[ElementTree.Element]:
+        """Finds all tag elements in parent, and raises error if none.
+
+        Raises ResourceLoadError if no tag elements are found.
+        """
+        elements = parent_element.findall(tag)
+        if len(elements) == 0:
+            parent_str = ElementTree.tostring(parent_element).decode('utf-8')
             utils.log_and_raise(
                 _log, ResourceLoadError,
-                f'Malformed JMdict XML. No "{repr_element_tags}" elements '
-                f'found within "{jmdict_entry.tag}" element: "{element_str}"'
+                f'Malformed JMdict XML. No "{tag}" element within '
+                f'"{parent_element.tag}" element: "{parent_str}"'
             )
 
-        return repr_strs
+        return elements
+
+    @utils.skip_method_debug_logging
+    def _raise_if_no_text(
+        self, element: ElementTree.Element, parent_element: ElementTree.Element
+    ) -> None:
+        """Raises ResourceLoadError if no accessible text in element."""
+        if element.text is not None and len(element.text) > 0:
+            return
+
+        parent_str = ElementTree.tostring(parent_element).decode('utf-8')
+        utils.log_and_raise(
+            _log, ResourceLoadError,
+            f'Malformed JMdict XML. No accessible text within "{element.tag}" '
+            f'element: "{parent_str}"'
+        )
 
     def load_jmdict(self, xml_filepath: str) -> None:
         """Loads data from a JMdict XML file.
@@ -254,16 +474,29 @@ class JMdict(object):
         tree = ElementTree.parse(xml_filepath)
         _log.debug('Reading of JMdict XML file complete')
 
-        self._jmdict_entries = set()
+        self._entry_map = defaultdict(list)
+        self._mecab_decomp_map = defaultdict(list)
         root = tree.getroot()
-        for entry in root:
-            self._jmdict_entries.update(self._parse_jmdict_reprs(entry))
+        for entry_element in root:
+            entry_objs = self._parse_entry_xml(entry_element)
+            for entry_obj in entry_objs:
+                mecab_decomp = self._get_mecab_decomb(entry_obj)
+                self._mecab_decomp_map[mecab_decomp].append(entry_obj)
+                self._entry_map[entry_obj.text_form].append(entry_obj)
 
-    def contains_entry(self, entry: str) -> bool:
-        """Tests if entry is in the loaded JMdict entries.
+    @utils.skip_method_debug_logging
+    def _get_mecab_decomb(self, entry: JMdictEntry) -> Tuple[str, ...]:
+        """Get the MeCab decomposition of the text form of the entry."""
+        lexical_items = self._mecab_tagger.parse(entry.text_form)
+        return tuple(item.base_form for item in lexical_items)
+
+    def contains_entry(self, entry: Union[str, Tuple[str, ...]]) -> bool:
+        """Tests if entry is in the JMdict entries.
 
         Args:
-            entry: entry to check for in the loaded JMdict entries.
+            entry: value to check for in the loaded JMdict entries. If a
+                string, checks if an entry with that text form exists. If a
+                tuple, checks if an entry with that Mecab decomposition exists.
 
         Returns:
             True if the entry is in the loaded JMdict entries, False otherwise.
@@ -272,16 +505,52 @@ class JMdict(object):
             ResourceNotReadyError: JMdict data has not been loaded into this
                 JMdict object yet.
         """
-        if self._jmdict_entries is None:
+        if self._entry_map is None or self._mecab_decomp_map is None:
             utils.log_and_raise(
                 _log, ResourceNotReadyError,
                 'JMdict object used before loading any JMdict data.'
             )
-        return entry in self._jmdict_entries
 
-    def __contains__(self, entry) -> bool:
+        if isinstance(entry, str):
+            return entry in self._entry_map
+        return entry in self._mecab_decomp_map
+
+    def __contains__(self, entry: Union[str, Tuple[str, ...]]) -> bool:
         """Simply calls self.contains_entry."""
         return self.contains_entry(entry)
+
+    def get_entries(
+        self, entry: Union[str, Tuple[str, ...]]
+    ) -> List[JMdictEntry]:
+        """Gets the list of JMdict entries that match the give entry.
+
+        Args:
+            entry: value to get matching JMdict entries for. If a string, gets
+                entries with matching text form. If a tuple, gets entries with
+                matching Mecab decomposition.
+
+        Returns:
+            A list of the matching JMdict entries.
+
+        Raises:
+            ResourceNotReadyError: JMdict data has not been loaded into this
+                JMdict object yet.
+        """
+        if self._entry_map is None or self._mecab_decomp_map is None:
+            utils.log_and_raise(
+                _log, ResourceNotReadyError,
+                'JMdict object used before loading any JMdict data.'
+            )
+
+        if isinstance(entry, str):
+            return self._entry_map.get(entry, [])
+        return self._mecab_decomp_map.get(entry, [])
+
+    def __getitem__(
+        self, entry: Union[str, Tuple[str, ...]]
+    ) -> List[JMdictEntry]:
+        """Simply calls self.get_entries."""
+        return self.get_entries(entry)
 
 
 @utils.add_method_debug_logging
@@ -318,6 +587,7 @@ class MecabTagger:
             neologd_path = self._get_mecab_neologd_dict_path()
             self._mecab_tagger = MeCab.Tagger(f'-Ochasen -d {neologd_path}')
 
+    @utils.skip_method_debug_logging
     def parse(self, text: str) -> List[FoundJpnLexicalItem]:
         """Returns the lexical items found by MeCab in the text.
 
@@ -357,6 +627,7 @@ class MecabTagger:
 
         return found_lexical_items
 
+    @utils.skip_method_debug_logging
     def _parse_mecab_output(self, output: str) -> List[List[str]]:
         """Parses the individual tags from MeCab chasen output.
 
@@ -371,9 +642,17 @@ class MecabTagger:
         for line in output.splitlines():
             if len(line) == 0:
                 continue
-            tokens = [
-                t for t in line.split(self._TOKEN_SPLITTER) if len(t) > 0
-            ]
+            tokens = line.split(self._TOKEN_SPLITTER)
+
+            # Very rarely, MeCab will give a blank base form for some proper
+            # nouns. In these cases, set the base form to be the same as the
+            # surface form.
+            if (len(tokens) >= 3
+                    and len(tokens[2]) == 0
+                    and tokens[0] == tokens[1]):
+                tokens[2] = tokens[0]
+
+            tokens = [t for t in tokens if len(t) > 0]
             parsed_tokens.append(tokens)
 
         return parsed_tokens
