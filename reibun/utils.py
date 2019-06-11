@@ -5,11 +5,13 @@ Attributes:
 """
 
 import functools
+import inspect
 import logging
 import re
 import sys
 from datetime import datetime
-from typing import Callable, Optional
+from operator import itemgetter
+from typing import Any, Callable, Optional
 
 import jaconv
 import pytz
@@ -165,11 +167,11 @@ def parse_valid_child_text(tag: Tag) -> Optional[str]:
         return None
 
 
-def _get_full_name(func: Callable) -> str:
-    """Gets the fully qualified name of the funcion."""
-    if func.__module__:
-        return f'{func.__module__}.{func.__qualname__}'
-    return func.__qualname__
+def get_full_name(obj: Any) -> str:
+    """Gets the fully qualified name of the object."""
+    if obj.__module__:
+        return f'{obj.__module__}.{obj.__qualname__}'
+    return obj.__qualname__
 
 
 def shorten_str(string: str, max_chars: int = 100) -> str:
@@ -190,7 +192,7 @@ def add_debug_logging(func: Callable) -> Callable:
     """
     @functools.wraps(func)
     def wrapper_add_debug_logging(*args, **kwargs):
-        func_name = _get_full_name(func)
+        func_name = get_full_name(func)
 
         args_repr = [shorten_str(repr(arg)) for arg in args]
         kwargs_repr = [shorten_str(f'{k}={v!r}') for k, v in kwargs.items()]
@@ -236,3 +238,47 @@ def skip_method_debug_logging(func: Callable) -> Callable:
     """
     func.__dict__['DEBUG_SKIP'] = None
     return func
+
+
+def flyweight_class(cls):
+    """Makes the decorated class into a flyweight.
+
+    This will cause there to only ever be one object in existence for each
+    combination of init parameters for the class. If a second object is
+    attempted to be created with the same init parameters as an existing
+    object, the class constructor will just give the reference of the existing
+    object with those init parameters without creating a new object and without
+    calling the __new__ or __init__ methods again of the existing object.
+
+    This decorator should only be used on a class whose possible __init__
+    parameters are all hashable.
+    """
+    if not hasattr(flyweight_class, '_flyweight_map'):
+        flyweight_class._flyweight_map = {}
+
+    @functools.wraps(cls)
+    def flyweight_wrapper(*args, **kwargs):
+        init_sig = inspect.signature(cls.__init__)
+
+        # The 0 used for the first arg is just a placeholder to fill the self
+        # arg of the __init__ signature.
+        bound_args = init_sig.bind(0, *args, **kwargs)
+        bound_args.apply_defaults()
+        sorted_kwargs = tuple(
+            sorted(bound_args.kwargs.items(), key=itemgetter(0))
+        )
+
+        # Skip the first arg of args so that the 0 we used earlier as a
+        # placeholder for the self arg isn't included.
+        init_sig_key = bound_args.args[1:] + sorted_kwargs
+
+        cls_name = get_full_name(cls)
+        if cls_name not in flyweight_class._flyweight_map:
+            flyweight_class._flyweight_map[cls_name] = {}
+        cls_flyweight_map = flyweight_class._flyweight_map[cls_name]
+
+        if init_sig_key not in cls_flyweight_map:
+            cls_flyweight_map[init_sig_key] = cls(*args, **kwargs)
+        return cls_flyweight_map[init_sig_key]
+
+    return flyweight_wrapper

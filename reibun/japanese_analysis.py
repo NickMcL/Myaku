@@ -75,6 +75,7 @@ class TextAnalysisError(Exception):
     pass
 
 
+@utils.flyweight_class
 @utils.add_method_debug_logging
 class JapaneseTextAnalyzer(object):
     """Analyzes Japanese text to determine used lexical items."""
@@ -199,13 +200,14 @@ class JMdictEntry(object):
     misc: Tuple[str, ...] = None
 
 
+@utils.flyweight_class
 @utils.add_method_debug_logging
 class JMdict(object):
     """Object representation of a JMdict dictionary."""
 
     _REPR_ELEMENT_TAGS = {
-        'k_ele',  # kanji representation
-        'r_ele',  # reading (kana) representation
+        'k_ele',  # Kanji representation
+        'r_ele',  # Reading (kana) representation
     }
 
     _SENSE_ELEMENT_TAG = 'sense'
@@ -218,17 +220,23 @@ class JMdict(object):
     }
 
     _REPR_OPTIONAL_TAGS = {
-        'k_ele': ['ke_inf', 'ke_pri'],
-        'r_ele': ['re_inf', 're_pri'],
+        'k_ele': [
+            'ke_inf',  # Text form information
+            'ke_pri',  # Text form frequency
+        ],
+        'r_ele': [
+            're_inf',
+            're_pri',
+        ],
     }
 
     _SENSE_OPTIONAL_TAGS = {
         'stagk',  # Applicable kanji representation
         'stagr',  # Applicable reading (kana) representation
-        'pos',
-        'field',
+        'pos',  # Part of speech
+        'field',  # Field of application (e.g. food, baseball, etc.)
         'misc',  # Categorized extra info
-        'dial',
+        'dial',  # Dialect
         's_inf',  # Uncategorized extra info
     }
 
@@ -249,6 +257,8 @@ class JMdict(object):
         's_inf': 'misc',
     }
 
+    # These tags can have more than one element per entry, so their info should
+    # be stored in a tuple of strings rather than a single string.
     _TUPPLE_TAGS = {
         'ke_inf',
         're_inf',
@@ -553,6 +563,7 @@ class JMdict(object):
         return self.get_entries(entry)
 
 
+@utils.flyweight_class
 @utils.add_method_debug_logging
 class MecabTagger:
     """Object representation of a MeCab tagger.
