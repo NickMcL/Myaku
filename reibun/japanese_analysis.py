@@ -85,7 +85,7 @@ class TextAnalysisError(Exception):
 class JapaneseTextAnalyzer(object):
     """Analyzes Japanese text to determine used lexical items."""
 
-    _SYMBOL_PART_OF_SPEECH = '\u8a18\u53f7'  # Japanese word for symbol (kigou)
+    _SYMBOL_PART_OF_SPEECH = '記号'  # Japanese word for symbol (kigou)
 
     def __init__(self) -> None:
         """Loads the external resources needed for text analysis."""
@@ -103,14 +103,20 @@ class JapaneseTextAnalyzer(object):
                 lexical items.
         """
         article_blocks = article.full_text.splitlines()
-        text_blocks = [b for b in article_blocks if len(b) > 0]
-        _log.debug(f'Article "{article}" split into {len(text_blocks)} blocks')
+        _log.debug(
+            f'Article "{article}" split into %s blocks',
+            len([b for b in article_blocks if len(b) > 0])
+        )
 
         if article.found_lexical_items is None:
             article.found_lexical_items = []
 
         offset = 0
-        for text_block in text_blocks:
+        for text_block in article_blocks:
+            if len(text_block) == 0:
+                offset += 1  # for new line char
+                continue
+
             found_lexical_items = self._find_lexical_items(
                 text_block, offset, len(article.full_text)
             )
@@ -121,7 +127,7 @@ class JapaneseTextAnalyzer(object):
             )
             article.found_lexical_items.extend(found_lexical_items)
 
-            offset += len(text_block)
+            offset += len(text_block) + 1  # +1 for new line char
 
     def _find_lexical_items(
         self, text: str, offset: int, article_len: int
@@ -843,6 +849,14 @@ class MecabTagger:
     _TOKEN_SPLITTER = '\t'
     _EXPECTED_TOKEN_TAG_COUNTS = {4, 5, 6}
 
+    _ADJUST_TAGS_MAP = {
+        # MeCab tags a single な character with the base form だ, which is
+        # technically correct, but in the vast majority of cases, it works
+        # better for lexical analysis to treat it as having the base form な.
+        ('な', 'ナ', 'だ', '助動詞', '特殊・ダ', '体言接続'):
+            ('な', 'ナ', 'な', '助動詞', '特殊・ダ', '体言接続'),
+    }
+
     def __init__(self, use_default_ipadic: bool = False) -> None:
         """Inits the MeCab tagger wrapper.
 
@@ -907,6 +921,8 @@ class MecabTagger:
     def _parse_mecab_output(self, output: str) -> List[List[str]]:
         """Parses the individual tags from MeCab chasen output.
 
+        Adjusts some values from the output if they are known problems.
+
         Args:
             output: MeCab chasen output.
 
@@ -918,20 +934,36 @@ class MecabTagger:
         for line in output.splitlines():
             if len(line) == 0:
                 continue
-            tokens = line.split(self._TOKEN_SPLITTER)
+            tags = line.split(self._TOKEN_SPLITTER)
+            self._adjust_if_known_problem(tags)
 
-            # Very rarely, MeCab will give a blank base form for some proper
-            # nouns. In these cases, set the base form to be the same as the
-            # surface form.
-            if (len(tokens) >= 3
-                    and len(tokens[2]) == 0
-                    and tokens[0] == tokens[1]):
-                tokens[2] = tokens[0]
-
-            tokens = [t for t in tokens if len(t) > 0]
-            parsed_tokens.append(tokens)
+            tags = [t for t in tags if len(t) > 0]
+            parsed_tokens.append(tags)
 
         return parsed_tokens
+
+    @utils.skip_method_debug_logging
+    def _adjust_if_known_problem(self, tags: List[str]) -> None:
+        """Adjusts tags for token if known MeCab parsing problem.
+
+        MeCab parses some Japanese tokens in ways that cause problems for
+        finding lexical items. This function adjusts tags in these cases to fix
+        these problems.
+
+        Args:
+            tags: A list of tags parsed from a line of MeCab output. The tags
+                will be adjusted in place in the list.
+        """
+        # Very rarely, MeCab will give a blank base form for some proper
+        # nouns. In these cases, set the base form to be the same as the
+        # surface form.
+        if (len(tags) >= 3 and len(tags[2]) == 0 and tags[0] == tags[1]):
+            tags[2] = tags[0]
+
+        adjusted_tags = self._ADJUST_TAGS_MAP.get(tuple(tags))
+        if adjusted_tags is not None:
+            for i, _ in enumerate(tags):
+                tags[i] = adjusted_tags[i]
 
     @utils.skip_method_debug_logging
     def _create_interp_obj(
