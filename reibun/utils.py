@@ -11,7 +11,7 @@ import re
 import sys
 from datetime import datetime
 from operator import itemgetter
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional, TypeVar
 
 import jaconv
 import pytz
@@ -19,6 +19,8 @@ import requests
 from bs4.element import NavigableString, Tag
 
 _log = logging.getLogger(__name__)
+
+T = TypeVar('T')
 
 HTML_TAG_REGEX = re.compile(r'<.*?>')
 
@@ -72,6 +74,19 @@ def log_and_raise(log: logging.Logger, exc: Exception, error_msg: str) -> None:
     """Logs and raises the exception with the given error message."""
     log.error(error_msg)
     raise exc(error_msg)
+
+
+def unique(items: List[T]) -> List[T]:
+    """Returns a list with only the unique elements of items.
+
+    Preserves order of items, and does not require items to be hashable.
+    """
+    used = []  # Use list instead of set since T might not be hashable
+    unique_items = []
+    for item in items:
+        if item not in used:
+            unique_items.append(item)
+    return unique_items
 
 
 def get_request_raise_on_error(

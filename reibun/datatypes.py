@@ -1,9 +1,10 @@
 """Classes for holding data used across the Reibun project."""
 
+import enum
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List
+from typing import List, Tuple
 
 import jaconv
 
@@ -12,41 +13,69 @@ import reibun.utils as utils
 _log = logging.getLogger(__name__)
 
 
-@dataclass
-class FoundJpnLexicalItem(object):
-    """A single Japanese lexical item found within a block of text.
+class InterpSource(enum.Enum):
+    MECAB = 1
+    JMDICT_MECAB_DECOMP = 2
+    JMDICT_SURFACE_FORM = 3
+    JMDICT_BASE_FORM = 4
 
-    In the following descriptions, 'the text' refers to the text block where
-    the lexical item was found.
+
+@dataclass
+class JpnLexicalItemInterp(object):
+    """An interpretation of a Japanese lexical item.
+
+    From Wikipedia, a lexical item is "a single word, a part of a word, or a
+    chain of words that forms the basic elements of a language's vocabulary".
+    This includes words, set phrases, idioms, and more. See the Wikipedia page
+    "Lexical item" for more information.
+
+    A lexical item found in text may have more than one way to interpret it.
+    For example, it could have more than one possible reading or have more than
+    one possible part of speech. This class holds all the information for one
+    interpretation.
 
     Attributes:
-        surface_form: The form the lexical item used within the text.
-        reading: The (best guess) reading of the surface form. This attr will
-            be in full-width katakana whenever possible. Setting the attr to a
+        base_form: The base (dictionary) form of the lecixal item. Character
+            widths will automatically be normalized when setting this attr.
+        reading: The reading of the lexical item. This attr will be in
+            full-width katakana whenever possible. Setting the attr to a
             non-katakana value will automatically convert it to katakana to the
             extent possible.
-        base_form: The base (dictionary) form of the lecixal item. Character
-            widths will automatically be normalized when setting the attr.
+        interp_sources: The sources where this interpretation of the lexical
+            item came from.
         parts_of_speech: The parts of speech of the lexical item. Possibly
-            multiple, so it is a list.
-        conjugated_type: The name of the conjugation type of the token.
-        conjugated_form: The name of the conjugated form of the token.
-        text_pos_abs: The zero-indexed alnum character offset of the start of
-            the lexical item from the start of the text.
-        text_pos_percent: The percent of the total alnum characters in the text
-            ahead of the lecixal item.
+            multiple at the same time, so it is a tuple.
+        conjugated_type: The name of the conjugation type of the lexical item.
+            Not applicable for some parts of speech such as nouns.
+        conjugated_form: The name of the conjugated form of the lexical item.
+            Not applicable for some parts of speech such as nouns.
+        text_form_info: Info related to the specific text form used that may
+            not apply to other text forms of the same lexical item (e.g. if the
+            text form uses ateji kanji for the lexical item).
+        text_form_freq: Info related to how frequently this text form of the
+            lexical item is used in Japanese. See JMdict schema for how to
+            decode this info.
+        fields: The fields of application for this lexical item (e.g. food
+            term, baseball term, etc.)
+        dialect: The dialects that apply for this lexical item (e.g.
+            kansaiben).
+        misc: Other miscellaneous info recorded for this lexical item from
+            JMdict.
     """
-    surface_form: str = None
-    reading: str = None
-    base_form: str = None
-    parts_of_speech: List[str] = None
+    base_form: str
+    reading: str
+    interp_sources: Tuple[InterpSource, ...] = None
+    parts_of_speech: Tuple[str, ...] = None
     conjugated_type: str = None
     conjugated_form: str = None
-    text_pos_abs: int = None
-    text_pos_percent: float = None
+    text_form_info: Tuple[str, ...] = None
+    text_form_freq: Tuple[str, ...] = None
+    fields: Tuple[str, ...] = None
+    dialects: Tuple[str, ...] = None
+    misc: Tuple[str, ...] = None
 
-    _base_form: str = field(init=False, repr=False)
-    _reading: str = field(init=False, repr=False)
+    _base_form: str = field(default=None, init=False, repr=False)
+    _reading: str = field(default=None, init=False, repr=False)
 
     @property
     def base_form(self) -> str:
@@ -75,6 +104,28 @@ class FoundJpnLexicalItem(object):
         normalized_str = utils.normalize_char_width(set_value)
         katakana_str = jaconv.hira2kata(normalized_str)
         self._reading = katakana_str
+
+
+@dataclass
+class FoundJpnLexicalItem(object):
+    """A Japanese lexical item found within a block of text.
+
+    In the following descriptions, 'the text' refers to the text block where
+    the lexical item was found.
+
+    Attributes:
+        surface_form: The form the lexical item used within the text.
+        possible_interps: Detailed information for each of the possible
+            interpretations of the lexical item.
+        text_pos_abs: The zero-indexed alnum character offset of the start of
+            the lexical item from the start of the text.
+        text_pos_percent: The percent of the total alnum characters in the text
+            ahead of the lecixal item.
+    """
+    surface_form: str = None
+    possible_interps: List[JpnLexicalItemInterp] = None
+    text_pos_abs: int = None
+    text_pos_percent: float = None
 
 
 @dataclass
