@@ -79,12 +79,14 @@ def log_and_raise(log: logging.Logger, exc: Exception, error_msg: str) -> None:
 def unique(items: List[T]) -> List[T]:
     """Returns a list with only the unique elements of items.
 
-    Preserves order of items, and does not require items to be hashable.
+    Preserves order of items, and does not require T to be hashable.
+
+    If T is a hashable type, use sets to dedupe instead of this function since
+    the set method is much faster than method used in this function.
     """
-    used = []  # Use list instead of set since T might not be hashable
     unique_items = []
     for item in items:
-        if item not in used:
+        if item not in unique_items:
             unique_items.append(item)
     return unique_items
 

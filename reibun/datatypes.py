@@ -13,7 +13,24 @@ import reibun.utils as utils
 _log = logging.getLogger(__name__)
 
 
+@enum.unique
 class InterpSource(enum.Enum):
+    """The source of a Japanese lexical item interpretation.
+
+    There are many different methods and resources that can be used interpret a
+    Japanese lexical item found in a body of text. This enum can be used to tag
+    interpretations with which method or resource was used for it.
+
+    Attributes:
+        MECAB: Output from MeCab was directly used.
+        JMDICT_MECAB_DECOMP: The base form decomposition of text provided by
+            MeCab was used as an index into JMdict.
+        JMDICT_SURFACE_FORM: The surface form of text was used as an index
+            into JMdict.
+        JMDICT_BASE_FORM: The base forms from the base form decomposition of
+            text provided by MeCab were concatenated into a single string and
+            then used as an index in JMdict.
+    """
     MECAB = 1
     JMDICT_MECAB_DECOMP = 2
     JMDICT_SURFACE_FORM = 3
@@ -41,8 +58,6 @@ class JpnLexicalItemInterp(object):
             full-width katakana whenever possible. Setting the attr to a
             non-katakana value will automatically convert it to katakana to the
             extent possible.
-        interp_sources: The sources where this interpretation of the lexical
-            item came from.
         parts_of_speech: The parts of speech of the lexical item. Possibly
             multiple at the same time, so it is a tuple.
         conjugated_type: The name of the conjugation type of the lexical item.
@@ -61,10 +76,17 @@ class JpnLexicalItemInterp(object):
             kansaiben).
         misc: Other miscellaneous info recorded for this lexical item from
             JMdict.
+        interp_sources: The sources where this interpretation of the lexical
+            item came from.
     """
+    # base_form and reading cannot be given a default value because doing so
+    # causes their properties to be passed the property object itself rather
+    # than the specified default value on init using the default due to how
+    # dataclasses work with properties as of Python 3.7. Perhaps this will be
+    # fixed in a later version of Python?
     base_form: str
     reading: str
-    interp_sources: Tuple[InterpSource, ...] = None
+
     parts_of_speech: Tuple[str, ...] = None
     conjugated_type: str = None
     conjugated_form: str = None
@@ -73,6 +95,7 @@ class JpnLexicalItemInterp(object):
     fields: Tuple[str, ...] = None
     dialects: Tuple[str, ...] = None
     misc: Tuple[str, ...] = None
+    interp_sources: Tuple[InterpSource, ...] = None
 
     _base_form: str = field(default=None, init=False, repr=False)
     _reading: str = field(default=None, init=False, repr=False)
@@ -117,10 +140,10 @@ class FoundJpnLexicalItem(object):
         surface_form: The form the lexical item used within the text.
         possible_interps: Detailed information for each of the possible
             interpretations of the lexical item.
-        text_pos_abs: The zero-indexed alnum character offset of the start of
-            the lexical item from the start of the text.
-        text_pos_percent: The percent of the total alnum characters in the text
-            ahead of the lecixal item.
+        text_pos_abs: The zero-indexed character offset of the start of the
+            lexical item from the start of the text.
+        text_pos_percent: The percent of the total characters in the text ahead
+            of the lecixal item.
     """
     surface_form: str = None
     possible_interps: List[JpnLexicalItemInterp] = None
