@@ -1,6 +1,7 @@
 """Classes for holding data used across the Reibun project."""
 
 import enum
+import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -38,6 +39,78 @@ class InterpSource(enum.Enum):
 
 
 @dataclass
+@utils.make_properties_work_in_dataclass
+class JpnArticle(object):
+    """The text and metadata for a Japanese text article.
+
+    Attributes:
+        title: The title of the article.
+        full_text: The full text of the article. Includes the title.
+        source_url: The fully qualified URL where the article was found.
+        source_name: The human-readable name of the source of the article.
+        publication_datetime: The UTC datetime the article was published.
+        scraped_datetime: The UTC datetime the article was scraped.
+        text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
+            automatically lazily after changes to full_text. Read-only.
+        alnum_count: The alphanumeric character count of full_text. Evaluated
+            automatically lazily after changes to full_text. Read-only.
+        """
+    title: str = None
+    full_text: str = None
+    text_hash: str = None
+    alnum_count: int = None
+    source_url: str = None
+    source_name: str = None
+    publication_datetime: datetime = None
+    scraped_datetime: datetime = None
+
+    _full_text: str = field(init=False, repr=False)
+    _text_hash: str = field(default=None, init=False, repr=False)
+    _text_hash_change: bool = field(default=False, init=False, repr=False)
+    _alnum_count: int = field(default=None, init=False, repr=False)
+    _alnum_count_change: bool = field(default=False, init=False, repr=False)
+
+    @property
+    def full_text(self) -> str:
+        """See class docstring for full_text documentation."""
+        return self._full_text
+
+    @full_text.setter
+    def full_text(self, set_value: str) -> None:
+        self._text_hash_change = True
+        self._alnum_count_change = True
+        self._full_text = set_value
+
+    @property
+    def text_hash(self) -> str:
+        """See class docstring for text_hash documentation."""
+        if self._text_hash_change:
+            self._text_hash = (
+                hashlib.sha256(self.full_text.encode('utf-8')).hexdigest()
+            )
+            self._text_hash_change = False
+
+        return self._text_hash
+
+    @property
+    def alnum_count(self) -> int:
+        """See class docstring for alnum_count documentation."""
+        if self._alnum_count_change:
+            self._alnum_count = utils.get_alnum_count(self.full_text)
+            self._alnum_count_change = False
+
+        return self._alnum_count
+
+    def __str__(self) -> str:
+        """Returns the title and publication time in string format."""
+        return '{}--{}'.format(
+            self.title,
+            self.publication_datetime.isoformat()
+        )
+
+
+@dataclass
+@utils.make_properties_work_in_dataclass
 class JpnLexicalItemInterp(object):
     """An interpretation of a Japanese lexical item.
 
@@ -79,14 +152,8 @@ class JpnLexicalItemInterp(object):
         interp_sources: The sources where this interpretation of the lexical
             item came from.
     """
-    # base_form and reading cannot be given a default value because doing so
-    # causes their properties to be passed the property object itself rather
-    # than the specified default value on init using the default due to how
-    # dataclasses work with properties as of Python 3.7. Perhaps this will be
-    # fixed in a later version of Python?
-    base_form: str
-    reading: str
-
+    base_form: str = None
+    reading: str = None
     parts_of_speech: Tuple[str, ...] = None
     conjugated_type: str = None
     conjugated_form: str = None
@@ -97,8 +164,8 @@ class JpnLexicalItemInterp(object):
     misc: Tuple[str, ...] = None
     interp_sources: Tuple[InterpSource, ...] = None
 
-    _base_form: str = field(default=None, init=False, repr=False)
-    _reading: str = field(default=None, init=False, repr=False)
+    _base_form: str = field(init=False, repr=False)
+    _reading: str = field(init=False, repr=False)
 
     @property
     def base_form(self) -> str:
@@ -130,56 +197,56 @@ class JpnLexicalItemInterp(object):
 
 
 @dataclass
+@utils.make_properties_work_in_dataclass
 class FoundJpnLexicalItem(object):
-    """A Japanese lexical item found within a block of text.
-
-    In the following descriptions, 'the text' refers to the text block where
-    the lexical item was found.
+    """A Japanese lexical item found within a text article.
 
     Attributes:
-        surface_form: The form the lexical item used within the text.
+        surface_form: The form the lexical item used within the article.
         possible_interps: Detailed information for each of the possible
             interpretations of the lexical item.
+        article: The article where the lexical item was found.
         text_pos_abs: The zero-indexed character offset of the start of the
-            lexical item from the start of the text.
-        text_pos_percent: The percent of the total characters in the text ahead
-            of the lecixal item.
+            lexical item from the start of the article.
+        text_pos_percent: The percent of the total characters in the article
+            ahead of the lecixal item. Automatically set once article and
+            text_pos_abs are set. Read-only.
     """
     surface_form: str = None
     possible_interps: List[JpnLexicalItemInterp] = None
-    text_pos_abs: int = None
+    article: JpnArticle = None
+    text_pos_abs: List[int] = None
     text_pos_percent: float = None
 
+    _article: str = field(init=False, repr=False)
+    _text_pos_abs: str = field(init=False, repr=False)
+    _text_pos_percent: str = field(default=None, init=False, repr=False)
 
-@dataclass
-class JpnArticle(object):
-    """The text and metadata for a Japanese text article.
+    @property
+    def article(self) -> JpnArticle:
+        """See class docstring for article documentation."""
+        return self._article
 
-    Attributes:
-        title: The title of the article.
-        full_text: The full text of the article. Includes the title.
-        alnum_count: The total count of the alphanumeric characters within
-            the full text of the article.
-        source_url: The fully qualified URL where the article was found.
-        source_name: The human-readable name of the source of the article.
-        publication_datetime: The UTC datetime the article was published.
-        scraped_datetime: The UTC datetime the article was scraped.
-        found_lexical_items: All of the Japanese lexical items found within the
-            article.
-        """
-    title: str = None
-    full_text: str = None
-    alnum_count: int = None
-    source_url: str = None
-    source_name: str = None
-    publication_datetime: datetime = None
-    scraped_datetime: datetime = None
+    @article.setter
+    def article(self, set_value: JpnArticle) -> None:
+        if set_value is not None and self.text_pos_abs is not None:
+            self._text_pos_percent = (
+                self.text_pos_abs / len(set_value.full_text)
+            )
+        self._article = set_value
 
-    found_lexical_items: List[FoundJpnLexicalItem] = None
+    @property
+    def text_pos_abs(self) -> int:
+        """See class docstring for text_pos_abs documentation."""
+        return self._text_pos_abs
 
-    def __str__(self) -> str:
-        """Returns the title and publication time in string format."""
-        return '{}--{}'.format(
-            self.title,
-            self.publication_datetime.isoformat()
-        )
+    @text_pos_abs.setter
+    def text_pos_abs(self, set_value: JpnArticle) -> None:
+        if set_value is not None and self.article is not None:
+            self._text_pos_percent = set_value / len(self.article.full_text)
+        self._text_pos_abs = set_value
+
+    @property
+    def text_pos_percent(self) -> float:
+        """See class docstring for text_pos_percent documentation."""
+        return self._text_pos_percent

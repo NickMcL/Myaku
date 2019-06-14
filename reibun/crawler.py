@@ -35,17 +35,17 @@ class NhkNewsWebCrawler(object):
         'news_add',
     ]
 
-    def __init__(self, timeout=10):
+    def __init__(self, timeout: int = 10) -> None:
         """Initializes the crawler with a timeout for web requests."""
         self.session = None
         self.timeout = timeout
 
-    def __enter__(self):
+    def __enter__(self) -> 'NhkNewsWebCrawler':
         """Initializes a requests Session to use for all web requests."""
         self.session = requests.Session()
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_traceback):
+    def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
         """Closes the requests Session."""
         if self.session:
             self.session.close()

@@ -80,7 +80,7 @@ class TextAnalysisError(Exception):
     pass
 
 
-@utils.flyweight_class
+@utils.singleton_per_config
 @utils.add_method_debug_logging
 class JapaneseTextAnalyzer(object):
     """Analyzes Japanese text to determine used lexical items."""
@@ -92,15 +92,17 @@ class JapaneseTextAnalyzer(object):
         self._jmdict = JMdict(_JMDICT_XML_FILEPATH)
         self._mecab_tagger = MecabTagger()
 
-    def find_article_lexical_items(self, article: JpnArticle) -> None:
+    def find_article_lexical_items(
+        self, article: JpnArticle
+    ) -> List[FoundJpnLexicalItem]:
         """Finds all Japanese lexical items in an article.
-
-        Adds all of the found lexical items to the found_lexical_items list
-        attr of the given JpnArticle.
 
         Args:
             article: Japnaese article whose full_text will be analyzed to find
                 lexical items.
+
+        Returns:
+            A list of all of the found lexical items in the article.
         """
         article_blocks = article.full_text.splitlines()
         _log.debug(
@@ -108,37 +110,36 @@ class JapaneseTextAnalyzer(object):
             len([b for b in article_blocks if len(b) > 0])
         )
 
-        if article.found_lexical_items is None:
-            article.found_lexical_items = []
-
         offset = 0
+        article_lexical_items = []
         for text_block in article_blocks:
             if len(text_block) == 0:
                 offset += 1  # for new line char
                 continue
 
             found_lexical_items = self._find_lexical_items(
-                text_block, offset, len(article.full_text)
+                text_block, offset, article
             )
 
             _log.debug(
                 f'Found {len(found_lexical_items)} lexical items in block '
                 f'"{utils.shorten_str(text_block, 15)}"'
             )
-            article.found_lexical_items.extend(found_lexical_items)
+            article_lexical_items.extend(found_lexical_items)
 
             offset += len(text_block) + 1  # +1 for new line char
 
+        return article_lexical_items
+
     def _find_lexical_items(
-        self, text: str, offset: int, article_len: int
+        self, text: str, offset: int, article: JpnArticle
     ) -> List[FoundJpnLexicalItem]:
         """Finds all Japanese lexical items in a block of text.
 
         Args:
             text: Text block that will be analyzed for lexical items.
             offset: The character offset of the text block in its article.
-            article_len: The total number of characters in the article for the
-                text block.
+            article: The article containing the text block.
 
         Returns:
             The found Japanese lexical items in the text.
@@ -159,10 +160,10 @@ class JapaneseTextAnalyzer(object):
             if self._is_symbol(item):
                 continue
 
-            # Adjust offsets to account for offset of this text block in the
+            # Adjust offset to account for offset of this text block in the
             # overall article.
             item.text_pos_abs += offset
-            item.text_pos_percent = item.text_pos_abs / article_len
+            item.article = article
             processed_lexical_items.append(item)
 
         return processed_lexical_items
@@ -354,7 +355,7 @@ class JMdictEntry(object):
         return interp
 
 
-@utils.flyweight_class
+@utils.singleton_per_config
 @utils.add_method_debug_logging
 class JMdict(object):
     """Object representation of a JMdict dictionary."""
@@ -833,7 +834,7 @@ class JMdict(object):
         return self.get_entries(entry)
 
 
-@utils.flyweight_class
+@utils.singleton_per_config
 @utils.add_method_debug_logging
 class MecabTagger:
     """Object representation of a MeCab tagger.

@@ -23,7 +23,6 @@ if __name__ == '__main__':
     article = JpnArticle(
         title='桜の森の満開の下',
         full_text=SAMPLE_TEXT,
-        alnum_count=utils.get_alnum_count(SAMPLE_TEXT),
         source_url=TEXT_SRC_URL,
         source_name='Aozora',
         publication_datetime=datetime.utcnow(),
@@ -31,4 +30,4 @@ if __name__ == '__main__':
     )
 
     jta = JapaneseTextAnalyzer()
-    jta.find_article_lexical_items(article)
+    items = jta.find_article_lexical_items(article)

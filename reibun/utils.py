@@ -4,6 +4,7 @@ Attributes:
     HTML_TAG_REGEX (re.Pattern): Regex for matching any HTML tag.
 """
 
+import dataclasses
 import functools
 import inspect
 import logging
@@ -257,8 +258,123 @@ def skip_method_debug_logging(func: Callable) -> Callable:
     return func
 
 
-def flyweight_class(cls):
-    """Makes the decorated class into a flyweight.
+def _dataclass_setter_with_default_wrapper(
+        func: Callable, field: Optional[dataclasses.field] = None
+) -> Callable:
+    """Handles init properly for a property with default value in a dataclass.
+
+    If a property has a setter and a default value is given for it in a
+    dataclass, the dataclass will try to set the property to the property
+    object itself on init instead of the default value. This wrapper properly
+    handles the default init case for the setter so that it is passed its
+    default value.
+
+    Args:
+        func: Setter of a property in a dataclass.
+        field: This fields default or default_factory is used to get the
+            default value for the property. None will be used as the default
+            value if not given.
+    """
+    @functools.wraps(func)
+    def wrapper(self, set_value: Any) -> None:
+        if (isinstance(set_value, property)
+                and hasattr(set_value, 'fset')
+                and get_full_name(set_value.fset) == get_full_name(func)):
+            # This is the dataclass init without a user passed value to init,
+            # so set the proper default value
+            if (field is None
+                    or field.default is dataclasses.MISSING
+                    and field.default_factory is dataclasses.MISSING):
+                func(self, None)
+            elif field.default is not dataclasses.MISSING:
+                func(self, field.default)
+            else:
+                func(self, field.default_factory())
+        else:
+            func(self, set_value)
+
+    return wrapper
+
+
+def _dataclass_setter_with_readonly(
+    self, set_value: Any, readonly_prop: property
+) -> None:
+    """Can be used as setter for readonly property in a dataclass.
+
+    If a property is read-only in a dataclass, it will cause an AttributeError
+    on init because the dataclass will always try to set it on init. This
+    function can be set as the setter for a read-only property in this case to
+    avoid errors on dataclass init while still raising an AttributeError if the
+    property is ever set outside of the dataclass init case.
+
+    Args:
+        self: Placeholder to capture the self param passed to setters. Not used
+            in the function.
+        set_value: Set value passed to the setter. Only used to check if the
+            setter is being called from the dataclass init or not. This value
+            does not actually get set to anything.
+        readonly_prop: The read-only property that this setter is being used
+            for.
+    """
+    if (isinstance(set_value, property)
+            and hasattr(set_value, 'fget')
+            and set_value.fget is readonly_prop.fget):
+        # This is the dataclass init, so don't raise an error.
+        return
+
+    raise AttributeError("can't set attribute")
+
+
+def make_properties_work_in_dataclass(cls: T = None, **kwargs) -> T:
+    """Makes the properties in cls compatible with dataclasses.
+
+    As of Python 3.7, properties with default values and read-only properties
+    will not init properly with dataclasses because the dataclass init will try
+    to set the property with the property object itself during init. This
+    decorator will do some magic to fix this so that properties in the
+    dataclass with default values and read-only properties will init properly.
+
+    Args:
+        kwargs: The default value for a property can be specified by giving a
+            kwarg using the property name set to a dataclasses.field object
+            that sepecifies the default value or default factory for the
+            property. If a kwarg is not given for a property with a setter, a
+            default value of None will be used.
+    """
+    if cls is None:
+        return functools.partial(
+            make_properties_work_in_dataclass, **kwargs
+        )
+
+    prop_names = []
+    for name in dir(cls):
+        # Avoid changing anything for dunder attrs
+        if name.startswith('__') and name.endswith('__'):
+            continue
+        if isinstance(getattr(cls, name), property):
+            prop_names.append(name)
+
+    if len(prop_names) == 0:
+        return cls
+
+    for prop_name in prop_names:
+        prop = getattr(cls, prop_name)
+        if prop.fset is None:
+            readonly_setter = functools.partial(
+                _dataclass_setter_with_readonly, readonly_prop=prop
+            )
+            setattr(cls, prop_name, prop.setter(readonly_setter))
+        else:
+            default_setter = _dataclass_setter_with_default_wrapper(
+                prop.fset, kwargs.get(prop_name)
+            )
+            setattr(cls, prop_name, prop.setter(default_setter))
+
+    return cls
+
+
+def singleton_per_config(cls: T) -> T:
+    """Makes the decorated class only have one instance per init config.
 
     This will cause there to only ever be one object in existence for each
     combination of init parameters for the class. If a second object is
@@ -270,11 +386,11 @@ def flyweight_class(cls):
     This decorator should only be used on a class whose possible __init__
     parameters are all hashable.
     """
-    if not hasattr(flyweight_class, '_flyweight_map'):
-        flyweight_class._flyweight_map = {}
+    if not hasattr(singleton_per_config, '_singleton_map'):
+        singleton_per_config._singleton_map = {}
 
     @functools.wraps(cls)
-    def flyweight_wrapper(*args, **kwargs):
+    def singleton_per_config_wrapper(*args, **kwargs):
         init_sig = inspect.signature(cls.__init__)
 
         # The 0 used for the first arg is just a placeholder to fill the self
@@ -290,12 +406,12 @@ def flyweight_class(cls):
         init_sig_key = bound_args.args[1:] + sorted_kwargs
 
         cls_name = get_full_name(cls)
-        if cls_name not in flyweight_class._flyweight_map:
-            flyweight_class._flyweight_map[cls_name] = {}
-        cls_flyweight_map = flyweight_class._flyweight_map[cls_name]
+        if cls_name not in singleton_per_config._singleton_map:
+            singleton_per_config._singleton_map[cls_name] = {}
+        cls_singleton_map = singleton_per_config._singleton_map[cls_name]
 
-        if init_sig_key not in cls_flyweight_map:
-            cls_flyweight_map[init_sig_key] = cls(*args, **kwargs)
-        return cls_flyweight_map[init_sig_key]
+        if init_sig_key not in cls_singleton_map:
+            cls_singleton_map[init_sig_key] = cls(*args, **kwargs)
+        return cls_singleton_map[init_sig_key]
 
-    return flyweight_wrapper
+    return singleton_per_config_wrapper
