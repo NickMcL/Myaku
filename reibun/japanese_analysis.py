@@ -39,21 +39,21 @@ def update_resources() -> None:
 def _update_jmdict_files() -> None:
     """Downloads and unpacks the latest JMdict files."""
     _log.debug(
-        f'Downloading JMdict gz file from "{_JMDICT_LATEST_FTP_URL}" to '
-        f'"{_JMDICT_GZ_FILEPATH}"'
+        'Downloading JMdict gz file from "%s" to "%s"',
+        _JMDICT_LATEST_FTP_URL, _JMDICT_GZ_FILEPATH
     )
     with closing(urllib.request.urlopen(_JMDICT_LATEST_FTP_URL)) as response:
         with open(_JMDICT_GZ_FILEPATH, 'wb') as jmdict_gz_file:
             shutil.copyfileobj(response, jmdict_gz_file)
 
     _log.debug(
-        f'Decompressing "{_JMDICT_GZ_FILEPATH}" to "{_JMDICT_XML_FILEPATH}"'
+        'Decompressing "%s" to "%s"', _JMDICT_GZ_FILEPATH, _JMDICT_XML_FILEPATH
     )
     with gzip.open(_JMDICT_GZ_FILEPATH, 'rb') as jmdict_decomp_file:
         with open(_JMDICT_XML_FILEPATH, 'wb') as jmdict_xml_file:
             shutil.copyfileobj(jmdict_decomp_file, jmdict_xml_file)
 
-    _log.debug(f'Removing "{_JMDICT_GZ_FILEPATH}"')
+    _log.debug('Removing "%s"', _JMDICT_GZ_FILEPATH)
     os.remove(_JMDICT_GZ_FILEPATH)
 
 
@@ -106,8 +106,8 @@ class JapaneseTextAnalyzer(object):
         """
         article_blocks = article.full_text.splitlines()
         _log.debug(
-            f'Article "{article}" split into %s blocks',
-            len([b for b in article_blocks if len(b) > 0])
+            'Article "%s" split into %s blocks',
+            article, len([b for b in article_blocks if len(b) > 0])
         )
 
         offset = 0
@@ -122,8 +122,8 @@ class JapaneseTextAnalyzer(object):
             )
 
             _log.debug(
-                f'Found {len(found_lexical_items)} lexical items in block '
-                f'"{utils.shorten_str(text_block, 15)}"'
+                'Found %s lexical items in block "%s"',
+                len(found_lexical_items), utils.shorten_str(text_block, 15)
             )
             article_lexical_items.extend(found_lexical_items)
 
@@ -149,7 +149,7 @@ class JapaneseTextAnalyzer(object):
         # MeCab generally parses text into base lexical items while ignoring
         # meta lexical items, so meta lexical items must be found separately.
         meta_lexical_items = self._find_meta_lexical_items(mecab_lexical_items)
-        _log.debug(f'Found {len(meta_lexical_items)} meta lexical items')
+        _log.debug('Found %s meta lexical items', len(meta_lexical_items))
 
         found_lexical_items = mecab_lexical_items + meta_lexical_items
         processed_lexical_items = []
@@ -344,7 +344,6 @@ class JMdictEntry(object):
         """Converts to and returns a JpnLexicalItemInterp."""
         interp = JpnLexicalItemInterp(
             base_form=self.text_form,
-            reading=None,
             parts_of_speech=self.parts_of_speech,
             text_form_info=self.text_form_info,
             text_form_freq=self.text_form_freq,
@@ -545,8 +544,8 @@ class JMdict(object):
                 entry_str = ElementTree.tostring(entry).decode('utf-8')
                 utils.log_and_raise(
                     _log, ResourceLoadError,
-                    f'Malformed JMdict XML. Unknown tag "{element.tag}" found '
-                    f'with "{entry.tag}" tag: "{entry_str}"'
+                    'Malformed JMdict XML. Unknown tag "{}" found with "{}" '
+                    'tag: "{}"'.format(element.tag, entry.tag, entry_str)
                 )
 
         self._add_sense_data(repr_objs, sense_objs)
@@ -630,8 +629,8 @@ class JMdict(object):
             parent_str = ElementTree.tostring(parent_element).decode('utf-8')
             utils.log_and_raise(
                 _log, ResourceLoadError,
-                f'Malformed JMdict XML. No "{tag}" element within '
-                f'"{parent_element.tag}" element: "{parent_str}"'
+                'Malformed JMdict XML. No "{}" element within "{}" element: '
+                '"{}"'.format(tag, parent_element.tag, parent_str)
             )
 
         return elements
@@ -647,8 +646,8 @@ class JMdict(object):
         parent_str = ElementTree.tostring(parent_element).decode('utf-8')
         utils.log_and_raise(
             _log, ResourceLoadError,
-            f'Malformed JMdict XML. No accessible text within "{element.tag}" '
-            f'element: "{parent_str}"'
+            'Malformed JMdict XML. No accessible text within "{}" element: '
+            '"{}"'.format(element.tag, parent_str)
         )
 
     def load_jmdict(self, xml_filepath: str) -> None:
@@ -668,10 +667,10 @@ class JMdict(object):
         if not os.path.exists(xml_filepath):
             utils.log_and_raise(
                 _log, ResourceLoadError,
-                f'JMdict file not found at "{_JMDICT_XML_FILEPATH}"'
+                'JMdict file not found at "{}"'.format(_JMDICT_XML_FILEPATH)
             )
 
-        _log.debug(f'Reading JMdict XML file at "{_JMDICT_XML_FILEPATH}"')
+        _log.debug('Reading JMdict XML file at "%s"', _JMDICT_XML_FILEPATH)
         tree = ElementTree.parse(xml_filepath)
         _log.debug('Reading of JMdict XML file complete')
 
@@ -723,8 +722,8 @@ class JMdict(object):
         """
         if not os.path.exists(self._SHELF_PATH):
             _log.debug(
-                f'Shelf file does not exist at "{self._SHELF_PATH}", so no '
-                f'data loaded from the shelf'
+                'Shelf file does not exist at "%s", so no data loaded from '
+                'the shelf', self._SHELF_PATH
             )
             return False
 
@@ -733,18 +732,18 @@ class JMdict(object):
         comp_dt_timestamp = datetime.utcfromtimestamp(comp_timestamp)
         if shelf_timestamp <= comp_timestamp:
             _log.debug(
-                f'Shelf file ({self._SHELF_PATH}) last mod time '
-                f'({shelf_dt_timestamp.isoformat()}) is before or equal to '
-                f'compare last mod time ({comp_dt_timestamp.isoformat()}), so '
-                f'no data loaded from the shelf'
+                'Shelf file (%s) last mod time (%s) is before or equal to '
+                'compare last mod time (%s), so no data loaded from the shelf',
+                self._SHELF_PATH, shelf_dt_timestamp.isoformat(),
+                comp_dt_timestamp.isoformat()
             )
             return False
 
         _log.debug(
-            f'Shelf file ({self._SHELF_PATH}) last mod time '
-            f'({shelf_dt_timestamp.isoformat()}) is after compare last '
-            f'mod time ({comp_dt_timestamp.isoformat()}), so loading data '
-            f'from the shelf'
+            'Shelf file (%s) last mod time (%s) is after compare last mod '
+            'time (%s), so loading data from the shelf',
+            self._SHELF_PATH, shelf_dt_timestamp.isoformat(),
+            comp_dt_timestamp.isoformat()
         )
         with shelve.open(self._SHELF_PATH, 'r') as shelf:
             self._entry_map = defaultdict(list)
@@ -762,7 +761,7 @@ class JMdict(object):
     def _write_to_shelf(self) -> None:
         """Writes current JMdict objects to shelf."""
         _log.debug(
-            f'Writing current JMdict maps to shelf at "{self._SHELF_PATH}"'
+            'Writing current JMdict maps to shelf at "%s"', self._SHELF_PATH
         )
         with shelve.open(self._SHELF_PATH, 'c') as shelf:
             shelf['_mecab_decomp_map_items'] = list(
@@ -903,9 +902,10 @@ class MecabTagger:
             if len(parsed_token_tags) not in self._EXPECTED_TOKEN_TAG_COUNTS:
                 utils.log_and_raise(
                     _log, TextAnalysisError,
-                    f'Unexpected number of MeCab tags '
-                    f'({len(parsed_token_tags)}) for token '
-                    f'{parsed_token_tags} in "{text}"'
+                    'Unexpected number of MeCab tags ({}) for token {} in '
+                    '"{}"'.format(
+                        len(parsed_token_tags), parsed_token_tags, text
+                    )
                 )
 
             lexical_item_interp = self._create_interp_obj(parsed_token_tags)

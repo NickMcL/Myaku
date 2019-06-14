@@ -66,16 +66,16 @@ class NhkNewsWebCrawler(object):
 
         if len(title_spans) != 1:
             _log.error(
-                f'Found {len(title_spans)} title spans in: '
-                f'"{article_section}"'
+                'Found %s title spans in: "%s"',
+                len(title_spans), article_section
             )
             return None
 
         title = utils.parse_valid_child_text(title_spans[0])
         if title is None:
             _log.error(
-                f'Unable to determine title from span tag '
-                f'"{title_spans[0]}" in: "{article_section}"'
+                'Unable to determine title from span tag "%s" in: "%s"',
+                title_spans[0], article_section
             )
             return None
 
@@ -98,14 +98,14 @@ class NhkNewsWebCrawler(object):
 
         if len(time_tags) != 1:
             _log.error(
-                f'Found {len(time_tags)} time tags in: "{article_section}"'
+                'Found %s time tags in: "%s"', len(time_tags), article_section
             )
             return None
 
         if not time_tags[0].has_attr('datetime'):
             _log.error(
-                f'Time tag "{time_tags[0]}" has no datetime attribute in: '
-                f'"{article_section}"'
+                'Time tag "%s" has no datetime attribute in: "%s"',
+                time_tags[0], article_section
             )
             return None
 
@@ -115,8 +115,8 @@ class NhkNewsWebCrawler(object):
             )
         except ValueError:
             _log.error(
-                f'Failed to parse datetime "{time_tags[0]["datetime"]}" of '
-                f'"{time_tags[0]}" in: "{article_section}"'
+                'Failed to parse datetime "%s" of "%s" in: "%s"',
+                time_tags[0]["datetime"], time_tags[0], article_section
             )
             return None
 
@@ -145,7 +145,7 @@ class NhkNewsWebCrawler(object):
             child_text = utils.parse_valid_child_text(child)
             if child_text is None:
                 _log.debug(
-                    f'Unable to determine body text from tag: "{child}"'
+                    'Unable to determine body text from tag: "%s"', child
                 )
                 continue
 
@@ -167,12 +167,12 @@ class NhkNewsWebCrawler(object):
         body_tags = []
         for id_ in self._ARTICLE_BODY_IDS:
             divs = article_section.find_all('div', id=id_)
-            _log.debug(f'Found {len(divs)} with id "{id_}"')
+            _log.debug('Found %s with id "%s"', len(divs), id_)
             body_tags += divs
 
         for class_ in self._ARTICLE_BODY_CLASSES:
             divs = article_section.find_all('div', class_=class_)
-            _log.debug(f'Found {len(divs)} with class "{class_}"')
+            _log.debug('Found %s with class "%s"', len(divs), class_)
             body_tags += divs
 
         body_text_sections = []
@@ -250,8 +250,8 @@ class NhkNewsWebCrawler(object):
         )
         if len(article_sections) != 1:
             _log.error(
-                f'Found {len(article_sections)} article sections for url '
-                f'"{url}"'
+                'Found %s article sections for url "%s"',
+                len(article_sections), url
             )
             raise CannotParseArticleError(
                 f'Page at url "{url}" not in expected article fromat'

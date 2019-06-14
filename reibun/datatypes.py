@@ -56,13 +56,15 @@ class JpnArticle(object):
             automatically lazily after changes to full_text. Read-only.
         """
     title: str = None
-    full_text: str = None
-    text_hash: str = None
     alnum_count: int = None
     source_url: str = None
     source_name: str = None
     publication_datetime: datetime = None
     scraped_datetime: datetime = None
+
+    # Read-only
+    full_text: str = None
+    text_hash: str = None
 
     _full_text: str = field(init=False, repr=False)
     _text_hash: str = field(default=None, init=False, repr=False)
@@ -215,11 +217,13 @@ class FoundJpnLexicalItem(object):
     surface_form: str = None
     possible_interps: List[JpnLexicalItemInterp] = None
     article: JpnArticle = None
-    text_pos_abs: List[int] = None
+    text_pos_abs: int = None
+
+    # Read-only
     text_pos_percent: float = None
 
-    _article: str = field(init=False, repr=False)
-    _text_pos_abs: str = field(init=False, repr=False)
+    _article: str = field(default=None, init=False, repr=False)
+    _text_pos_abs: str = field(default=None, init=False, repr=False)
     _text_pos_percent: str = field(default=None, init=False, repr=False)
 
     @property

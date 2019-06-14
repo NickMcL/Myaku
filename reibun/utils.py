@@ -12,7 +12,7 @@ import re
 import sys
 from datetime import datetime
 from operator import itemgetter
-from typing import Any, Callable, List, Optional, TypeVar
+from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
 import jaconv
 import pytz
@@ -109,15 +109,22 @@ def get_request_raise_on_error(
     Raises:
         HTTPError: The GET request returned with a status code >= 400
     """
-    _log.debug(f'Making GET request to url "{url}"')
+    _log.debug('Making GET request to url "%s"', url)
     if session:
         response = session.get(url, **kwargs)
     else:
         response = requests.get(url, **kwargs)
-    _log.debug(f'Reponse received with code {response.status_code}')
+    _log.debug('Reponse received with code %s', response.status_code)
     response.raise_for_status()
 
     return response
+
+
+def tuple_or_none(item: Any) -> Tuple:
+    """Converts item to tuple, or returns None if item is None."""
+    if item is None:
+        return None
+    return tuple(item)
 
 
 def convert_jst_to_utc(dt: datetime) -> datetime:
@@ -171,8 +178,8 @@ def parse_valid_child_text(tag: Tag) -> Optional[str]:
         if (descendant.name is not None and
                 descendant.name not in _ALLOWABLE_HTML_TAGS_IN_TEXT):
             _log.debug(
-                f'Child text contains invalid {descendant.name} '
-                f'tag: "{tag}"',
+                'Child text contains invalid "%s" tag: "%s"',
+                descendant.name, tag
             )
             return None
 
@@ -215,15 +222,15 @@ def add_debug_logging(func: Callable) -> Callable:
         args_repr = [shorten_str(repr(arg)) for arg in args]
         kwargs_repr = [shorten_str(f'{k}={v!r}') for k, v in kwargs.items()]
         func_args = ', '.join(args_repr + kwargs_repr)
-        _log.debug(f'Calling {func_name}({func_args})')
+        _log.debug('Calling %s(%s)', func_name, func_args)
         try:
             value = func(*args, *kwargs)
         except BaseException:
-            _log.exception(f'{func_name} raised an exception')
+            _log.exception('%s raised an exception', func_name)
             raise
 
         short_value = shorten_str(repr(value))
-        _log.debug(f'{func_name} returned {short_value}')
+        _log.debug('%s returned %s', func_name, short_value)
         return value
     return wrapper_add_debug_logging
 
