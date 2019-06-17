@@ -6,6 +6,7 @@ access interface consistent.
 """
 
 import logging
+from operator import itemgetter
 from typing import Any, Dict, List, Union
 
 from bson.objectid import ObjectId
@@ -15,7 +16,7 @@ from pymongo.results import InsertManyResult
 
 import reibun.utils as utils
 from reibun.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
-                              JpnLexicalItemInterp)
+                              JpnArticleMetadata, JpnLexicalItemInterp)
 
 _log = logging.getLogger(__name__)
 
@@ -23,19 +24,25 @@ _Document = Dict[str, Any]
 
 
 @utils.add_method_debug_logging
-class ReibunIndexDb(object):
-    """Interface object for accessing the Reibun index database.
+class ReibunDb(object):
+    """Interface object for accessing the Reibun database.
 
     This database stores mappings from Japanese lexical items to native
     Japanese web articles that use those lexical item. This allows for easy
     look up of native Japanese articles that make use of a particular lexical
     item of interest.
 
-    Implements the Reibun index using MongoDB.
+    Implements the Reibun database using MongoDB.
     """
     _DB_NAME = 'reibun'
     _ARTICLE_COLL_NAME = 'articles'
     _FOUND_LEXICAL_ITEM_COLL_NAME = 'found_lexical_items'
+
+    # Stores only metadata for previous crawled articles. Used to keep track of
+    # which articles have been crawled before so that crawlers don't try to
+    # crawl them again even after the article is deleted from the articles
+    # collection.
+    _CRAWLED_COLL_NAME = 'crawled'
 
     def __init__(self) -> None:
         """Initializes the connection to the database."""
@@ -47,6 +54,7 @@ class ReibunIndexDb(object):
 
         self._db = self._mongo_client[self._DB_NAME]
         self._article_collection = self._db[self._ARTICLE_COLL_NAME]
+        self._crawled_collection = self._db[self._CRAWLED_COLL_NAME]
         self._found_lexical_item_collection = (
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
@@ -56,6 +64,9 @@ class ReibunIndexDb(object):
     def _create_indexes(self) -> None:
         """Creates the necessary indexes for the db if they don't exist."""
         self._article_collection.create_index('text_hash')
+        self._crawled_collection.create_index('title')
+        self._crawled_collection.create_index('source_name')
+        self._crawled_collection.create_index('publication_datetime')
         self._found_lexical_item_collection.create_index(
             'possible_interps.base_form'
         )
@@ -63,7 +74,7 @@ class ReibunIndexDb(object):
     def filter_to_unstored_articles(
         self, articles: List[JpnArticle]
     ) -> List[JpnArticle]:
-        """Returns new list with articles not currently stored in the database.
+        """Returns new list with the articles not currently stored in the db.
 
         Does not modify the given articles list.
 
@@ -86,6 +97,63 @@ class ReibunIndexDb(object):
 
         stored_hashes = set(doc['text_hash'] for doc in docs)
         return [a for a in articles if a.text_hash not in stored_hashes]
+
+    def filter_to_unstored_article_metadatas(
+        self, metadatas: List[JpnArticleMetadata], eq_fields: List[str]
+    ) -> List[JpnArticleMetadata]:
+        """Returns new list with the metadatas not currently stored in the db.
+
+        Uses a comparison on the fields specified in eq_fields to determine if
+        two article metadatas are equal.
+
+        Does not modify the given article metadatas list.
+
+        Args:
+            metadatas: A list of article metadatas to check for in the
+                database.
+
+        Returns:
+            The article metadatas from the given list that are not currently
+            stored in the database based on a comparison using eq_fields.
+            Preserves ordering used in the given list.
+        """
+        match_docs = [dict() for _ in metadatas]
+        for i, metadata in enumerate(metadatas):
+            for field in eq_fields:
+                match_docs[i][field] = getattr(metadata, field)
+
+        if len(match_docs) == 1:
+            query = match_docs[0]
+        else:
+            query = {'$or': match_docs}
+
+        projection = {field: 1 for field in eq_fields}
+        projection['_id'] = 0
+
+        _log.debug(
+            'Will query %s with %s metadatas using %s fields',
+            self._CRAWLED_COLL_NAME, len(match_docs), eq_fields
+        )
+        cursor = self._crawled_collection.find(query, projection)
+        docs = list(cursor)
+        _log.debug(
+            'Retrieved %s documents from %s',
+            len(docs), self._crawled_collection
+        )
+
+        docs_key_vals = set()
+        for doc in docs:
+            docs_key_vals.add(tuple(sorted(doc.items(), key=itemgetter(0))))
+
+        unstored_metadatas = []
+        for metadata in metadatas:
+            field_key_vals = tuple(
+                (f, getattr(metadata, f)) for f in sorted(eq_fields)
+            )
+            if field_key_vals not in docs_key_vals:
+                unstored_metadatas.append(metadata)
+
+        return unstored_metadatas
 
     def write_found_lexical_items(
             self, found_lexical_items: List[FoundJpnLexicalItem]
@@ -124,9 +192,6 @@ class ReibunIndexDb(object):
             A list of found lexical items with at least on possible
             interpretation that matches at least one of the base forms given.
         """
-        if isinstance(base_forms, str):
-            base_forms = [base_forms]
-
         found_lexical_item_docs = self._read_with_log(
             'possible_interps.base_form', base_forms,
             self._found_lexical_item_collection
@@ -145,11 +210,32 @@ class ReibunIndexDb(object):
         )
         return found_lexical_items
 
+    def write_crawled(self, metadatas: List[JpnArticleMetadata]) -> None:
+        """Writes the article metadata to the crawled database."""
+        metadata_docs = self._convert_article_metadata_to_docs(metadatas)
+        self._write_with_log(metadata_docs, self._crawled_collection)
+
+    def read_crawled(self, source_name: str) -> List[JpnArticleMetadata]:
+        """Reads article metadata for given source from the crawled database.
+
+        Args:
+            source_name: Either one or a list of source names to get the
+                previously crawled article metadata for from the database.
+
+        Returns:
+            A list of article metadatas.
+        """
+        metadata_docs = self._read_with_log(
+            'source_name', source_name, self._crawled_collection
+        )
+        metadatas = self._convert_docs_to_article_metadata(metadata_docs)
+        return metadatas
+
     def close(self) -> None:
         """Closes the connection to the database."""
         self._mongo_client.close()
 
-    def __enter__(self) -> 'ReibunIndexDb':
+    def __enter__(self) -> 'ReibunDb':
         """Initializes the connection to the database."""
         return self
 
@@ -158,7 +244,7 @@ class ReibunIndexDb(object):
         self.close()
 
     def _read_with_log(
-        self, lookup_field_name: str, lookup_values: List[Any],
+        self, lookup_field_name: str, lookup_values: Union[Any, List[Any]],
         collection: Collection, projection: _Document = None
     ) -> List[_Document]:
         """Reads docs from collection with before and after logging.
@@ -166,7 +252,8 @@ class ReibunIndexDb(object):
         Args:
             lookup_field_name: The field to query on. Should be an indexed
                 field to ensure high performance.
-            lookup_values: The values for the lookup field to query for.
+            lookup_values: The values for the lookup field to query for. Can be
+                a single value or a list of values.
             collection: The collection to query.
             projection: The projection to use for the query. No projection will
                 be used if None.
@@ -175,6 +262,9 @@ class ReibunIndexDb(object):
             Retreives all documents from the cursor for the query and returns
             them in a list.
         """
+        if not isinstance(lookup_values, list):
+            lookup_values = [lookup_values]
+
         _log.debug(
             'Will query %s with %s %s',
             collection.full_name, len(lookup_values), lookup_field_name
@@ -205,6 +295,22 @@ class ReibunIndexDb(object):
 
         return result
 
+    def _convert_article_metadata_to_docs(
+        self, metadatas: List[JpnArticleMetadata]
+    ) -> List[_Document]:
+        """Converts article metadata to dicts for inserting into MongoDB."""
+        docs = []
+        for metadata in metadatas:
+            docs.append({
+                'title': metadata.title,
+                'source_url': metadata.source_url,
+                'source_name': metadata.source_name,
+                'publication_datetime': metadata.publication_datetime,
+                'scraped_datetime': metadata.scraped_datetime,
+            })
+
+        return docs
+
     def _convert_articles_to_docs(
         self, articles: List[JpnArticle]
     ) -> List[_Document]:
@@ -212,14 +318,14 @@ class ReibunIndexDb(object):
         docs = []
         for article in articles:
             docs.append({
-                'title': article.title,
                 'full_text': article.full_text,
+                'title': article.metadata.title,
+                'source_url': article.metadata.source_url,
+                'source_name': article.metadata.source_name,
+                'publication_datetime': article.metadata.publication_datetime,
+                'scraped_datetime': article.metadata.scraped_datetime,
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
-                'source_url': article.source_url,
-                'source_name': article.source_name,
-                'publication_datetime': article.publication_datetime,
-                'scraped_datetime': article.scraped_datetime,
             })
 
         return docs
@@ -271,6 +377,23 @@ class ReibunIndexDb(object):
 
         return docs
 
+    @utils.skip_method_debug_logging
+    def _convert_docs_to_article_metadata(
+        self, docs: List[_Document]
+    ) -> List[JpnArticle]:
+        """Converts docs to article metadata."""
+        metadatas = []
+        for doc in docs:
+            metadatas.append(JpnArticleMetadata(
+                title=doc['title'],
+                source_url=doc['source_url'],
+                source_name=doc['source_name'],
+                publication_datetime=doc['publication_datetime'],
+                scraped_datetime=doc['scraped_datetime'],
+            ))
+
+        return metadatas
+
     def _convert_docs_to_articles(
         self, docs: List[_Document]
     ) -> Dict[ObjectId, JpnArticle]:
@@ -283,12 +406,14 @@ class ReibunIndexDb(object):
         oid_article_map = {}
         for doc in docs:
             oid_article_map[doc['_id']] = JpnArticle(
-                title=doc['title'],
                 full_text=doc['full_text'],
-                source_url=doc['source_url'],
-                source_name=doc['source_name'],
-                publication_datetime=doc['publication_datetime'],
-                scraped_datetime=doc['scraped_datetime'],
+                metadata=JpnArticleMetadata(
+                    title=doc['title'],
+                    source_url=doc['source_url'],
+                    source_name=doc['source_name'],
+                    publication_datetime=doc['publication_datetime'],
+                    scraped_datetime=doc['scraped_datetime'],
+                ),
             )
 
         return oid_article_map

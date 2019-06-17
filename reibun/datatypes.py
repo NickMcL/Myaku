@@ -39,31 +39,48 @@ class InterpSource(enum.Enum):
 
 
 @dataclass
-@utils.make_properties_work_in_dataclass
-class JpnArticle(object):
-    """The text and metadata for a Japanese text article.
+class JpnArticleMetadata(object):
+    """The metadata for a Japanese text article.
 
     Attributes:
         title: The title of the article.
-        full_text: The full text of the article. Includes the title.
         source_url: The fully qualified URL where the article was found.
         source_name: The human-readable name of the source of the article.
         publication_datetime: The UTC datetime the article was published.
         scraped_datetime: The UTC datetime the article was scraped.
-        text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
-            automatically lazily after changes to full_text. Read-only.
-        alnum_count: The alphanumeric character count of full_text. Evaluated
-            automatically lazily after changes to full_text. Read-only.
-        """
+    """
     title: str = None
-    alnum_count: int = None
     source_url: str = None
     source_name: str = None
     publication_datetime: datetime = None
     scraped_datetime: datetime = None
 
-    # Read-only
+    def __str__(self) -> str:
+        """Returns the title and publication time in string format."""
+        return '{}--{}'.format(
+            self.title,
+            self.publication_datetime.isoformat()
+        )
+
+
+@dataclass
+@utils.make_properties_work_in_dataclass
+class JpnArticle(object):
+    """The full text and metadata for a Japanese text article.
+
+    Attributes:
+        full_text: The full text of the article. Includes the title.
+        metadata: The metadata for the article.
+        text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
+            automatically lazily after changes to full_text. Read-only.
+        alnum_count: The alphanumeric character count of full_text. Evaluated
+            automatically lazily after changes to full_text. Read-only.
+        """
     full_text: str = None
+    metadata: JpnArticleMetadata = None
+
+    # Read-only
+    alnum_count: int = None
     text_hash: str = None
 
     _full_text: str = field(init=False, repr=False)
@@ -104,11 +121,9 @@ class JpnArticle(object):
         return self._alnum_count
 
     def __str__(self) -> str:
-        """Returns the title and publication time in string format."""
-        return '{}--{}'.format(
-            self.title,
-            self.publication_datetime.isoformat()
-        )
+        if self.metadata is None:
+            return '<No article metadata>'
+        return str(self.metadata)
 
 
 @dataclass
