@@ -5,7 +5,7 @@ import logging
 import time
 from datetime import datetime
 from random import random
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -17,6 +17,7 @@ from selenium.webdriver import firefox
 import reibun.utils as utils
 from reibun.database import ReibunDb
 from reibun.datatypes import JpnArticle, JpnArticleMetadata
+from reibun.htmlhelper import HtmlHelper
 
 _log = logging.getLogger(__name__)
 
@@ -62,8 +63,6 @@ class NhkNewsWebCrawler(object):
         'grid--col-single'
     ]
 
-    _TIME_TAG_DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
-
     _ARTICLE_TAG_CLASS = 'detail-no-js'
     _ARTICLE_TITLE_CLASS = 'contentTitle'
 
@@ -80,6 +79,11 @@ class NhkNewsWebCrawler(object):
         self._web_driver = None
         self._session = requests.Session()
         self._timeout = timeout
+
+        self._parsing_error_handler = functools.partial(
+            utils.log_and_raise, _log, CannotParsePageError
+        )
+        self._html_helper = HtmlHelper(self._parsing_error_handler)
 
         self._init_web_driver()
 
@@ -104,143 +108,6 @@ class NhkNewsWebCrawler(object):
         """Closes the resources used by the crawler."""
         self.close()
 
-    @utils.skip_method_debug_logging
-    def _get_parsing_error_handler(self, raise_on_error) -> Callable:
-        """Gets a parsing error handler."""
-        if not raise_on_error:
-            return _log.error
-        return functools.partial(
-            utils.log_and_raise, _log, CannotParsePageError
-        )
-
-    def _parse_text_from_desendant(
-        self, parent: Tag, tag_name: str, classes: Union[str, List[str]],
-        raise_on_error: bool = True
-    ) -> Optional[str]:
-        """Parses the text from a tag_name descendant within parent.
-
-        Considers it an error if more than one tag_name descendant with the
-        specified classes exists within parent.
-
-        Args:
-            parent: The tag whose descendants to search.
-            tag_name: The type of tag to parse the text from (e.g. span).
-            classes: A single or list of classes that the class attribute of
-                tag to parse text from must exactly match.
-            raise_on_error: If True, raises CannotParsePageError on parsing
-                errors. If False, just logs error and returns None.
-
-        Returns:
-            The parsed text if the parse was successful, None otherwise.
-        """
-        error_handler = self._get_parsing_error_handler(raise_on_error)
-        found_tags = parent.find_all(tag_name, class_=classes)
-
-        if len(found_tags) != 1:
-            error_handler(
-                'Found {} "{}" tags in: "{}"'.format(
-                    len(found_tags), tag_name, parent
-                )
-            )
-            return None
-
-        text = utils.parse_valid_child_text(found_tags[0])
-        if text is None:
-            error_handler(
-                'Unable to determine text from "{}" tag "{}" in: "{}"'.format(
-                    tag_name, found_tags[0], parent
-                )
-            )
-            return None
-
-        return text
-
-    def _parse_jst_time_desendant(
-        self, parent: Tag, raise_on_error: bool = True
-    ) -> Optional[datetime]:
-        """Parses the datetime from a time tag descendant with a JST time.
-
-        Considers it an error if more than one time descendant exists within
-        parent.
-
-        JST is Japan Standard Time, the timezone used throughout Japan.
-
-        Args:
-            parent: The tag whose descendants to search for a time tag.
-            raise_on_error: If True, raises CannotParsePageError on parsing
-                errors. If False, just logs error and returns None.
-
-        Returns:
-            UTC datetime parsed from a time tag desendant if the parse was
-            successful, None otherwise.
-        """
-        error_handler = self._get_parsing_error_handler(raise_on_error)
-        time_tags = parent.find_all('time')
-
-        if len(time_tags) != 1:
-            error_handler(
-                'Found {} time tags in "{}"'.format(len(time_tags), parent)
-            )
-            return None
-
-        if not time_tags[0].has_attr('datetime'):
-            error_handler(
-                'Time tag "{}" has no datetime attribute in: "{}"'.format(
-                    time_tags[0], parent
-                )
-            )
-            return None
-
-        try:
-            parsed_datetime = datetime.strptime(
-                time_tags[0]['datetime'], self._TIME_TAG_DATETIME_FORMAT
-            )
-        except ValueError:
-            error_handler(
-                'Failed to parse datetime "{}" of "{}" in: "{}"'.format(
-                    time_tags[0]["datetime"], time_tags[0], parent
-                )
-            )
-            return None
-
-        return utils.convert_jst_to_utc(parsed_datetime)
-
-    def _parse_link_desendant(
-        self, parent: Tag, raise_on_error: bool = True
-    ) -> Optional[str]:
-        """Parses the url from an <a> tag descendant.
-
-        Considers it an error if more than one <a> tag descendant exists within
-        parent.
-
-        Args:
-            parent: The tag whose descendants to search for a <a> tag.
-            raise_on_error: If True, raises CannotParsePageError on parsing
-                errors. If False, just logs error and returns None.
-
-        Returns:
-            The link from an <a> tag descendant if the parse was successful,
-            None otherwise.
-        """
-        error_handler = self._get_parsing_error_handler(raise_on_error)
-        link_tags = parent.find_all('a')
-
-        if len(link_tags) != 1:
-            error_handler(
-                'Found {} <a> tags in "{}"'.format(len(link_tags), parent)
-            )
-            return None
-
-        if not link_tags[0].has_attr('href'):
-            error_handler(
-                '<a> tag "{}" has no href attribute in: "{}"'.format(
-                    link_tags[0], parent
-                )
-            )
-            return None
-
-        return link_tags[0]['href']
-
     def _parse_body_div(self, tag: Tag) -> Optional[str]:
         """Parses the body text from a division of an NHK article.
 
@@ -254,7 +121,7 @@ class NhkNewsWebCrawler(object):
             CannotParsePageError: There was an error parsing the body text from
                 tag.
         """
-        section_text = utils.parse_valid_child_text(tag)
+        section_text = self._html_helper.parse_valid_child_text(tag)
         if section_text is not None:
             return section_text
 
@@ -264,7 +131,7 @@ class NhkNewsWebCrawler(object):
             if child.name is None:
                 continue
 
-            child_text = utils.parse_valid_child_text(child)
+            child_text = self._html_helper.parse_valid_child_text(child)
             if child_text is None:
                 _log.debug(
                     'Unable to determine body text from tag: "%s"', child
@@ -306,8 +173,7 @@ class NhkNewsWebCrawler(object):
                 body_text_sections.append(text)
 
         if len(body_text_sections) == 0:
-            utils.log_and_raise(
-                _log, CannotParsePageError,
+            self._parsing_error_handler(
                 'No body text sections in: "{}"'.format(article_tag)
             )
 
@@ -327,13 +193,15 @@ class NhkNewsWebCrawler(object):
         """
         article_data = JpnArticle()
         article_data.metadata = JpnArticleMetadata(
-            title=self._parse_text_from_desendant(
+            title=self._html_helper.parse_text_from_desendant(
                 article_tag, 'span', self._ARTICLE_TITLE_CLASS
             ),
             source_url=url,
             source_name=self._SOURCE_NAME,
             scraped_datetime=datetime.utcnow(),
-            publication_datetime=self._parse_jst_time_desendant(article_tag),
+            publication_datetime=self._html_helper.parse_jst_time_desendant(
+                article_tag
+            ),
         )
 
         body_text = self._parse_body_text(article_tag)
@@ -343,23 +211,18 @@ class NhkNewsWebCrawler(object):
 
         return article_data
 
-    def _parse_main(
-        self, soup: BeautifulSoup, raise_on_error: bool = True
-    ) -> Optional[Tag]:
+    def _parse_main(self, soup: BeautifulSoup) -> Optional[Tag]:
         """Parses the main tag from the given BeautifulSoup html.
 
         Args:
             soup: BeautifulSoup object with parsed html.
-            raise_on_error: If True, raises CannotParsePageError on parsing
-                errors. If False, just logs error and returns None.
 
         Returns:
             main tag if successfully parsed, None if otherwise.
         """
-        error_handler = self._get_parsing_error_handler(raise_on_error)
         main = soup.find(id=self._MOST_RECENT_PAGE_MAIN_ID)
         if main is None:
-            error_handler(
+            self._parsing_error_handler(
                 'Could not find "main" tag in most recent page ({})'.format(
                     self._MOST_RECENT_PAGE_URL
                 )
@@ -367,27 +230,23 @@ class NhkNewsWebCrawler(object):
 
         return main
 
-    def _parse_most_recent_article_list(
-        self, main: Tag, raise_on_error: bool = True
-    ) -> Optional[Tag]:
+    def _parse_most_recent_article_list(self, main: Tag) -> Optional[Tag]:
         """Parses the most recent article list ul tag from the main tag.
 
         Args:
             main: A main tag that should contain a most recent article list.
-            raise_on_error: If True, raises CannotParsePageError on parsing
-                errors. If False, just logs error and returns None.
 
         Returns:
             Most recent article list ul tag if successfully parsed, None if
             otherwise.
         """
-        error_handler = self._get_parsing_error_handler(raise_on_error)
         article_uls = main.find_all(
             'ul', class_=self._MOST_RECENT_PAGE_ARTICLE_LIST_CLASSES
         )
         if len(article_uls) != 1:
-            error_handler(
-                'Found {} article uls in most recent page ({})'.format(
+            self._parsing_error_handler(
+                'Found {} article uls instead of 1 in most recent page '
+                '({})'.format(
                     len(article_uls), self._MOST_RECENT_PAGE_URL
                 )
             )
@@ -416,11 +275,13 @@ class NhkNewsWebCrawler(object):
         metadatas = []
         for list_item in article_ul.children:
             metadatas.append(JpnArticleMetadata(
-                title=self._parse_text_from_desendant(
+                title=self._html_helper.parse_text_from_desendant(
                     list_item, 'em', self._MOST_RECENT_PAGE_TITLE_CLASS
                 ),
-                publication_datetime=self._parse_jst_time_desendant(list_item),
-                source_url=self._parse_link_desendant(list_item),
+                publication_datetime=(
+                    self._html_helper.parse_jst_time_desendant(list_item)
+                ),
+                source_url=self._html_helper.parse_link_desendant(list_item),
                 source_name=self._SOURCE_NAME,
             ))
 
@@ -478,21 +339,23 @@ class NhkNewsWebCrawler(object):
             HTTPError: An error occurred making a GET request to url.
             CannotParsePageError: An error occurred while parsing the article.
         """
-        response = utils.get_request_raise_on_error(
-            url, self._session, timeout=self._timeout
-        )
+        _log.debug('Making GET request to url "%s"', url)
+        response = self._session.get(url, timeout=self._timeout)
+        _log.debug('Reponse received with code %s', response.status_code)
+        response.raise_for_status()
 
         soup = BeautifulSoup(response.content, 'html.parser')
         article_tags = soup.find_all(
             'section', class_=self._ARTICLE_TAG_CLASS
         )
         if len(article_tags) != 1:
-            _log.error(
-                'Found %s article sections for url "%s"',
+            self._parsing_error_handler(
+                'Found %s article sections instead of 1 for url "%s"',
                 len(article_tags), url
             )
-            raise CannotParsePageError(
-                'Page at url "{url}" not in expected article fromat'
-            )
 
-        return self._parse_article(article_tags[0], url)
+        # Ruby tags tend to mess up Japanese processing, so strip all of them
+        # from the HTML document right away.
+        article_tag = self._html_helper.remove_ruby_tags(article_tags[0])
+
+        return self._parse_article(article_tag, url)

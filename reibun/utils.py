@@ -1,14 +1,9 @@
-"""Generic utility variables and functions.
-
-Attributes:
-    HTML_TAG_REGEX (re.Pattern): Regex for matching any HTML tag.
-"""
+"""Generic utility variables and functions."""
 
 import dataclasses
 import functools
 import inspect
 import logging
-import re
 import sys
 from datetime import datetime
 from operator import itemgetter
@@ -16,18 +11,10 @@ from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
 import jaconv
 import pytz
-import requests
-from bs4.element import NavigableString, Tag
 
 _log = logging.getLogger(__name__)
 
 T = TypeVar('T')
-
-HTML_TAG_REGEX = re.compile(r'<.*?>')
-
-_ALLOWABLE_HTML_TAGS_IN_TEXT = {
-    'a', 'b', 'blockquote', 'br', 'em', 'strong', 'sup'
-}
 
 _JAPAN_TIMEZONE = pytz.timezone('Japan')
 
@@ -92,34 +79,6 @@ def unique(items: List[T]) -> List[T]:
     return unique_items
 
 
-def get_request_raise_on_error(
-    url: str, session: requests.sessions.Session = None, **kwargs
-) -> requests.models.Response:
-    """Makes a GET request to url, then raises if status code >= 400.
-
-    Args:
-        url: URL to make the GET request to.
-        session: If provided, this Session will be used to make the GET
-            request.
-        kwargs: Will be passed to the requests.get function call.
-
-    Returns:
-        The reponse from the GET request.
-
-    Raises:
-        HTTPError: The GET request returned with a status code >= 400
-    """
-    _log.debug('Making GET request to url "%s"', url)
-    if session:
-        response = session.get(url, **kwargs)
-    else:
-        response = requests.get(url, **kwargs)
-    _log.debug('Reponse received with code %s', response.status_code)
-    response.raise_for_status()
-
-    return response
-
-
 def tuple_or_none(item: Any) -> Tuple:
     """Converts item to tuple, or returns None if item is None."""
     if item is None:
@@ -154,42 +113,6 @@ def normalize_char_width(string: str) -> str:
     out_str = jaconv.h2z(string, kana=True, ascii=False, digit=False)
     out_str = jaconv.z2h(out_str, kana=False, ascii=True, digit=True)
     return out_str
-
-
-def parse_valid_child_text(tag: Tag) -> Optional[str]:
-    """Parses the child text within an HTML tag if valid.
-
-    The child text of an HTML tag is considered invalid and will not be
-    parsed by this function if any of the descendants of the tag are
-    structural HTML elements such as section, div, p, h1, etc.
-
-    See _ALLOWABLE_HTML_TAGS_IN_TEXT for a set of HTML tags allowable as
-    descendants for a tag with valid child text under this definition.
-
-    Args:
-        tag: HTML tag whose child text to attempt to parse.
-
-    Returns:
-        The child text of tag, or None if the tag contained no text elements OR
-        if the child text was considered invalid for parsing.
-    """
-    contains_text = False
-    for descendant in tag.descendants:
-        if (descendant.name is not None and
-                descendant.name not in _ALLOWABLE_HTML_TAGS_IN_TEXT):
-            _log.debug(
-                'Child text contains invalid "%s" tag: "%s"',
-                descendant.name, tag
-            )
-            return None
-
-        if isinstance(descendant, NavigableString):
-            contains_text = True
-
-    if contains_text:
-        return re.sub(HTML_TAG_REGEX, '', str(tag))
-    else:
-        return None
 
 
 def get_full_name(obj: Any) -> str:
