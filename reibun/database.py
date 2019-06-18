@@ -1,4 +1,4 @@
-"""Handles CRUD operations for the Reibun index database.
+"""Handles CRUD operations for the Reibun database.
 
 The public members of this module are defined generically so that the
 implementation of the article index can be changed freely while keeping the
@@ -7,7 +7,7 @@ access interface consistent.
 
 import logging
 from operator import itemgetter
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, TypeVar, Union
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
@@ -20,6 +20,7 @@ from reibun.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
 
 _log = logging.getLogger(__name__)
 
+T = TypeVar('T')
 _Document = Dict[str, Any]
 
 
@@ -90,36 +91,40 @@ class ReibunDb(object):
         # Since there is an index on text_hash and this query queries and
         # returns only the text_hash field, it will be a covered query
         # (i.e. it's fast!)
-        docs = self._read_with_log(
+        stored_docs = self._read_with_log(
             'text_hash', article_hashes, self._article_collection,
             {'text_hash': 1, '_id': 0}
         )
 
-        stored_hashes = set(doc['text_hash'] for doc in docs)
-        return [a for a in articles if a.text_hash not in stored_hashes]
+        unstored_articles = self._filter_to_unstored(
+            articles, stored_docs, ['text_hash']
+        )
+        return unstored_articles
 
     def filter_to_unstored_article_metadatas(
-        self, metadatas: List[JpnArticleMetadata], eq_fields: List[str]
+        self, metadatas: List[JpnArticleMetadata], eq_attrs: List[str]
     ) -> List[JpnArticleMetadata]:
         """Returns new list with the metadatas not currently stored in the db.
 
-        Uses a comparison on the fields specified in eq_fields to determine if
-        two article metadatas are equal.
+        Uses a comparison on the attributes specified in eq_attrs to determine
+        if two article metadatas are equal.
 
         Does not modify the given article metadatas list.
 
         Args:
             metadatas: A list of article metadatas to check for in the
                 database.
+            eq_attrs: A list of attributes names whose values to compare to
+                determine if two article metadatas are equivalent.
 
         Returns:
             The article metadatas from the given list that are not currently
-            stored in the database based on a comparison using eq_fields.
+            stored in the database based on a comparison using eq_attrs.
             Preserves ordering used in the given list.
         """
         match_docs = [dict() for _ in metadatas]
         for i, metadata in enumerate(metadatas):
-            for field in eq_fields:
+            for field in eq_attrs:
                 match_docs[i][field] = getattr(metadata, field)
 
         if len(match_docs) == 1:
@@ -127,33 +132,66 @@ class ReibunDb(object):
         else:
             query = {'$or': match_docs}
 
-        projection = {field: 1 for field in eq_fields}
+        projection = {field: 1 for field in eq_attrs}
         projection['_id'] = 0
 
         _log.debug(
             'Will query %s with %s metadatas using %s fields',
-            self._CRAWLED_COLL_NAME, len(match_docs), eq_fields
+            self._crawled_collection.full_name, len(match_docs), eq_attrs
         )
         cursor = self._crawled_collection.find(query, projection)
-        docs = list(cursor)
+        stored_docs = list(cursor)
         _log.debug(
             'Retrieved %s documents from %s',
-            len(docs), self._crawled_collection
+            len(stored_docs), self._crawled_collection.full_name
         )
 
+        unstored_metadatas = self._filter_to_unstored(
+            metadatas, stored_docs, eq_attrs
+        )
+        return unstored_metadatas
+
+    def _filter_to_unstored(
+        self, objs: List[T], stored_docs: List[_Document], eq_attrs: List[str]
+    ) -> List[T]:
+        """Filters the objects to only those without an equal stored document.
+
+        Uses a comparison on the attributes specified in eq_attrs to determine
+        if an object is equivalent to a document.
+
+        Runs in O(o*e + d*e) where o is the number of objects, d is the number
+        of stored docs, and e is the number of eq attributes.
+
+        Does not modify the given object or document lists.
+
+        Args:
+            objs: Object list to filter to remove stored objects.
+            stored_docs: Stored documents to compare to the given objects to
+                determine if an object is stored or not.
+            eq_attrs: The attributes of the objects to compare to fields in the
+                documents to determine if an object is equal to a document. All
+                attributes in this list must be equal for an object and
+                document to be considered equal.
+
+        Returns:
+            A new list containing only the objects from the given object list
+            that do not have an equivalent document in the given document list
+            based on a comparison of the attributes in eq_attrs.
+            Preserves ordering used in the given objects list.
+        """
         docs_key_vals = set()
-        for doc in docs:
+        for doc in stored_docs:
             docs_key_vals.add(tuple(sorted(doc.items(), key=itemgetter(0))))
 
-        unstored_metadatas = []
-        for metadata in metadatas:
-            field_key_vals = tuple(
-                (f, getattr(metadata, f)) for f in sorted(eq_fields)
+        unstored_objs = []
+        for obj in objs:
+            attr_key_vals = tuple(
+                (attr, getattr(obj, attr)) for attr in sorted(eq_attrs)
             )
-            if field_key_vals not in docs_key_vals:
-                unstored_metadatas.append(metadata)
+            if attr_key_vals not in docs_key_vals:
+                unstored_objs.append(obj)
 
-        return unstored_metadatas
+        return unstored_objs
 
     def write_found_lexical_items(
             self, found_lexical_items: List[FoundJpnLexicalItem]
