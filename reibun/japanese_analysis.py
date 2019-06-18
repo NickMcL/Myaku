@@ -3,6 +3,7 @@
 import gzip
 import logging
 import os
+import re
 import shelve
 import shutil
 import subprocess
@@ -12,7 +13,7 @@ from collections import defaultdict
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from xml.etree import ElementTree
 
 import MeCab
@@ -29,6 +30,145 @@ _RESOURCE_FILE_DIR = os.path.join(
 _JMDICT_XML_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.xml')
 _JMDICT_GZ_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.gz')
 _JMDICT_LATEST_FTP_URL = 'ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz'
+_JMDICT_FILE_VERSION_REGEX = re.compile(
+    r'^<!-- JMdict created: (\d\d\d\d)-(\d\d)-(\d\d) -->$'
+)
+
+_IPADIC_NEOLOGD_GIT_DIR_ENV_VAR = 'IPADIC_NEOLOGD_GIT_DIR'
+_IPADIC_NEOLOGD_CHANGELOG_PATH = None
+if _IPADIC_NEOLOGD_GIT_DIR_ENV_VAR in os.environ:
+    _IPADIC_NEOLOGD_CHANGELOG_PATH = os.path.join(
+        os.environ[_IPADIC_NEOLOGD_GIT_DIR_ENV_VAR], 'ChangeLog'
+    )
+
+_IPADIC_NEOLOGD_VERSION_REGEX = re.compile(
+    r'^# Release (\d\d\d\d)(\d\d)(\d\d)-.*$'
+)
+
+
+class ResourceLoadError(Exception):
+    """Raised if a necessary external resource fails to load.
+
+    For example, an analyzer fails to load a dictionary file necessary for
+    its operation.
+    """
+    pass
+
+
+class ResourceNotReadyError(Exception):
+    """Raised if a resource is used before it is ready to be used.
+
+    For example, trying to use an external resource such as a dictionary before
+    it has been loaded.
+    """
+    pass
+
+
+class TextAnalysisError(Exception):
+    """Raised if an unexpected error occurs related to text analysis."""
+    pass
+
+
+def get_resource_version_info() -> Dict[str, str]:
+    """Returns the version info of the resources used by this module.
+
+    Includes versions of resources such as Japanese dictionaries and
+    morphological analyzers used by this module.
+
+    Returns:
+        Dictionary where the keys are the names of resources used by this
+        module and the values are the versions of those resources currently
+        being used by the module.
+    """
+    version_info = {}
+    version_info['MeCab'] = _get_mecab_version()
+    version_info['JMdict'] = _get_jmdict_version()
+    version_info['ipadic-NEologd'] = _get_ipadic_neologd_version()
+
+    return version_info
+
+
+def _get_mecab_version() -> str:
+    """Returns version of MeCab on the system."""
+    output = subprocess.run(
+        ['mecab-config', '--version'], capture_output=True
+    )
+    if output.returncode != 0:
+        utils.log_and_raise(
+            _log, ResourceLoadError,
+            'mecab is not available on this system'
+        )
+
+    mecab_version = output.stdout.decode(sys.stdout.encoding).strip()
+    return mecab_version
+
+
+def _get_jmdict_version() -> str:
+    """Returns version of JMdict currently used by this module.
+
+    The version for JMdict will be in the form of a date "yyyy.mm.dd". For
+    example, 2019.06.11 for the JMdict generated on June 11th, 2019.
+    """
+    if not os.path.exists(_JMDICT_XML_FILEPATH):
+        utils.log_and_raise(
+            _log, ResourceLoadError,
+            'JMdict XML file not found at "{}"'.format(_JMDICT_XML_FILEPATH)
+        )
+
+    match = None
+    with open(_JMDICT_XML_FILEPATH) as jmdict_file:
+        for line in jmdict_file:
+            match = re.match(_JMDICT_FILE_VERSION_REGEX, line)
+            if match is not None:
+                break
+
+    if match is None:
+        utils.log_and_raise(
+            _log, ResourceLoadError,
+            'JMdict XML file at "{}" does not contain version info'.format(
+                _JMDICT_XML_FILEPATH
+            )
+        )
+
+    return '{}.{}.{}'.format(match.group(1), match.group(2), match.group(3))
+
+
+def _get_ipadic_neologd_version() -> str:
+    """Returns version of ipadic-NEologd used by this module.
+
+    The version for ipadic-NEologd will be in the form of a date "yyyy.mm.dd".
+    For example, 2019.06.11 for the ipadic-NEologd generated on June 11th,
+    2019.
+    """
+    if _IPADIC_NEOLOGD_CHANGELOG_PATH is None:
+        utils.log_and_raise(
+            _log, ResourceLoadError,
+            '{} not set in environment'.format(_IPADIC_NEOLOGD_GIT_DIR_ENV_VAR)
+        )
+
+    if not os.path.exists(_IPADIC_NEOLOGD_CHANGELOG_PATH):
+        utils.log_and_raise(
+            _log, ResourceLoadError,
+            'ipadic-NEologd ChangeLog file not found at "{}"'.format(
+                _IPADIC_NEOLOGD_CHANGELOG_PATH
+            )
+        )
+
+    match = None
+    with open(_IPADIC_NEOLOGD_CHANGELOG_PATH) as neologd_file:
+        for line in neologd_file:
+            match = re.match(_IPADIC_NEOLOGD_VERSION_REGEX, line)
+            if match is not None:
+                break
+
+    if match is None:
+        utils.log_and_raise(
+            _log, ResourceLoadError,
+            'ipadic-NEologd ChangeLog file at "{}" does not contain verison '
+            'info'.format(_IPADIC_NEOLOGD_CHANGELOG_PATH)
+        )
+
+    return '{}.{}.{}'.format(match.group(1), match.group(2), match.group(3))
 
 
 def update_resources() -> None:
@@ -55,29 +195,6 @@ def _update_jmdict_files() -> None:
 
     _log.debug('Removing "%s"', _JMDICT_GZ_FILEPATH)
     os.remove(_JMDICT_GZ_FILEPATH)
-
-
-class ResourceLoadError(Exception):
-    """Raised if a necessary external resource fails to load.
-
-    For example, an analyzer fails to load a dictionary file necessary for
-    its operation.
-    """
-    pass
-
-
-class ResourceNotReadyError(Exception):
-    """Raised if a resource is used before it is ready to be used.
-
-    For example, trying to use an external resource such as a dictionary before
-    it has been loaded.
-    """
-    pass
-
-
-class TextAnalysisError(Exception):
-    """Raised if an unexpected error occurs related to text analysis."""
-    pass
 
 
 @utils.singleton_per_config

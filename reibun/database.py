@@ -14,6 +14,7 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.results import InsertManyResult
 
+import reibun
 import reibun.utils as utils
 from reibun.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
                               JpnArticleMetadata, JpnLexicalItemInterp)
@@ -61,6 +62,8 @@ class ReibunDb(object):
         )
 
         self._create_indexes()
+
+        self._version_doc = reibun.get_version_info()
 
     def _create_indexes(self) -> None:
         """Creates the necessary indexes for the db if they don't exist."""
@@ -345,6 +348,7 @@ class ReibunDb(object):
                 'source_name': metadata.source_name,
                 'publication_datetime': metadata.publication_datetime,
                 'scraped_datetime': metadata.scraped_datetime,
+                'reibun_version_info': self._version_doc,
             })
 
         return docs
@@ -364,6 +368,7 @@ class ReibunDb(object):
                 'scraped_datetime': article.metadata.scraped_datetime,
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
+                'reibun_version_info': self._version_doc,
             })
 
         return docs
