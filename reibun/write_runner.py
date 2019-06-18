@@ -1,3 +1,4 @@
+import time
 import sys
 
 import reibun.utils as utils
@@ -14,8 +15,11 @@ OTHER_TEXT = '鯖を読んで五歳ほど若くいう'
 
 TEXT_SRC_URL = 'https://www.aozora.gr.jp/cards/001095/files/42618_21410.html'
 
+LOG_FILEPATH = './reibun_write.log'
+
 if __name__ == '__main__':
-    utils.toggle_reibun_debug_log()
+    utils.toggle_reibun_debug_log(filepath=LOG_FILEPATH)
+    time.sleep(5)
     # article = JpnArticle(
     # title='桜の森の満開の下',
     # full_text=SAMPLE_TEXT,
@@ -26,7 +30,11 @@ if __name__ == '__main__':
     # )
 
     with NhkNewsWebCrawler() as crawler:
-        new_articles = crawler.crawl_most_recent()
+        new_articles = crawler.crawl_tokushu(10)
+
+    if len(new_articles) == 0:
+        print('\nNo uncrawled articles!\n')
+        sys.exit()
 
     with ReibunDb() as db:
         new_articles = db.filter_to_unstored_articles(new_articles)

@@ -198,7 +198,6 @@ def _update_jmdict_files() -> None:
 
 
 @utils.singleton_per_config
-@utils.add_method_debug_logging
 class JapaneseTextAnalyzer(object):
     """Analyzes Japanese text to determine used lexical items."""
 
@@ -209,6 +208,7 @@ class JapaneseTextAnalyzer(object):
         self._jmdict = JMdict(_JMDICT_XML_FILEPATH)
         self._mecab_tagger = MecabTagger()
 
+    @utils.add_debug_logging
     def find_article_lexical_items(
         self, article: JpnArticle
     ) -> List[FoundJpnLexicalItem]:
@@ -266,7 +266,6 @@ class JapaneseTextAnalyzer(object):
         # MeCab generally parses text into base lexical items while ignoring
         # meta lexical items, so meta lexical items must be found separately.
         meta_lexical_items = self._find_meta_lexical_items(mecab_lexical_items)
-        _log.debug('Found %s meta lexical items', len(meta_lexical_items))
 
         found_lexical_items = mecab_lexical_items + meta_lexical_items
         processed_lexical_items = []
@@ -951,7 +950,6 @@ class JMdict(object):
 
 
 @utils.singleton_per_config
-@utils.add_method_debug_logging
 class MecabTagger:
     """Object representation of a MeCab tagger.
 

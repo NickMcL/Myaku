@@ -7,9 +7,10 @@ access interface consistent.
 
 import logging
 import re
-from operator import itemgetter
+from datetime import datetime
 from typing import Any, Dict, List, TypeVar, Union
 
+import pytz
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.collection import Collection
@@ -183,16 +184,29 @@ class ReibunDb(object):
             based on a comparison of the attributes in eq_attrs.
             Preserves ordering used in the given objects list.
         """
+        sorted_eq_attrs = sorted(eq_attrs)
+
         docs_key_vals = set()
         for doc in stored_docs:
-            docs_key_vals.add(tuple(sorted(doc.items(), key=itemgetter(0))))
+            key_vals = []
+            for attr in sorted_eq_attrs:
+                if isinstance(doc[attr], datetime):
+                    key_vals.append((attr, doc[attr].replace(tzinfo=pytz.utc)))
+                else:
+                    key_vals.append((attr, doc[attr]))
+            docs_key_vals.add(tuple(key_vals))
 
         unstored_objs = []
         for obj in objs:
-            attr_key_vals = tuple(
-                (attr, getattr(obj, attr)) for attr in sorted(eq_attrs)
-            )
-            if attr_key_vals not in docs_key_vals:
+            key_vals = []
+            for attr in sorted_eq_attrs:
+                value = getattr(obj, attr)
+                if isinstance(value, datetime):
+                    key_vals.append((attr, value.replace(tzinfo=pytz.utc)))
+                else:
+                    key_vals.append((attr, value))
+
+            if tuple(key_vals) not in docs_key_vals:
                 unstored_objs.append(obj)
 
         return unstored_objs

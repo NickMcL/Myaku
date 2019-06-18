@@ -22,7 +22,7 @@ class HtmlHelper(object):
     _RP_CONTENT_REGEX = re.compile(r'<rp.*?>.*?</rp>')
 
     _ALLOWABLE_HTML_TAGS_IN_TEXT = {
-        'a', 'b', 'blockquote', 'br', 'em', 'strong', 'sup'
+        'a', 'b', 'blockquote', 'br', 'em', 'span', 'strong', 'sup'
     }
 
     _TIME_TAG_DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
@@ -61,10 +61,6 @@ class HtmlHelper(object):
         for descendant in tag.descendants:
             if (descendant.name is not None and
                     descendant.name not in self._ALLOWABLE_HTML_TAGS_IN_TEXT):
-                _log.debug(
-                    'Child text contains invalid "%s" tag: "%s"',
-                    descendant.name, tag
-                )
                 return None
 
             if isinstance(descendant, NavigableString):
@@ -160,14 +156,18 @@ class HtmlHelper(object):
 
         return utils.convert_jst_to_utc(parsed_datetime)
 
-    def parse_link_desendant(self, parent: Tag) -> Optional[str]:
+    def parse_link_desendant(
+        self, parent: Tag, take_first: bool = False
+    ) -> Optional[str]:
         """Parses the url from an <a> tag descendant.
 
-        Considers it an error if more than one <a> tag descendant exists within
-        parent.
+        If take_first is False, considers it an error if more than one <a> tag
+        descendant exists within parent.
 
         Args:
             parent: The tag whose descendants to search for a <a> tag.
+            take_first: If True, returns the first <a> descendant found without
+                checking if more exist.
 
         Returns:
             The link from an <a> tag descendant if the parse was successful,
@@ -175,7 +175,13 @@ class HtmlHelper(object):
         """
         link_tags = parent.find_all('a')
 
-        if len(link_tags) != 1:
+        if len(link_tags) == 0:
+            self._error_handler(
+                'Found 0 <a> tags in "{}"'.format(len(link_tags), parent)
+            )
+            return None
+
+        if len(link_tags) > 1 and not take_first:
             self._error_handler(
                 'Found {} <a> tags instead of 1 in "{}"'.format(
                     len(link_tags), parent
@@ -193,7 +199,48 @@ class HtmlHelper(object):
 
         return link_tags[0]['href']
 
-    def remove_ruby_tags(self, tag: Tag) -> Tag:
+    def parse_descendant_by_class(
+        self, parent: Tag, tag_name: str, classes: Union[str, List[str]],
+        allow_multiple: bool = False
+    ) -> Optional[Union[Tag, List[Tag]]]:
+        """Parses a tag_name descendant with classes within parent.
+
+        If allow_multiple != True, considers it an error if more than one
+        tag_name descendant with the specified classes exists within parent.
+
+        Args:
+            parent: The tag whose descendants to search.
+            tag_name: The type of tag to search for (e.g. span).
+            classes: A single or list of classes that the class attribute of
+                tag to parse text from must exactly match.
+            allow_multiple: If True, it will not be an error if there are
+                multiple descendants found and all of the found descendants
+                will be returned in a list.
+
+        Returns:
+            The found tag_name tag(s) if the parse was successful, None
+            otherwise.
+        """
+        tags = parent.find_all(tag_name, class_=classes)
+        if len(tags) > 1 and not allow_multiple:
+            self._error_handler(
+                'Found {} "{}" tags with class(es) "{}" instead of 1 in '
+                '"{}"'.format(
+                    len(tags), tag_name, classes, parent
+                )
+            )
+        if len(tags) == 0:
+            self._error_handler(
+                'Found 0 "{}" tags with class(es) "{}" in "{}"'.format(
+                    tag_name, classes, parent
+                )
+            )
+
+        if allow_multiple:
+            return tags
+        return tags[0]
+
+    def strip_ruby_tags(self, tag: Tag) -> Tag:
         """Strips ruby tags from within the given tag.
 
         Leaves the normal text within the ruby tag while striping out any
