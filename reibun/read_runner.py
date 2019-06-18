@@ -1,7 +1,10 @@
+from operator import attrgetter
+
 import reibun.utils as utils
 from reibun.database import ReibunDb
 
 JPN_PERIOD = '。'
+LOG_FILE = './reibun.log'
 
 
 class Color:
@@ -22,7 +25,7 @@ def find_sentene_start(text: str, pos: int) -> int:
     prev_new_line_pos = text.rfind('\n', 0, pos)
     if prev_period_pos == prev_new_line_pos == -1:
         return 0
-    if prev_period_pos > prev_new_line_pos:
+    if prev_new_line_pos == -1 or prev_period_pos > prev_new_line_pos:
         return prev_period_pos + 1
     return prev_new_line_pos + 1
 
@@ -32,22 +35,27 @@ def find_sentene_end(text: str, pos: int, match_len: int) -> int:
     next_new_line_pos = text.find('\n', pos + match_len)
     if next_period_pos == next_new_line_pos == -1:
         return len(text)
-    if next_period_pos < next_new_line_pos:
+    if next_new_line_pos == -1 or next_period_pos < next_new_line_pos:
         return next_period_pos + 1
     return next_new_line_pos
 
 
 if __name__ == '__main__':
-    utils.toggle_reibun_debug_log()
+    utils.toggle_reibun_debug_log(filepath=LOG_FILE)
     while True:
-        query = input('\nSearch for: ')
+        query = input('\n\nSearch for: ')
 
         with ReibunDb() as db:
-            found_lexical_items = db.read_found_lexical_items(query)
-        found_lexical_items.sort(key=lambda i: i.text_pos_abs)
+            found_lexical_items = db.read_found_lexical_items(query, True)
+        found_lexical_items.sort(key=attrgetter('text_pos_abs'))
+        found_lexical_items.sort(
+            key=attrgetter('article.metadata.publication_datetime'),
+            reverse=True
+        )
 
-        print(f'\nFound {len(found_lexical_items)} results:')
-        breakpoint()
+        results_str = f'Found {len(found_lexical_items)} results'
+        print('\n' + results_str)
+        print('-' * len(results_str))
         for item in found_lexical_items:
             start = find_sentene_start(
                 item.article.full_text, item.text_pos_abs

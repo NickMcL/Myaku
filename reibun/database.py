@@ -6,6 +6,7 @@ access interface consistent.
 """
 
 import logging
+import re
 from operator import itemgetter
 from typing import Any, Dict, List, TypeVar, Union
 
@@ -197,9 +198,19 @@ class ReibunDb(object):
         return unstored_objs
 
     def write_found_lexical_items(
-            self, found_lexical_items: List[FoundJpnLexicalItem]
+            self, found_lexical_items: List[FoundJpnLexicalItem],
+            write_articles: bool = True
     ) -> None:
-        """Writes the found lexical items to the database."""
+        """Writes the found lexical items to the database.
+
+        Args:
+            found_lexical_items: List of found lexical items to write to the
+                database.
+            write_articles: If True, will write all of the articles referenced
+                by the given found lexical items to the database as well. If
+                False, will assume the articles referenced by the the given
+                found lexical items are already in the database.
+        """
         # Many found lexical items can point to the same article object in
         # memory, so dedupe using id() to get each article object only once
         article_id_map = {
@@ -207,12 +218,26 @@ class ReibunDb(object):
         }
         articles = list(article_id_map.values())
 
-        article_docs = self._convert_articles_to_docs(articles)
-        result = self._write_with_log(article_docs, self._article_collection)
+        if write_articles:
+            article_docs = self._convert_articles_to_docs(articles)
+            result = self._write_with_log(
+                article_docs, self._article_collection
+            )
+            article_oid_map = {
+                id(a): oid for a, oid in zip(articles, result.inserted_ids)
+            }
 
-        article_oid_map = {
-            id(a): oid for a, oid in zip(articles, result.inserted_ids)
-        }
+        else:
+            text_hashes = [a.text_hash for a in articles]
+            docs = self._read_with_log(
+                'text_hash', text_hashes, self._article_collection,
+                {'text_hash': 1}
+            )
+            hash_oid_map = {d['text_hash']: d['_id'] for d in docs}
+            article_oid_map = {
+                id(a): hash_oid_map[a.text_hash] for a in articles
+            }
+
         found_lexical_item_docs = self._convert_found_lexical_items_to_docs(
             found_lexical_items, article_oid_map
         )
@@ -221,18 +246,29 @@ class ReibunDb(object):
         )
 
     def read_found_lexical_items(
-        self, base_forms: Union[str, List[str]]
+        self, base_forms: Union[str, List[str]], starts_with: bool = False
     ) -> List[FoundJpnLexicalItem]:
         """Reads found lexical items that match base form from the database.
 
         Args:
             base_forms: Either one or a list of base forms of Japanese lexical
                 items to search for matching found lexical items in the db.
+            starts_with: If True, will return all found lexical items with a
+                possible interpretation base form that starts with one of the
+                given base forms. If False, will return all found lexical items
+                with a possible interpretation base form that exactly matches
+                one of the given base forms.
 
         Returns:
             A list of found lexical items with at least on possible
             interpretation that matches at least one of the base forms given.
         """
+        if not isinstance(base_forms, list):
+            base_forms = [base_forms]
+
+        if starts_with:
+            base_forms = [re.compile('^' + s) for s in base_forms]
+
         found_lexical_item_docs = self._read_with_log(
             'possible_interps.base_form', base_forms,
             self._found_lexical_item_collection
@@ -250,6 +286,22 @@ class ReibunDb(object):
             found_lexical_item_docs, oid_article_map
         )
         return found_lexical_items
+
+    def read_articles(self) -> List[JpnArticle]:
+        """Reads all articles from the database."""
+        _log.debug(
+            'Will query %s for all documents',
+            self._article_collection.full_name
+        )
+        cursor = self._article_collection.find({})
+        docs = list(cursor)
+        _log.debug(
+            'Retrieved %s documents from %s',
+            len(docs), self._article_collection
+        )
+
+        article_oid_map = self._convert_docs_to_articles(docs)
+        return list(article_oid_map.values())
 
     def write_crawled(self, metadatas: List[JpnArticleMetadata]) -> None:
         """Writes the article metadata to the crawled database."""
@@ -416,6 +468,7 @@ class ReibunDb(object):
                 'text_pos_abs': found_lexical_item.text_pos_abs,
                 'text_pos_percent': found_lexical_item.text_pos_percent,
                 'possible_interps': interp_docs,
+                'reibun_version_info': self._version_doc,
             })
 
         return docs

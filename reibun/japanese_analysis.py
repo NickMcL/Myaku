@@ -1025,6 +1025,12 @@ class MecabTagger:
                     )
                 )
 
+            # Adjust offset to account for MeCab skipping some white space
+            # characters.
+            while (text[offset:offset + len(parsed_token_tags[0])] !=
+                   parsed_token_tags[0]):
+                offset += 1
+
             lexical_item_interp = self._create_interp_obj(parsed_token_tags)
             found_lexical_item = FoundJpnLexicalItem(
                 surface_form=parsed_token_tags[0],
