@@ -5,13 +5,22 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 import jaconv
 
 import reibun.utils as utils
 
 _log = logging.getLogger(__name__)
+
+
+class MissingDataError(Exception):
+    """Raised if data expected to be present is missing.
+
+    For example, if an object's method is called that depends on certain attrs
+    of the object being set, but those attrs are not set.
+    """
+    pass
 
 
 @enum.unique
@@ -228,11 +237,14 @@ class FoundJpnLexicalItem(object):
         text_pos_percent: The percent of the total characters in the article
             ahead of the lecixal item. Automatically set once article and
             text_pos_abs are set. Read-only.
+        database_id: ID used to uniquely identify the found lexical item in the
+            Reibun database.
     """
     surface_form: str = None
     possible_interps: List[JpnLexicalItemInterp] = None
     article: JpnArticle = None
     text_pos_abs: int = None
+    database_id: str = None
 
     # Read-only
     text_pos_percent: float = None
@@ -240,6 +252,15 @@ class FoundJpnLexicalItem(object):
     _article: str = field(default=None, init=False, repr=False)
     _text_pos_abs: str = field(default=None, init=False, repr=False)
     _text_pos_percent: str = field(default=None, init=False, repr=False)
+
+    _ARTICLE_LEN_GROUPS: Tuple[int, ...] = field(
+        default=(
+            1000,
+            500,
+        ),
+        init=False,
+        repr=False
+    )
 
     @property
     def article(self) -> JpnArticle:
@@ -269,3 +290,102 @@ class FoundJpnLexicalItem(object):
     def text_pos_percent(self) -> float:
         """See class docstring for text_pos_percent documentation."""
         return self._text_pos_percent
+
+    def id(self) -> Tuple[Tuple[str, Any], ...]:
+        """Returns a tuple that uniquely IDs this found lexical item."""
+        required_attrs = [
+            ('article', self.article),
+            ('article.text_hash', self.article.text_hash),
+            ('surface_form', self.surface_form),
+            ('text_pos_abs', self.text_pos_abs),
+        ]
+        for attr in required_attrs:
+            if attr[1] is None:
+                utils.log_and_raise(
+                    _log, MissingDataError,
+                    '%s is not set, so cannot generate unique ID for '
+                    '{}'.format(attr[0], self)
+                )
+
+        return (
+            ('article.text_hash', self.article.text_hash),
+            ('surface_form', self.surface_form),
+            ('text_pos_abs', self.text_pos_abs),
+        )
+
+    def get_article_len_group(self) -> int:
+        """Gets the article alnum length group for the lexical item."""
+        required_attrs = [
+            ('article', self.article),
+            ('article.alnum_count', self.article.alnum_count),
+        ]
+        for attr in required_attrs:
+            if attr[1] is None:
+                utils.log_and_raise(
+                    _log, MissingDataError,
+                    '%s is not set, so cannot get article length group for '
+                    '{}'.format(attr[0], self)
+                )
+
+        for group_min in self._ARTICLE_LEN_GROUPS:
+            if self.article.alnum_count >= group_min:
+                return group_min
+        return 0
+
+    def get_containing_sentence(self) -> str:
+        """Gets the sentence from article containing the found lexical item."""
+        required_attrs = [
+            ('article', self.article),
+            ('article.full_text', self.article.full_text),
+            ('surface_form', self.surface_form),
+            ('text_pos_abs', self.text_pos_abs),
+        ]
+        for attr in required_attrs:
+            if attr[1] is None:
+                utils.log_and_raise(
+                    _log, MissingDataError,
+                    '%s is not set, so cannot get containing sentence for '
+                    '{}'.format(attr[0], self)
+                )
+
+        return self.article.full_text[
+            utils.find_jpn_sentene_start(
+                self.article.full_text, self.text_pos_abs
+            ):
+            utils.find_jpn_sentene_end(
+                self.article.full_text,
+                self.text_pos_abs + len(self.surface_form)
+            )
+        ]
+
+    def quality_key(self) -> Tuple[Any, ...]:
+        """Key function for getting usage quality of the found lexical item."""
+        required_attrs = [
+            ('article', self.article),
+            ('article.metadata', self.article.metadata),
+            ('article.full_text', self.article.full_text),
+            ('article.alnum_count', self.article.alnum_count),
+            ('article.text_hash', self.article.text_hash),
+            ('article.metadata.publication_datetime',
+                self.article.metadata.publication_datetime),
+            ('surface_form', self.surface_form),
+            ('text_pos_abs', self.text_pos_abs),
+        ]
+        for attr in required_attrs:
+            if attr[1] is None:
+                utils.log_and_raise(
+                    _log, MissingDataError,
+                    '%s is not set, so cannot generate quality key value for '
+                    '{}'.format(attr[0], self)
+                )
+
+        key_list = []
+        key_list.append(self.get_article_len_group())
+        key_list.append(self.article.metadata.publication_datetime)
+        key_list.append(self.article.alnum_count)
+        key_list.append(self.article.text_hash)
+        key_list.append(utils.get_alnum_count(self.get_containing_sentence()))
+        key_list.append(-1 * self.text_pos_abs)
+        key_list.append(len(self.surface_form))
+
+        return tuple(key_list)

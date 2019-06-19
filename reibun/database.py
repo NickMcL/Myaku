@@ -7,7 +7,9 @@ access interface consistent.
 
 import logging
 import re
+from collections import defaultdict
 from datetime import datetime
+from operator import methodcaller
 from typing import Any, Dict, List, TypeVar, Union
 
 import pytz
@@ -47,6 +49,16 @@ class ReibunDb(object):
     # crawl them again even after the article is deleted from the articles
     # collection.
     _CRAWLED_COLL_NAME = 'crawled'
+
+    BASE_FORM_COUNT_LIMIT = 1000
+    _EXCESS_BASE_FORM_AGGREGATE = [
+        {'$unwind': '$possible_interps'},
+        {'$group': {
+            '_id': {'_id': '$_id', 'base_form': '$possible_interps.base_form'}
+        }},
+        {'$group': {'_id': '$_id.base_form', 'total': {'$sum': 1}}},
+        {'$match': {'total': {'$gt': BASE_FORM_COUNT_LIMIT}}},
+    ]
 
     def __init__(self) -> None:
         """Initializes the connection to the database."""
@@ -338,6 +350,239 @@ class ReibunDb(object):
         metadatas = self._convert_docs_to_article_metadata(metadata_docs)
         return metadatas
 
+    def delete_base_form_excess(self) -> None:
+        """Deletes found lexical items with base forms in excess in the db.
+
+        A base form is considered in excess if over a certain limit
+        (BASE_FORM_COUNT_LIMIT) of found lexical items with at least one
+        possible interpretation with the base form are in the database.
+
+        This function finds all base forms in excess in the database, and, for
+        each of the base forms in excess, ranks all of the found lexical items
+        with a possible interpretation for that base form from highest to
+        lowest quality of usage of that base form.
+
+        Then, the function deletes every found lexical item in the database
+        where ALL possible interpretations for it have a base form rank not
+        within BASE_FORM_COUNT_LIMIT. If at least one possible interpretation
+        has a base form that is either not in excess or is in excess but has a
+        rank within BASE_FORM_COUNT_LIMIT, the found lexical item will not be
+        deleted.
+
+        Finally, if all found lexical items for an article are deleted by this
+        process, that article will also be deleted from the database.
+        """
+        excess_base_forms = self._get_base_forms_in_excess()
+        excess_flis = self.read_found_lexical_items(
+            excess_base_forms
+        )
+        base_form_fli_map = self._make_base_form_mapping(excess_flis)
+
+        _log.debug('Ranking found lexical items quality per excess base form')
+        base_form_quality_ranks = defaultdict(dict)
+        for base_form in excess_base_forms:
+            base_form_flis = base_form_fli_map[base_form]
+            ranked_base_form_flis = self._sort_by_quality_rank(base_form_flis)
+            for rank, fli in enumerate(ranked_base_form_flis):
+                base_form_quality_ranks[fli.database_id][base_form] = rank + 1
+        _log.debug('Ranking finished')
+
+        self._delete_if_all_interps_low_quality(
+            excess_flis, base_form_quality_ranks
+        )
+        self._delete_articles_with_no_found_lexical_items()
+
+    def _get_base_forms_in_excess(self) -> List[str]:
+        """Queries db to get base forms currently in excess.
+
+        See delete_base_form_excess docstring for info on how base forms in
+        excess is defined.
+
+        Returns:
+            A list of all of the base forms that are currently in excess in the
+            database.
+        """
+        _log.debug(
+            'Running aggregate to get excess base forms from %s',
+            self._found_lexical_item_collection.full_name
+        )
+        cursor = self._found_lexical_item_collection.aggregate(
+            self._EXCESS_BASE_FORM_AGGREGATE
+        )
+        docs = list(cursor)
+        _log.debug(
+            'Aggregate returns %s excess base forms from %s',
+            len(docs), self._found_lexical_item_collection.full_name
+        )
+
+        return [d['_id'] for d in docs]
+
+    def _make_base_form_mapping(
+        self, found_lexical_items: List[FoundJpnLexicalItem]
+    ) -> Dict[str, FoundJpnLexicalItem]:
+        """Returns mapping from base forms to the given found lexical items.
+
+        Returns:
+            A dictionary where the keys are base form strings and the values
+            are a list with the found lexical items from the given list of
+            found lexical items with at least one possible interpretation with
+            a base form that matches the base form key.
+        """
+        base_form_map = defaultdict(list)
+        for item in found_lexical_items:
+            interp_base_forms = set(i.base_form for i in item.possible_interps)
+            for base_form in interp_base_forms:
+                base_form_map[base_form].append(item)
+
+        return base_form_map
+
+    def _sort_by_quality_rank(
+        self, base_form_flis: List[FoundJpnLexicalItem]
+    ) -> List[FoundJpnLexicalItem]:
+        """Sorts given found lexical items by quality rank.
+
+        The sort orders the lexical items from highest quality rank to lowest,
+        but as an expception, it ensures that the highest quality found lexical
+        item for each article ranks above the second highest quality and lower
+        items for all other articles.
+
+        If N is the total number of articles referenced by at least one of the
+        given found lexical items, this ensures that the first N items in the
+        returned list all come from different articles.
+
+        The given list of found lexical items is not modified.
+
+        Args:
+            base_form_flis: A list of found lexical items to sort by quality
+                rank.
+
+        Returns:
+            A new list containing all of the given found lexical items sorted
+            from highest quality rank to lowest, with the exception mentioned
+            above.
+        """
+        article_max_quality_map = {}
+        for fli in base_form_flis:
+            article_id = id(fli.article)
+            if article_id not in article_max_quality_map:
+                article_max_quality_map[article_id] = [fli, []]
+                continue
+
+            current_best = article_max_quality_map[article_id][0]
+            if fli.quality_key() > current_best.quality_key():
+                article_max_quality_map[article_id][1].append(current_best)
+                article_max_quality_map[article_id][0] = fli
+            else:
+                article_max_quality_map[article_id][1].append(fli)
+
+        best_all_articles = sorted(
+            [best for best, rest in article_max_quality_map.values()],
+            key=methodcaller('quality_key'), reverse=True
+        )
+
+        rest_all_articles = []
+        for best, rest in article_max_quality_map.values():
+            rest_all_articles.extend(rest)
+        rest_all_articles = sorted(
+            rest_all_articles, key=methodcaller('quality_key'), reverse=True
+        )
+
+        return best_all_articles + rest_all_articles
+
+    def _delete_if_all_interps_low_quality(
+        self, excess_flis: List[FoundJpnLexicalItem],
+        base_form_rank_map: Dict[str, Dict[str, int]]
+    ) -> None:
+        """Deletes items from the db if all their interps are low quality.
+
+        See FoundJpnLexicalItem quality key for info on how low quality is
+        determined.
+
+        Args:
+            excess_flis: A list of found lexical items where at least one of
+                their interps has a base form that is currently in excess in
+                the db.
+            base_form_ranks: A mapping from each of the given found lexical
+                items to a dictionary containing a mapping from the base forms
+                for the possible interpretations of the found lexical item to
+                the quality rank for that base form for the found lexical item.
+
+                If a base form for a possible interpretation of a found lexical
+                item is not in the mapping, it means that base form is not
+                currently in excess in the db.
+        """
+        deleted_count = 0
+        all_high_quality_count = 0
+        some_high_quality_count = 0
+        not_in_excess_count = 0
+
+        _log.debug(
+            'Deleting found lexical items with all possible interpretations '
+            'having low base form quality rank'
+        )
+        for fli in excess_flis:
+            fli_id = fli.database_id
+            has_high_quality = False
+            has_low_quality = False
+            for interp in fli.possible_interps:
+                if interp.base_form not in base_form_rank_map[fli_id]:
+                    has_high_quality = False
+                    has_low_quality = False
+                    break
+
+                quality_rank = base_form_rank_map[fli_id][interp.base_form]
+                if quality_rank <= self.BASE_FORM_COUNT_LIMIT:
+                    has_high_quality = True
+                else:
+                    has_low_quality = True
+
+            if not has_low_quality and not has_high_quality:
+                not_in_excess_count += 1
+            elif has_high_quality and not has_low_quality:
+                all_high_quality_count += 1
+            elif has_high_quality and has_low_quality:
+                some_high_quality_count += 1
+            elif not has_high_quality and has_low_quality:
+                self._found_lexical_item_collection.delete_one(
+                    {'_id': ObjectId(fli_id)}
+                )
+                deleted_count += 1
+
+        _log.debug(
+            'Deletion stats:\nChecked total: {}\nDeleted: {}\nInterps all '
+            'high quality: {}\nInterps some high quality: {}\nInterps not in '
+            'excess base form present: {}'.format(
+                len(excess_flis), deleted_count, all_high_quality_count,
+                some_high_quality_count, not_in_excess_count
+            )
+        )
+
+    def _delete_articles_with_no_found_lexical_items(self) -> None:
+        """Deletes articles with no stored found lexical items from the db."""
+        _log.debug(
+            'Reading all article IDs referenced by stored found lexical items'
+        )
+        cursor = self._found_lexical_item_collection.aggregate([
+            {'$group': {'_id': '$article_oid'}}
+        ])
+        article_ids = [doc['_id'] for doc in cursor]
+        _log.debug(
+            'Retrieved %s article IDs from %s',
+            len(article_ids), self._found_lexical_item_collection.full_name
+        )
+
+        _log.debug(
+            'Deleting articles from %s not referenced by any stored found '
+            'lexical items', self._article_collection.full_name
+        )
+        result = self._article_collection.delete_many(
+            {'_id': {'$nin': article_ids}}
+        )
+        _log.debug(
+            'Deleted %s articles from %s',
+            result.deleted_count, self._article_collection.full_name
+        )
+
     def close(self) -> None:
         """Closes the connection to the database."""
         self._mongo_client.close()
@@ -576,6 +821,7 @@ class ReibunDb(object):
                 surface_form=doc['surface_form'],
                 article=oid_article_map[doc['article_oid']],
                 text_pos_abs=doc['text_pos_abs'],
+                database_id=str(doc['_id']),
                 possible_interps=interps,
             ))
 

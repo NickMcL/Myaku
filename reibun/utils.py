@@ -18,6 +18,8 @@ T = TypeVar('T')
 
 _JAPAN_TIMEZONE = pytz.timezone('Japan')
 
+_JPN_PERIOD = '。'
+
 _LOGGING_FORMAT = (
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
@@ -77,6 +79,28 @@ def unique(items: List[T]) -> List[T]:
         if item not in unique_items:
             unique_items.append(item)
     return unique_items
+
+
+def find_jpn_sentene_start(text: str, pos: int) -> int:
+    """Find the start index of the Japanese sentence in text containing pos."""
+    prev_period_pos = text.rfind(_JPN_PERIOD, 0, pos)
+    prev_new_line_pos = text.rfind('\n', 0, pos)
+    if prev_period_pos == prev_new_line_pos == -1:
+        return 0
+    if prev_new_line_pos == -1 or prev_period_pos > prev_new_line_pos:
+        return prev_period_pos + 1
+    return prev_new_line_pos + 1
+
+
+def find_jpn_sentene_end(text: str, pos: int) -> int:
+    """Finds one past the end index of the sentence in text containing pos."""
+    next_period_pos = text.find(_JPN_PERIOD, pos)
+    next_new_line_pos = text.find('\n', pos)
+    if next_period_pos == next_new_line_pos == -1:
+        return len(text)
+    if next_new_line_pos == -1 or next_period_pos < next_new_line_pos:
+        return next_period_pos
+    return next_new_line_pos
 
 
 def tuple_or_none(item: Any) -> Tuple:
