@@ -5,7 +5,7 @@ import logging
 import time
 from datetime import datetime
 from random import random
-from typing import List, Optional
+from typing import Generator, List, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -332,7 +332,7 @@ class NhkNewsWebCrawler(object):
 
     def _crawl_uncrawled_metadatas(
         self, metadatas: List[JpnArticleMetadata]
-    ) -> List[JpnArticle]:
+    ) -> Generator[JpnArticle, None, None]:
         """Crawls all not yet crawled articles specified by the metadatas."""
         with ReibunDb() as db:
             uncrawled_metadatas = db.filter_to_unstored_article_metadatas(
@@ -343,11 +343,10 @@ class NhkNewsWebCrawler(object):
             len(uncrawled_metadatas)
         )
         if len(uncrawled_metadatas) == 0:
-            return []
+            return
 
         crawl_urls = [m.source_url for m in uncrawled_metadatas]
         crawl_urls = self._make_rel_urls_absolute(crawl_urls)
-        articles = []
         with ReibunDb() as db:
             for i, crawl_url in enumerate(crawl_urls):
                 sleep_time = (random() * 4) + 3
@@ -356,10 +355,10 @@ class NhkNewsWebCrawler(object):
                     sleep_time, i + 1, len(crawl_urls))
                 time.sleep(sleep_time)
 
-                articles.append(self.scrape_article(crawl_url))
-                db.write_crawled([articles[-1].metadata])
+                article = self.scrape_article(crawl_url)
+                db.write_crawled([article.metadata])
 
-        return articles
+                yield article
 
     def _get_show_more_button(self) -> FirefoxWebElement:
         """Gets the show more button element from the page.
@@ -454,7 +453,7 @@ class NhkNewsWebCrawler(object):
 
     def _crawl_feature_page(
         self, page_url: str, show_more_clicks: int
-    ) -> List[JpnArticle]:
+    ) -> Generator[JpnArticle, None, None]:
         """Gets all not yet crawled articles from given feature page.
 
         Args:
@@ -476,10 +475,11 @@ class NhkNewsWebCrawler(object):
             len(metadatas), self._web_driver.title
         )
 
-        articles = self._crawl_uncrawled_metadatas(metadatas)
-        return articles
+        yield from self._crawl_uncrawled_metadatas(metadatas)
 
-    def crawl_most_recent(self, show_more_clicks: int = 0) -> List[JpnArticle]:
+    def crawl_most_recent(
+        self, show_more_clicks: int = 0
+    ) -> Generator[JpnArticle, None, None]:
         """Gets all not yet crawled articles from the 'Most Recent' page."""
         if show_more_clicks > self.MAX_MOST_RECENT_SHOW_MORE_CLICKS:
             raise ValueError(
@@ -496,10 +496,11 @@ class NhkNewsWebCrawler(object):
         metadatas = self._scrape_most_recent_article_metadatas(soup)
         _log.debug('Found %s metadatas from most recent page', len(metadatas))
 
-        articles = self._crawl_uncrawled_metadatas(metadatas)
-        return articles
+        yield from self._crawl_uncrawled_metadatas(metadatas)
 
-    def crawl_tokushu(self, show_more_clicks: int = 0) -> List[JpnArticle]:
+    def crawl_tokushu(
+        self, show_more_clicks: int = 0
+    ) -> Generator[JpnArticle, None, None]:
         """Gets all not yet crawled articles from the 'Tokushu' page.
 
         Args:
@@ -510,11 +511,13 @@ class NhkNewsWebCrawler(object):
             A list of all of the not yet crawled articles linked to from the
             Tokushu page.
         """
-        return self._crawl_feature_page(
+        yield from self._crawl_feature_page(
             self._TOKUSHU_PAGE_URL, show_more_clicks
         )
 
-    def crawl_news_up(self, show_more_clicks: int = 0) -> List[JpnArticle]:
+    def crawl_news_up(
+        self, show_more_clicks: int = 0
+    ) -> Generator[JpnArticle, None, None]:
         """Gets all not yet crawled articles from the 'News Up' page.
 
         Args:
@@ -525,7 +528,7 @@ class NhkNewsWebCrawler(object):
             A list of all of the not yet crawled articles linked to from the
             News Up page.
         """
-        return self._crawl_feature_page(
+        yield from self._crawl_feature_page(
             self._NEWS_UP_PAGE_URL, show_more_clicks
         )
 

@@ -13,35 +13,43 @@ if __name__ == '__main__':
     utils.toggle_reibun_debug_log(filepath=LOG_FILEPATH)
     time.sleep(5)
 
-    new_articles = []
-    with NhkNewsWebCrawler() as crawler:
-        print('\nCrawling Most Recent\n')
-        new_articles.extend(crawler.crawl_most_recent())
+    jta = JapaneseTextAnalyzer()
+    overall_fli_count = 0
+    overall_article_count = 0
+    with ReibunDb() as db, NhkNewsWebCrawler() as crawler:
+        crawls = []
+        crawls.append(('Most Recent', crawler.crawl_most_recent()))
+        crawls.append(('Tokushu', crawler.crawl_tokushu()))
+        crawls.append(('News Up', crawler.crawl_news_up(10)))
 
-        print('\nCrawling Tokushu\n')
-        new_articles.extend(crawler.crawl_tokushu(2))
+        for crawl in crawls:
+            print(f'\nCrawling {crawl[0]}\n')
 
-        print('\nCrawling News UP\n')
-        new_articles.extend(crawler.crawl_news_up(0))
+            crawl_fli_count = 0
+            crawl_article_count = 0
+            for article in crawl[1]:
+                new_articles = db.filter_to_unstored_articles([article])
+                if len(new_articles) == 0:
+                    print(f'Article {article} already stored!')
+                    continue
+                new_article = new_articles[0]
 
-    if len(new_articles) == 0:
-        print('\nNo uncrawled articles!\n')
-        sys.exit()
+                flis = jta.find_article_lexical_items(new_article)
+                print(f'Found {len(flis)} lexical items in {new_article}')
 
-    with ReibunDb() as db:
-        new_articles = db.filter_to_unstored_articles(new_articles)
-        if len(new_articles) == 0:
-            print('\nNo unstored articles!\n')
-            sys.exit()
+                db.write_found_lexical_items(flis)
+                crawl_fli_count += len(flis)
+                crawl_article_count += 1
 
-        jta = JapaneseTextAnalyzer()
-        lexical_items = []
-        for new_article in new_articles:
-            found = jta.find_article_lexical_items(new_article)
-            print(f'\nFound {len(found)} lexical items in {new_article}\n')
-            lexical_items.extend(found)
-        print(f'\nFound {len(lexical_items)} overall\n')
+            print(
+                f'\nFound {crawl_fli_count} lexical items during {crawl[0]} '
+                f'crawl\n'
+            )
+            overall_fli_count += crawl_fli_count
+            overall_article_count += crawl_article_count
 
-        db.write_found_lexical_items(lexical_items)
-
-    print('\nAll done!\n')
+    print(
+        f'\nFound {overall_fli_count} new lexical items across '
+        f'{overall_article_count} articles overall\n'
+    )
+    print('All done!\n')
