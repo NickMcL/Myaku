@@ -45,6 +45,8 @@ class CannotParsePageError(Exception):
 @utils.add_method_debug_logging
 class NhkNewsWebCrawler(object):
     """Crawls and scrapes articles from the NHK News Web website."""
+    MAX_MOST_RECENT_SHOW_MORE_CLICKS = 9
+
     _SOURCE_NAME = 'NHK News Web'
     _SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
 
@@ -56,6 +58,17 @@ class NhkNewsWebCrawler(object):
         'publication_datetime'
     ]
 
+    _PAGE_LOAD_WAIT_TIME = 6
+
+    _MOST_RECENT_PAGE_URL = 'https://www3.nhk.or.jp/news/catnew.html'
+    _TOKUSHU_PAGE_URL = 'https://www3.nhk.or.jp/news/tokushu/'
+    _NEWS_UP_PAGE_URL = 'https://www3.nhk.or.jp/news/netnewsup/'
+    _PAGE_TITLES = {
+        _MOST_RECENT_PAGE_URL: '速報・新着ニュース一覧｜NHK NEWS WEB',
+        _TOKUSHU_PAGE_URL: '特集一覧｜NHK NEWS WEB',
+        _NEWS_UP_PAGE_URL: 'News Up一覧｜NHK NEWS WEB',
+    }
+
     _MAIN_ID = 'main'
     _TITLE_CLASS = 'title'
 
@@ -63,19 +76,19 @@ class NhkNewsWebCrawler(object):
     _SHOW_MORE_BUTTON_FOOTER_CLASS = 'button-more'
     _LOADING_CLASS_NAME = 'loading'
 
-    _TOKUSHU_PAGE_TITLE = '特集一覧｜NHK NEWS WEB'
-    _TOKUSHU_PAGE_URL = 'https://www3.nhk.or.jp/news/tokushu/'
-    _TOKUSHU_HEADER_DIV_CLASS = 'content--header'
-    _TOKUSHU_ARTICLE_LIST_CLASSES = [
+    _FEATURE_HEADER_DIV_CLASS = 'content--header'
+    _FEATURE_ARTICLE_CLASSES = [
+        'module',
+        'module--list-items',
+    ]
+    _FEATURE_ARTICLE_LIST_CLASSES = [
         'content--list',
-        'grid--col-operation'
+        'grid--col-operation',
     ]
 
-    _MOST_RECENT_PAGE_TITLE = '速報・新着ニュース一覧｜NHK NEWS WEB'
-    _MOST_RECENT_PAGE_URL = 'https://www3.nhk.or.jp/news/catnew.html'
     _MOST_RECENT_ARTICLE_LIST_CLASSES = [
         'content--list',
-        'grid--col-single'
+        'grid--col-single',
     ]
 
     _ARTICLE_TAG_CLASS = 'detail-no-js'
@@ -265,19 +278,30 @@ class NhkNewsWebCrawler(object):
 
         return metadatas
 
-    def _scrape_tokushu_article_metadatas(
+    def _scrape_feature_article_metadatas(
         self, page_soup: BeautifulSoup
     ) -> List[JpnArticleMetadata]:
-        """Scrapes all article metadata from the 'Tokushu' page soup."""
+        """Scrapes all article metadata from a feature page soup.
+
+        Args:
+            page_soup: BeautifulSoup for the feature page.
+
+        Returns:
+            A list of the metadatas for the articles linked to on the feature
+            page.
+        """
         main = self._parse_main(page_soup)
         header_divs = self._html_helper.parse_descendant_by_class(
-            main, 'div', self._TOKUSHU_HEADER_DIV_CLASS, True
+            main, 'div', self._FEATURE_HEADER_DIV_CLASS, True
         )
         _log.debug('Found %s header divs', len(header_divs))
-        article_ul = self._html_helper.parse_descendant_by_class(
-            main, 'ul', self._TOKUSHU_ARTICLE_LIST_CLASSES
+        article_metadata_tags = header_divs
+
+        article_uls = self._html_helper.parse_descendant_by_class(
+            main, 'ul', self._FEATURE_ARTICLE_LIST_CLASSES, True
         )
-        article_metadata_tags = header_divs + article_ul.contents
+        for ul in article_uls:
+            article_metadata_tags.extend(ul.contents)
         _log.debug(
             'Found %s article metadata tags', len(article_metadata_tags)
         )
@@ -337,30 +361,11 @@ class NhkNewsWebCrawler(object):
 
         return articles
 
-    def crawl_most_recent(self) -> List[JpnArticle]:
-        """Gets all not yet crawled articles from the 'Most Recent' page."""
-        self._web_driver.get(self._MOST_RECENT_PAGE_URL)
-        if self._web_driver.title != self._MOST_RECENT_PAGE_TITLE:
-            utils.log_and_raise(
-                _log, CannotAccessPageError,
-                'Most recent page title ({}) at url ({}) does not match '
-                'expected title ({})'.format(
-                    self._web_driver.title, self._web_driver.current_url,
-                    self._MOST_RECENT_PAGE_TITLE
-                )
-            )
+    def _get_show_more_button(self) -> FirefoxWebElement:
+        """Gets the show more button element from the page.
 
-        soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
-        metadatas = self._scrape_most_recent_article_metadatas(soup)
-        _log.debug('Found %s metadatas from most recent page', len(metadatas))
-
-        articles = self._crawl_uncrawled_metadatas(metadatas)
-        return articles
-
-    def _get_tokushu_show_more_button(self) -> FirefoxWebElement:
-        """Gets the show more button element from the Tokushu page.
-
-        Assumes the class web driver is already set to the Tokushu page.
+        Assumes the class web driver is already set to a page with a show more
+        button.
         """
         main = self._web_driver.find_element_by_id(self._MAIN_ID)
         footers = main.find_elements_by_class_name(
@@ -389,14 +394,15 @@ class NhkNewsWebCrawler(object):
 
         return buttons[0]
 
-    def _click_tokushu_show_more(self, show_more_clicks: int) -> None:
-        """Clicks the Tokushu page show more button a number of times.
+    def _click_show_more(self, show_more_clicks: int) -> None:
+        """Clicks the show more button in the page a number of times.
 
-        Assumes the class web driver is already set to the Tokushu page.
+        Assumes the class web driver is already set to a page with a show more
+        button to click.
 
         Args:
             show_more_clicks: Number of times to click the show more button on
-                the Tokushu page.
+                the page.
 
         Raises:
             NoSuchElementException: Web driver was unable to find an element
@@ -405,11 +411,11 @@ class NhkNewsWebCrawler(object):
         if show_more_clicks < 1:
             return
 
-        show_more_button = self._get_tokushu_show_more_button()
+        show_more_button = self._get_show_more_button()
         for i in reversed(range(show_more_clicks)):
             _log.debug('Clicking show more button. %s clicks remaining.', i)
             show_more_button.click()
-            time.sleep(4)
+            time.sleep(self._PAGE_LOAD_WAIT_TIME)
 
         wait_max = 60
         while wait_max > 0:
@@ -432,6 +438,67 @@ class NhkNewsWebCrawler(object):
                 )
             )
 
+    def _web_driver_get_url(self, url: str) -> None:
+        """Gets the url with class web driver."""
+        self._web_driver.get(url)
+        time.sleep(self._PAGE_LOAD_WAIT_TIME)
+        if (self._web_driver.title != self._PAGE_TITLES[url]):
+            utils.log_and_raise(
+                _log, CannotAccessPageError,
+                'Page title ({}) at url ({}) does not match expected title '
+                '({})'.format(
+                    self._web_driver.title, self._web_driver.current_url,
+                    self._PAGE_TITLES[url]
+                )
+            )
+
+    def _crawl_feature_page(
+        self, page_url: str, show_more_clicks: int
+    ) -> List[JpnArticle]:
+        """Gets all not yet crawled articles from given feature page.
+
+        Args:
+            show_more_clicks: Number of times to click the button for showing
+                more articles on the feature page before starting the crawl.
+
+        Returns:
+            A list of all of the not yet crawled articles linked to from the
+            feature page.
+        """
+        self._web_driver_get_url(page_url)
+
+        self._click_show_more(show_more_clicks)
+        soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
+
+        metadatas = self._scrape_feature_article_metadatas(soup)
+        _log.debug(
+            'Found %s metadatas from %s page',
+            len(metadatas), self._web_driver.title
+        )
+
+        articles = self._crawl_uncrawled_metadatas(metadatas)
+        return articles
+
+    def crawl_most_recent(self, show_more_clicks: int = 0) -> List[JpnArticle]:
+        """Gets all not yet crawled articles from the 'Most Recent' page."""
+        if show_more_clicks > self.MAX_MOST_RECENT_SHOW_MORE_CLICKS:
+            raise ValueError(
+                'The Most Recent page show more button can only be clicked '
+                'up to {} times, but show_more_clicks is {}'.format(
+                    self.MAX_MOST_RECENT_SHOW_MORE_CLICKS, show_more_clicks
+                )
+            )
+
+        self._web_driver_get_url(self._MOST_RECENT_PAGE_URL)
+
+        self._click_show_more(show_more_clicks)
+        soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
+        metadatas = self._scrape_most_recent_article_metadatas(soup)
+        _log.debug('Found %s metadatas from most recent page', len(metadatas))
+
+        articles = self._crawl_uncrawled_metadatas(metadatas)
+        return articles
+
     def crawl_tokushu(self, show_more_clicks: int = 0) -> List[JpnArticle]:
         """Gets all not yet crawled articles from the 'Tokushu' page.
 
@@ -443,26 +510,24 @@ class NhkNewsWebCrawler(object):
             A list of all of the not yet crawled articles linked to from the
             Tokushu page.
         """
-        self._web_driver.get(self._TOKUSHU_PAGE_URL)
-        if self._web_driver.title != self._TOKUSHU_PAGE_TITLE:
-            utils.log_and_raise(
-                _log, CannotAccessPageError,
-                'Tokushu page title ({}) at url ({}) does not match '
-                'expected title ({})'.format(
-                    self._web_driver.title, self._web_driver.current_url,
-                    self._TOKUSHU_PAGE_TITLE
-                )
-            )
+        return self._crawl_feature_page(
+            self._TOKUSHU_PAGE_URL, show_more_clicks
+        )
 
-        time.sleep(7)  # Wait for page to load
-        self._click_tokushu_show_more(show_more_clicks)
-        soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
+    def crawl_news_up(self, show_more_clicks: int = 0) -> List[JpnArticle]:
+        """Gets all not yet crawled articles from the 'News Up' page.
 
-        metadatas = self._scrape_tokushu_article_metadatas(soup)
-        _log.debug('Found %s metadatas from Tokushu page', len(metadatas))
+        Args:
+            show_more_clicks: Number of times to click the button for showing
+                more articles on the News Up page before starting the crawl.
 
-        articles = self._crawl_uncrawled_metadatas(metadatas)
-        return articles
+        Returns:
+            A list of all of the not yet crawled articles linked to from the
+            News Up page.
+        """
+        return self._crawl_feature_page(
+            self._NEWS_UP_PAGE_URL, show_more_clicks
+        )
 
     def scrape_article(self, url: str) -> JpnArticle:
         """Scrapes and parses an NHK News Web article.

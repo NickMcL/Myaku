@@ -82,18 +82,24 @@ class HtmlHelper(object):
         Args:
             parent: The tag whose descendants to search.
             tag_name: The type of tag to parse the text from (e.g. span).
-            classes: A single or list of classes that the class attribute of
-                tag to parse text from must exactly match.
+            classes: A single or list of classes that the tag to parse text
+                from must have.
 
         Returns:
             The parsed text if the parse was successful, None otherwise.
         """
-        found_tags = parent.find_all(tag_name, class_=classes)
+        if isinstance(classes, list):
+            found_tags = parent.select(
+                '{}.{}'.format(tag_name, '.'.join(classes))
+            )
+        else:
+            found_tags = parent.find_all(tag_name, class_=classes)
 
         if len(found_tags) != 1:
             self._error_handler(
-                'Found {} "{}" tags instead of 1 in: "{}"'.format(
-                    len(found_tags), tag_name, parent
+                'Found {} "{}" tags with class(es) "{}" instead of 1 in: '
+                '"{}"'.format(
+                    len(found_tags), tag_name, classes, parent
                 )
             )
             return None
@@ -211,8 +217,8 @@ class HtmlHelper(object):
         Args:
             parent: The tag whose descendants to search.
             tag_name: The type of tag to search for (e.g. span).
-            classes: A single or list of classes that the class attribute of
-                tag to parse text from must exactly match.
+            classes: A single or list of classes that the tag to parse must
+                have.
             allow_multiple: If True, it will not be an error if there are
                 multiple descendants found and all of the found descendants
                 will be returned in a list.
@@ -221,7 +227,11 @@ class HtmlHelper(object):
             The found tag_name tag(s) if the parse was successful, None
             otherwise.
         """
-        tags = parent.find_all(tag_name, class_=classes)
+        if isinstance(classes, list):
+            tags = parent.select('{}.{}'.format(tag_name, '.'.join(classes)))
+        else:
+            tags = parent.find_all(tag_name, class_=classes)
+
         if len(tags) > 1 and not allow_multiple:
             self._error_handler(
                 'Found {} "{}" tags with class(es) "{}" instead of 1 in '

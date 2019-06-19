@@ -2,7 +2,6 @@ from operator import methodcaller
 
 import reibun.utils as utils
 from reibun.database import ReibunDb
-from reibun.datatypes import FoundJpnLexicalItem
 
 JPN_PERIOD = '。'
 LOG_FILEPATH = './reibun_read.log'

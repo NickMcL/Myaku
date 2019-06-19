@@ -7,30 +7,22 @@ from reibun.crawler import NhkNewsWebCrawler
 from reibun.database import ReibunDb
 from reibun.japanese_analysis import JapaneseTextAnalyzer
 
-# from datetime import datetime
-
-# from reibun.sample_text import SAMPLE_TEXT
-
-OTHER_TEXT = '鯖を読んで五歳ほど若くいう'
-
-TEXT_SRC_URL = 'https://www.aozora.gr.jp/cards/001095/files/42618_21410.html'
-
 LOG_FILEPATH = './reibun_write.log'
 
 if __name__ == '__main__':
     utils.toggle_reibun_debug_log(filepath=LOG_FILEPATH)
     time.sleep(5)
-    # article = JpnArticle(
-    # title='桜の森の満開の下',
-    # full_text=SAMPLE_TEXT,
-    # source_url=TEXT_SRC_URL,
-    # source_name='Aozora',
-    # publication_datetime=datetime.utcnow(),
-    # scraped_datetime=datetime.utcnow()
-    # )
 
+    new_articles = []
     with NhkNewsWebCrawler() as crawler:
-        new_articles = crawler.crawl_tokushu(10)
+        print('\nCrawling Most Recent\n')
+        new_articles.extend(crawler.crawl_most_recent())
+
+        print('\nCrawling Tokushu\n')
+        new_articles.extend(crawler.crawl_tokushu(2))
+
+        print('\nCrawling News UP\n')
+        new_articles.extend(crawler.crawl_news_up(0))
 
     if len(new_articles) == 0:
         print('\nNo uncrawled articles!\n')

@@ -558,7 +558,10 @@ class ReibunDb(object):
         )
 
     def _delete_articles_with_no_found_lexical_items(self) -> None:
-        """Deletes articles with no stored found lexical items from the db."""
+        """Deletes articles with no stored found lexical items from the db.
+
+        Curently, only simulated deletion without actually deleting anything.
+        """
         _log.debug(
             'Reading all article IDs referenced by stored found lexical items'
         )
@@ -575,12 +578,12 @@ class ReibunDb(object):
             'Deleting articles from %s not referenced by any stored found '
             'lexical items', self._article_collection.full_name
         )
-        result = self._article_collection.delete_many(
-            {'_id': {'$nin': article_ids}}
+        result = self._article_collection.find(
+            {'_id': {'$nin': article_ids}}, {'_id': 1}
         )
         _log.debug(
-            'Deleted %s articles from %s',
-            result.deleted_count, self._article_collection.full_name
+            'Simulated deleted of %s articles from %s',
+            len(list(result)), self._article_collection.full_name
         )
 
     def close(self) -> None:
