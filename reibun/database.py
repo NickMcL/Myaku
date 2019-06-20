@@ -21,7 +21,8 @@ from pymongo.results import InsertManyResult
 import reibun
 import reibun.utils as utils
 from reibun.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
-                              JpnArticleMetadata, JpnLexicalItemInterp)
+                              JpnArticleMetadata, JpnLexicalItemInterp,
+                              LexicalItemTextPosition, MecabLexicalItemInterp)
 
 _log = logging.getLogger(__name__)
 
@@ -52,11 +53,8 @@ class ReibunDb(object):
 
     BASE_FORM_COUNT_LIMIT = 1000
     _EXCESS_BASE_FORM_AGGREGATE = [
-        {'$unwind': '$possible_interps'},
-        {'$group': {
-            '_id': {'_id': '$_id', 'base_form': '$possible_interps.base_form'}
-        }},
-        {'$group': {'_id': '$_id.base_form', 'total': {'$sum': 1}}},
+        {'$match': {'base_form': {'$gt': ''}}},
+        {'$group': {'_id': 'base_form', 'total': {'$sum': 1}}},
         {'$match': {'total': {'$gt': BASE_FORM_COUNT_LIMIT}}},
     ]
 
@@ -85,9 +83,7 @@ class ReibunDb(object):
         self._crawled_collection.create_index('title')
         self._crawled_collection.create_index('source_name')
         self._crawled_collection.create_index('publication_datetime')
-        self._found_lexical_item_collection.create_index(
-            'possible_interps.base_form'
-        )
+        self._found_lexical_item_collection.create_index('base_form')
 
     def filter_to_unstored_articles(
         self, articles: List[JpnArticle]
@@ -223,6 +219,13 @@ class ReibunDb(object):
 
         return unstored_objs
 
+    def is_found_lexical_items_db_empty(self) -> bool:
+        """Returns True if the found lexical items db is empty."""
+        fli_count = self._found_lexical_item_collection.count_documents({})
+        if fli_count == 0:
+            return True
+        return False
+
     def write_found_lexical_items(
             self, found_lexical_items: List[FoundJpnLexicalItem],
             write_articles: bool = True
@@ -296,8 +299,7 @@ class ReibunDb(object):
             base_forms = [re.compile('^' + s) for s in base_forms]
 
         found_lexical_item_docs = self._read_with_log(
-            'possible_interps.base_form', base_forms,
-            self._found_lexical_item_collection
+            'base_form', base_forms, self._found_lexical_item_collection
         )
 
         article_oids = list(
@@ -354,23 +356,15 @@ class ReibunDb(object):
         """Deletes found lexical items with base forms in excess in the db.
 
         A base form is considered in excess if over a certain limit
-        (BASE_FORM_COUNT_LIMIT) of found lexical items with at least one
-        possible interpretation with the base form are in the database.
+        (BASE_FORM_COUNT_LIMIT) of found lexical items with the base form are
+        in the database.
 
-        This function finds all base forms in excess in the database, and, for
-        each of the base forms in excess, ranks all of the found lexical items
-        with a possible interpretation for that base form from highest to
-        lowest quality of usage of that base form.
-
-        Then, the function deletes every found lexical item in the database
-        where ALL possible interpretations for it have a base form rank not
-        within BASE_FORM_COUNT_LIMIT. If at least one possible interpretation
-        has a base form that is either not in excess or is in excess but has a
-        rank within BASE_FORM_COUNT_LIMIT, the found lexical item will not be
-        deleted.
-
-        Finally, if all found lexical items for an article are deleted by this
-        process, that article will also be deleted from the database.
+        This function:
+            1. Finds all base forms in excess in the database.
+            2. Ranks all of the found lexical items for each from highest to
+                lowest quality of usage of that base form.
+            3. Deletes all found lexical items for each with quality rank not
+                within BASE_FORM_COUNT_LIMIT.
         """
         excess_base_forms = self._get_base_forms_in_excess()
         excess_flis = self.read_found_lexical_items(
@@ -378,18 +372,10 @@ class ReibunDb(object):
         )
         base_form_fli_map = self._make_base_form_mapping(excess_flis)
 
-        _log.debug('Ranking found lexical items quality per excess base form')
-        base_form_quality_ranks = defaultdict(dict)
         for base_form in excess_base_forms:
             base_form_flis = base_form_fli_map[base_form]
-            ranked_base_form_flis = self._sort_by_quality_rank(base_form_flis)
-            for rank, fli in enumerate(ranked_base_form_flis):
-                base_form_quality_ranks[fli.database_id][base_form] = rank + 1
-        _log.debug('Ranking finished')
+            self._delete_low_quality(base_form_flis)
 
-        self._delete_if_all_interps_low_quality(
-            excess_flis, base_form_quality_ranks
-        )
         self._delete_articles_with_no_found_lexical_items()
 
     def _get_base_forms_in_excess(self) -> List[str]:
@@ -424,137 +410,50 @@ class ReibunDb(object):
 
         Returns:
             A dictionary where the keys are base form strings and the values
-            are a list with the found lexical items from the given list of
-            found lexical items with at least one possible interpretation with
-            a base form that matches the base form key.
+            are a list with the found lexical items from the given list with
+            that base form.
         """
         base_form_map = defaultdict(list)
         for item in found_lexical_items:
-            interp_base_forms = set(i.base_form for i in item.possible_interps)
-            for base_form in interp_base_forms:
-                base_form_map[base_form].append(item)
+            base_form_map[item.base_form].append(item)
 
         return base_form_map
 
-    def _sort_by_quality_rank(
-        self, base_form_flis: List[FoundJpnLexicalItem]
-    ) -> List[FoundJpnLexicalItem]:
-        """Sorts given found lexical items by quality rank.
-
-        The sort orders the lexical items from highest quality rank to lowest,
-        but as an expception, it ensures that the highest quality found lexical
-        item for each article ranks above the second highest quality and lower
-        items for all other articles.
-
-        If N is the total number of articles referenced by at least one of the
-        given found lexical items, this ensures that the first N items in the
-        returned list all come from different articles.
-
-        The given list of found lexical items is not modified.
-
-        Args:
-            base_form_flis: A list of found lexical items to sort by quality
-                rank.
-
-        Returns:
-            A new list containing all of the given found lexical items sorted
-            from highest quality rank to lowest, with the exception mentioned
-            above.
-        """
-        article_max_quality_map = {}
-        for fli in base_form_flis:
-            article_id = id(fli.article)
-            if article_id not in article_max_quality_map:
-                article_max_quality_map[article_id] = [fli, []]
-                continue
-
-            current_best = article_max_quality_map[article_id][0]
-            if fli.quality_key() > current_best.quality_key():
-                article_max_quality_map[article_id][1].append(current_best)
-                article_max_quality_map[article_id][0] = fli
-            else:
-                article_max_quality_map[article_id][1].append(fli)
-
-        best_all_articles = sorted(
-            [best for best, rest in article_max_quality_map.values()],
-            key=methodcaller('quality_key'), reverse=True
-        )
-
-        rest_all_articles = []
-        for best, rest in article_max_quality_map.values():
-            rest_all_articles.extend(rest)
-        rest_all_articles = sorted(
-            rest_all_articles, key=methodcaller('quality_key'), reverse=True
-        )
-
-        return best_all_articles + rest_all_articles
-
-    def _delete_if_all_interps_low_quality(
-        self, excess_flis: List[FoundJpnLexicalItem],
-        base_form_rank_map: Dict[str, Dict[str, int]]
+    def _delete_low_quality(
+        self, excess_flis: List[FoundJpnLexicalItem]
     ) -> None:
-        """Deletes items from the db if all their interps are low quality.
+        """Deletes found lexical items from the db if they are too low quality.
 
         See FoundJpnLexicalItem quality key for info on how low quality is
         determined.
 
+        Modifies the order of the given found lexical item list.
+
         Args:
-            excess_flis: A list of found lexical items where at least one of
-                their interps has a base form that is currently in excess in
-                the db.
-            base_form_ranks: A mapping from each of the given found lexical
-                items to a dictionary containing a mapping from the base forms
-                for the possible interpretations of the found lexical item to
-                the quality rank for that base form for the found lexical item.
-
-                If a base form for a possible interpretation of a found lexical
-                item is not in the mapping, it means that base form is not
+            excess_flis: A list of found lexical items whose base form is
                 currently in excess in the db.
+            base_form_ranks: A mapping from each of the given found lexical
+                items to the quality rank for that item.
         """
-        deleted_count = 0
-        all_high_quality_count = 0
-        some_high_quality_count = 0
-        not_in_excess_count = 0
+        base_form = excess_flis[0].base_form
+        _log.debug('Sorting "%s" found lexical items by quality', base_form)
+        excess_flis.sort(key=methodcaller('quality_key'), reverse=True)
+        _log.debug('Sort of "%s" found lexical items finished', base_form)
 
+        low_quality_items = excess_flis[self.BASE_FORM_COUNT_LIMIT:]
         _log.debug(
-            'Deleting found lexical items with all possible interpretations '
-            'having low base form quality rank'
+            'Deleting %s found lexical items from "%s" for "%s" with too low '
+            'quality',
+            len(low_quality_items),
+            self._found_lexical_item_collection.full_name, base_form
         )
-        for fli in excess_flis:
-            fli_id = fli.database_id
-            has_high_quality = False
-            has_low_quality = False
-            for interp in fli.possible_interps:
-                if interp.base_form not in base_form_rank_map[fli_id]:
-                    has_high_quality = False
-                    has_low_quality = False
-                    break
-
-                quality_rank = base_form_rank_map[fli_id][interp.base_form]
-                if quality_rank <= self.BASE_FORM_COUNT_LIMIT:
-                    has_high_quality = True
-                else:
-                    has_low_quality = True
-
-            if not has_low_quality and not has_high_quality:
-                not_in_excess_count += 1
-            elif has_high_quality and not has_low_quality:
-                all_high_quality_count += 1
-            elif has_high_quality and has_low_quality:
-                some_high_quality_count += 1
-            elif not has_high_quality and has_low_quality:
-                self._found_lexical_item_collection.delete_one(
-                    {'_id': ObjectId(fli_id)}
-                )
-                deleted_count += 1
-
+        result = self._found_lexical_item_collection.delete_many(
+            {'_id': {'$in': excess_flis[self.BASE_FORM_COUNT_LIMIT:]}}
+        )
         _log.debug(
-            'Deletion stats:\nChecked total: {}\nDeleted: {}\nInterps all '
-            'high quality: {}\nInterps some high quality: {}\nInterps not in '
-            'excess base form present: {}'.format(
-                len(excess_flis), deleted_count, all_high_quality_count,
-                some_high_quality_count, not_in_excess_count
-            )
+            'Successfully deleted %s found lexical items from "%s" for "%s"',
+            result.deleted_count,
+            self._found_lexical_item_collection.full_name, base_form
         )
 
     def _delete_articles_with_no_found_lexical_items(self) -> None:
@@ -689,24 +588,51 @@ class ReibunDb(object):
         return docs
 
     @utils.skip_method_debug_logging
+    def _convert_mecab_interp_to_doc(
+        self, mecab_interp: MecabLexicalItemInterp
+    ) -> _Document:
+        """Converts MeCab interp to a dict for inserting into MongoDB."""
+        doc = {
+            'parts_of_speech': mecab_interp.parts_of_speech,
+            'conjugated_type': mecab_interp.conjugated_type,
+            'conjugated_form': mecab_interp.conjugated_form,
+        }
+
+        return doc
+
+    @utils.skip_method_debug_logging
     def _convert_lexical_item_interps_to_docs(
         self, interps: List[JpnLexicalItemInterp]
     ) -> List[_Document]:
         """Converts interps to dicts for inserting into MongoDB."""
         docs = []
         for interp in interps:
+            interp_sources = [s.value for s in interp.interp_sources]
+            if interp.mecab_interp is None:
+                mecab_interp_doc = None
+            else:
+                mecab_interp_doc = self._convert_mecab_interp_to_doc(
+                    interp.mecab_interp
+                )
+
             docs.append({
-                'base_form': interp.base_form,
-                'reading': interp.reading,
-                'parts_of_speech': interp.parts_of_speech,
-                'conjugated_type': interp.conjugated_type,
-                'conjugated_form': interp.conjugated_form,
-                'text_form_info': interp.text_form_info,
-                'text_form_freq': interp.text_form_freq,
-                'fields': interp.fields,
-                'dialects': interp.dialects,
-                'misc': interp.misc,
-                'interp_sources': [s.name for s in interp.interp_sources],
+                'interp_sources': interp_sources,
+                'mecab_interp': mecab_interp_doc,
+                'jmdict_interp_entry_id': interp.jmdict_interp_entry_id,
+            })
+
+        return docs
+
+    @utils.skip_method_debug_logging
+    def _convert_found_positions_to_docs(
+        self, found_positions: List[LexicalItemTextPosition]
+    ) -> List[_Document]:
+        """Converts found positions to dicts for inserting into MongoDB."""
+        docs = []
+        for found_position in found_positions:
+            docs.append({
+                'index': found_position.index,
+                'len': found_position.len
             })
 
         return docs
@@ -725,12 +651,29 @@ class ReibunDb(object):
             interp_docs = self._convert_lexical_item_interps_to_docs(
                 found_lexical_item.possible_interps
             )
+            found_positions_docs = self._convert_found_positions_to_docs(
+                found_lexical_item.found_positions
+            )
+
+            interp_pos_map_doc = {}
+            for i, interp in enumerate(found_lexical_item.possible_interps):
+                if interp not in found_lexical_item.interp_position_map:
+                    continue
+
+                interp_pos_docs = self._convert_found_positions_to_docs(
+                    found_lexical_item.interp_position_map[interp]
+                )
+                interp_pos_map_doc[str(i)] = interp_pos_docs
+
+            if len(interp_pos_map_doc) == 0:
+                interp_pos_map_doc = None
+
             docs.append({
-                'surface_form': found_lexical_item.surface_form,
+                'base_form': found_lexical_item.base_form,
                 'article_oid': article_oid_map[id(found_lexical_item.article)],
-                'text_pos_abs': found_lexical_item.text_pos_abs,
-                'text_pos_percent': found_lexical_item.text_pos_percent,
+                'found_positions': found_positions_docs,
                 'possible_interps': interp_docs,
+                'interp_position_map': interp_pos_map_doc,
                 'reibun_version_info': self._version_doc,
             })
 
@@ -740,7 +683,7 @@ class ReibunDb(object):
     def _convert_docs_to_article_metadata(
         self, docs: List[_Document]
     ) -> List[JpnArticle]:
-        """Converts docs to article metadata."""
+        """Converts MongoDB docs to article metadata."""
         metadatas = []
         for doc in docs:
             metadatas.append(JpnArticleMetadata(
@@ -756,7 +699,7 @@ class ReibunDb(object):
     def _convert_docs_to_articles(
         self, docs: List[_Document]
     ) -> Dict[ObjectId, JpnArticle]:
-        """Converts docs to article objects.
+        """Converts MongoDB docs to article objects.
 
         Returns:
             A mapping from each article document's ObjectId to the created
@@ -779,40 +722,66 @@ class ReibunDb(object):
         return oid_article_map
 
     @utils.skip_method_debug_logging
+    def _convert_doc_to_mecab_interp(
+        self, doc: _Document
+    ) -> MecabLexicalItemInterp:
+        """Converts MongoDB doc to MeCab interp."""
+        mecab_interp = MecabLexicalItemInterp(
+            parts_of_speech=utils.tuple_or_none(doc['parts_of_speech']),
+            conjugated_type=doc['conjugated_type'],
+            conjugated_form=doc['conjugated_form'],
+        )
+
+        return mecab_interp
+
+    @utils.skip_method_debug_logging
     def _convert_docs_to_lexical_item_interps(
         self, docs: List[_Document]
     ) -> List[JpnLexicalItemInterp]:
-        """Converts docs to lexical item interps."""
+        """Converts MongoDB docs to lexical item interps."""
         interps = []
         for doc in docs:
             if doc['interp_sources'] is None:
                 interp_sources = None
             else:
                 interp_sources = tuple(
-                    InterpSource[s] for s in doc['interp_sources']
+                    InterpSource(i) for i in doc['interp_sources']
+                )
+
+            if doc['mecab_interp'] is None:
+                mecab_interp = None
+            else:
+                mecab_interp = self._convert_doc_to_mecab_interp(
+                    doc['mecab_interp']
                 )
 
             interps.append(JpnLexicalItemInterp(
-                base_form=doc['base_form'],
-                reading=doc['reading'],
-                parts_of_speech=utils.tuple_or_none(doc['parts_of_speech']),
-                conjugated_type=utils.tuple_or_none(doc['conjugated_type']),
-                conjugated_form=utils.tuple_or_none(doc['conjugated_form']),
-                text_form_info=utils.tuple_or_none(doc['text_form_info']),
-                text_form_freq=utils.tuple_or_none(doc['text_form_freq']),
-                fields=utils.tuple_or_none(doc['fields']),
-                dialects=utils.tuple_or_none(doc['dialects']),
-                misc=utils.tuple_or_none(doc['misc']),
                 interp_sources=interp_sources,
+                mecab_interp=mecab_interp,
+                jmdict_interp_entry_id=doc['jmdict_interp_entry_id'],
             ))
 
         return interps
+
+    @utils.skip_method_debug_logging
+    def _convert_docs_to_found_positions(
+        self, docs: List[_Document]
+    ) -> List[LexicalItemTextPosition]:
+        """Converts MongoDB docs to found positions."""
+        found_positions = []
+        for doc in docs:
+            found_positions.append(LexicalItemTextPosition(
+                index=doc['index'],
+                len=doc['len'],
+            ))
+
+        return found_positions
 
     def _convert_docs_to_found_lexical_items(
         self, docs: List[_Document],
         oid_article_map: Dict[ObjectId, JpnArticle]
     ) -> List[FoundJpnLexicalItem]:
-        """Converts docs to found lexical items.
+        """Converts MongoDB docs to found lexical items.
 
         The given ObjectId to article map must contain the created article
         objects for all of found lexical item documents.
@@ -822,12 +791,26 @@ class ReibunDb(object):
             interps = self._convert_docs_to_lexical_item_interps(
                 doc['possible_interps']
             )
+            found_positions = self._convert_docs_to_found_positions(
+                doc['found_positions']
+            )
+
+            if doc['interp_position_map'] is None:
+                doc['interp_position_map'] = {}
+
+            interp_position_map = {}
+            for i in doc['interp_position_map']:
+                interp_positions = self._convert_docs_to_found_positions(
+                    doc['interp_position_map'][i]
+                )
+                interp_position_map[interps[int(i)]] = interp_positions
+
             found_lexical_items.append(FoundJpnLexicalItem(
-                surface_form=doc['surface_form'],
+                base_form=doc['base_form'],
                 article=oid_article_map[doc['article_oid']],
-                text_pos_abs=doc['text_pos_abs'],
-                database_id=str(doc['_id']),
+                found_positions=found_positions,
                 possible_interps=interps,
+                interp_position_map=interp_position_map,
             ))
 
         return found_lexical_items

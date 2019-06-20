@@ -248,7 +248,10 @@ class JapaneseTextAnalyzer(object):
 
             offset += len(text_block) + 1  # +1 for new line char
 
-        return reduce_found_lexical_items(article_lexical_items)
+        reduced_flis = reduce_found_lexical_items(article_lexical_items)
+        for fli in reduced_flis:
+            fli.sort_found_positions_by_quality()
+        return reduced_flis
 
     def _find_lexical_items(
         self, text: str, offset: int, article: JpnArticle

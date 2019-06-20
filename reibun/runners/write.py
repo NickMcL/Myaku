@@ -22,33 +22,35 @@ if __name__ == '__main__':
         crawls.append(('Tokushu', crawler.crawl_tokushu()))
 
         for crawl in crawls:
-            print(f'\nCrawling {crawl[0]}\n')
+            print('\nCrawling {}\n'.format(crawl[0]))
 
             crawl_fli_count = 0
             crawl_article_count = 0
             for article in crawl[1]:
                 new_articles = db.filter_to_unstored_articles([article])
                 if len(new_articles) == 0:
-                    print(f'Article {article} already stored!')
+                    print('Article {} already stored!'.format(article))
                     continue
                 new_article = new_articles[0]
 
                 flis = jta.find_article_lexical_items(new_article)
                 db.write_found_lexical_items(flis)
 
-                print(f'Found {len(flis)} lexical items in {new_article}')
+                print('Found {} lexical items in {}'.format(
+                    len(flis), new_article
+                ))
                 crawl_fli_count += len(flis)
                 crawl_article_count += 1
 
-            print(
-                f'\nFound {crawl_fli_count} lexical items during {crawl[0]} '
-                f'crawl\n'
-            )
+            print('\nFound {} lexical items during {} crawl\n'.format(
+                crawl_fli_count, crawl[0]
+            ))
             overall_fli_count += crawl_fli_count
             overall_article_count += crawl_article_count
 
     print(
-        f'\nFound {overall_fli_count} new lexical items across '
-        f'{overall_article_count} articles overall\n'
+        '\nFound {} new lexical items across {} articles overall\n'.format(
+            overall_fli_count, overall_article_count
+        )
     )
     print('All done!\n')

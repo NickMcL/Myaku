@@ -1,6 +1,5 @@
 """Classes for holding data used across the Reibun project."""
 
-import copy
 import enum
 import functools
 import hashlib
@@ -8,7 +7,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Tuple
 
 import reibun.utils as utils
 
@@ -155,7 +154,7 @@ class JpnArticle(object):
             )
 
         for group_min in self._ARTICLE_LEN_GROUPS:
-            if self.article.alnum_count >= group_min:
+            if self.alnum_count >= group_min:
                 return group_min
         return 0
 
@@ -279,9 +278,8 @@ class FoundJpnLexicalItem(object):
             each interpretation will be in this list.
         interp_position_map: If one of the possible interpretations for the
             lexical item only applies to a subset of the positions the lexical
-            item was found in the article, an entry mapping the index of that
-            interpretation in possible_interps to the subset of the positions
-            it applies to will be in this dict.
+            item was found in the article, an entry mapping the interpretation
+            to the subset of the positions it applies to will be in this dict.
 
             If an interpretation applies to all positions the lexical items was
             found in the article, that interpretation will not have an entry in
@@ -356,7 +354,7 @@ class FoundJpnLexicalItem(object):
             ('article.metadata', self.article.metadata),
             ('article.metadata.publication_datetime',
                 self.article.metadata.publication_datetime),
-            ('found_positions', self.surface_form),
+            ('found_positions', self.found_positions),
         ]
         for attr in required_attrs:
             if attr[1] is None:
