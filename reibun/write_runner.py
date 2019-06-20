@@ -1,9 +1,7 @@
 import time
-import sys
 
 import reibun.utils as utils
 from reibun.crawler import NhkNewsWebCrawler
-# from reibun.datatypes import JpnArticle
 from reibun.database import ReibunDb
 from reibun.japanese_analysis import JapaneseTextAnalyzer
 
@@ -18,9 +16,10 @@ if __name__ == '__main__':
     overall_article_count = 0
     with ReibunDb() as db, NhkNewsWebCrawler() as crawler:
         crawls = []
-        crawls.append(('Most Recent', crawler.crawl_most_recent()))
+        crawls.append(('Most Recent', crawler.crawl_most_recent(2)))
+        crawls.append(('Douga', crawler.crawl_douga(2)))
+        crawls.append(('News Up', crawler.crawl_news_up()))
         crawls.append(('Tokushu', crawler.crawl_tokushu()))
-        crawls.append(('News Up', crawler.crawl_news_up(10)))
 
         for crawl in crawls:
             print(f'\nCrawling {crawl[0]}\n')
@@ -35,9 +34,9 @@ if __name__ == '__main__':
                 new_article = new_articles[0]
 
                 flis = jta.find_article_lexical_items(new_article)
-                print(f'Found {len(flis)} lexical items in {new_article}')
-
                 db.write_found_lexical_items(flis)
+
+                print(f'Found {len(flis)} lexical items in {new_article}')
                 crawl_fli_count += len(flis)
                 crawl_article_count += 1
 

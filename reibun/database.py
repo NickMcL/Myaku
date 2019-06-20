@@ -582,7 +582,7 @@ class ReibunDb(object):
             {'_id': {'$nin': article_ids}}, {'_id': 1}
         )
         _log.debug(
-            'Simulated deleted of %s articles from %s',
+            'Simulated deletion of %s articles from %s',
             len(list(result)), self._article_collection.full_name
         )
 
@@ -683,6 +683,7 @@ class ReibunDb(object):
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
                 'reibun_version_info': self._version_doc,
+                'has_video': article.has_video,
             })
 
         return docs
@@ -765,6 +766,7 @@ class ReibunDb(object):
         for doc in docs:
             oid_article_map[doc['_id']] = JpnArticle(
                 full_text=doc['full_text'],
+                has_video=doc['has_video'],
                 metadata=JpnArticleMetadata(
                     title=doc['title'],
                     source_url=doc['source_url'],

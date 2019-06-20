@@ -46,6 +46,7 @@ class CannotParsePageError(Exception):
 class NhkNewsWebCrawler(object):
     """Crawls and scrapes articles from the NHK News Web website."""
     MAX_MOST_RECENT_SHOW_MORE_CLICKS = 9
+    MAX_DOUGA_SHOW_MORE_CLICKS = 9
 
     _SOURCE_NAME = 'NHK News Web'
     _SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
@@ -58,42 +59,35 @@ class NhkNewsWebCrawler(object):
         'publication_datetime'
     ]
 
-    _PAGE_LOAD_WAIT_TIME = 6
+    _PAGE_LOAD_WAIT_TIME = 6  # in seconds
 
     _MOST_RECENT_PAGE_URL = 'https://www3.nhk.or.jp/news/catnew.html'
+    _DOUGA_PAGE_URL = 'https://www3.nhk.or.jp/news/movie.html'
     _TOKUSHU_PAGE_URL = 'https://www3.nhk.or.jp/news/tokushu/'
     _NEWS_UP_PAGE_URL = 'https://www3.nhk.or.jp/news/netnewsup/'
     _PAGE_TITLES = {
         _MOST_RECENT_PAGE_URL: '速報・新着ニュース一覧｜NHK NEWS WEB',
+        _DOUGA_PAGE_URL: '動画ニュース一覧｜NHK NEWS WEB',
         _TOKUSHU_PAGE_URL: '特集一覧｜NHK NEWS WEB',
         _NEWS_UP_PAGE_URL: 'News Up一覧｜NHK NEWS WEB',
     }
 
     _MAIN_ID = 'main'
     _TITLE_CLASS = 'title'
+    _NEWS_VIDEO_ID = 'news_video'
+    _EXCLUDE_ARTICLE_CLASSES = {
+        'module--cameramanseye',
+    }
 
     _SHOW_MORE_BUTTON_CLASS = 'button'
     _SHOW_MORE_BUTTON_FOOTER_CLASS = 'button-more'
     _LOADING_CLASS_NAME = 'loading'
 
-    _FEATURE_HEADER_DIV_CLASS = 'content--header'
-    _FEATURE_ARTICLE_CLASSES = [
-        'module',
-        'module--list-items',
-    ]
-    _FEATURE_ARTICLE_LIST_CLASSES = [
-        'content--list',
-        'grid--col-operation',
-    ]
-
-    _MOST_RECENT_ARTICLE_LIST_CLASSES = [
-        'content--list',
-        'grid--col-single',
-    ]
+    _SUMMARY_HEADER_DIV_CLASS = 'content--header'
+    _SUMMARY_ARTICLE_LIST_CLASS = 'content--list'
 
     _ARTICLE_TAG_CLASS = 'detail-no-js'
     _ARTICLE_TITLE_CLASS = 'contentTitle'
-
     _ARTICLE_BODY_IDS = [
         'news_textbody',
         'news_textmore',
@@ -205,6 +199,13 @@ class NhkNewsWebCrawler(object):
 
         return '\n\n'.join(body_text_sections)
 
+    def _contains_news_video(self, tag: Tag) -> bool:
+        """Returns True if an NHK news video is in the tag's descendants."""
+        video_tag = tag.find(id=self._NEWS_VIDEO_ID)
+        if video_tag is None:
+            return False
+        return True
+
     def _parse_article(
         self, article_tag: Tag, url: str
     ) -> JpnArticle:
@@ -234,6 +235,7 @@ class NhkNewsWebCrawler(object):
         article_data.full_text = '{}\n\n{}'.format(
             article_data.metadata.title, body_text
         )
+        article_data.has_video = self._contains_news_video(article_tag)
 
         return article_data
 
@@ -254,57 +256,41 @@ class NhkNewsWebCrawler(object):
 
         return main
 
-    def _scrape_most_recent_article_metadatas(
-        self, page_soup: BeautifulSoup
+    def _scrape_summary_page_article_metadatas(
+        self, page_soup: BeautifulSoup, has_header_sections: bool = False
     ) -> List[JpnArticleMetadata]:
-        """Scrapes all article metadata from the 'Most Recent' page soup."""
-        main = self._parse_main(page_soup)
-        article_ul = self._html_helper.parse_descendant_by_class(
-            main, 'ul', self._MOST_RECENT_ARTICLE_LIST_CLASSES
-        )
-
-        metadatas = []
-        for list_item in article_ul.children:
-            metadatas.append(JpnArticleMetadata(
-                title=self._html_helper.parse_text_from_desendant(
-                    list_item, 'em', self._TITLE_CLASS
-                ),
-                publication_datetime=(
-                    self._html_helper.parse_jst_time_desendant(list_item)
-                ),
-                source_url=self._html_helper.parse_link_desendant(list_item),
-                source_name=self._SOURCE_NAME,
-            ))
-
-        return metadatas
-
-    def _scrape_feature_article_metadatas(
-        self, page_soup: BeautifulSoup
-    ) -> List[JpnArticleMetadata]:
-        """Scrapes all article metadata from a feature page soup.
+        """Scrapes all article metadata from a summary page soup.
 
         Args:
-            page_soup: BeautifulSoup for the feature page.
+            page_soup: BeautifulSoup for the summary page.
+            has_header_sections: If True, will look for header sections
+                containing article metadatas on the summary page as well. If
+                False, will only look for summary lists containing article
+                metadatas on the summary page.
 
         Returns:
-            A list of the metadatas for the articles linked to on the feature
+            A list of the metadatas for the articles linked to on the summary
             page.
         """
+        article_metadata_tags = []
         main = self._parse_main(page_soup)
-        header_divs = self._html_helper.parse_descendant_by_class(
-            main, 'div', self._FEATURE_HEADER_DIV_CLASS, True
-        )
-        _log.debug('Found %s header divs', len(header_divs))
-        article_metadata_tags = header_divs
-
         article_uls = self._html_helper.parse_descendant_by_class(
-            main, 'ul', self._FEATURE_ARTICLE_LIST_CLASSES, True
+            main, 'ul', self._SUMMARY_ARTICLE_LIST_CLASS, True
         )
+        article_uls = self._filter_out_exclusions(article_uls)
         for ul in article_uls:
             article_metadata_tags.extend(ul.contents)
         _log.debug(
             'Found %s article metadata tags', len(article_metadata_tags)
         )
+
+        if has_header_sections:
+            header_divs = self._html_helper.parse_descendant_by_class(
+                main, 'div', self._SUMMARY_HEADER_DIV_CLASS, True
+            )
+            header_divs = self._filter_out_exclusions(header_divs)
+            _log.debug('Found %s header divs', len(header_divs))
+            article_metadata_tags.extend(header_divs)
 
         metadatas = []
         for tag in article_metadata_tags:
@@ -329,6 +315,44 @@ class NhkNewsWebCrawler(object):
                 self._SOURCE_BASE_URL, urlparse(url).path
             ))
         return absolute_urls
+
+    def _filter_out_exclusions(self, tags: List[Tag]) -> List[Tag]:
+        """Filters out tags that are known exclusions for parsing.
+
+        Does not modify the given tags list.
+
+        Args:
+            tags: List of tags to check if known exlusion.
+
+        Returns:
+            A new list containing only the tags from the given list that were
+            not known exclusions.
+        """
+        filtered_tags = []
+        for tag in tags:
+            parents = tag.find_parents(
+                'article', class_=self._EXCLUDE_ARTICLE_CLASSES
+            )
+            if len(parents) != 0:
+                _log.debug(
+                    'Filtered out "%s" tag with excluded parent "article" tag '
+                    'with classes %s', tag.name, parents[0].attrs['class']
+                )
+                continue
+
+            if (tag.name is not None and tag.name == 'article'
+                    and 'class' in tag.attrs
+                    and (set(tag.attrs['class']) &
+                         self._EXCLUDE_ARTICLE_CLASSES)):
+                _log.debug(
+                    'Filtered out excluded "%s" tag with classes %s',
+                    tag.name, tag.attrs['class']
+                )
+                continue
+
+            filtered_tags.append(tag)
+
+        return filtered_tags
 
     def _crawl_uncrawled_metadatas(
         self, metadatas: List[JpnArticleMetadata]
@@ -451,25 +475,31 @@ class NhkNewsWebCrawler(object):
                 )
             )
 
-    def _crawl_feature_page(
-        self, page_url: str, show_more_clicks: int
+    def _crawl_summary_page(
+        self, page_url: str, show_more_clicks: int,
+        has_header_sections: bool = False
     ) -> Generator[JpnArticle, None, None]:
-        """Gets all not yet crawled articles from given feature page.
+        """Gets all not yet crawled articles from given summary page.
 
         Args:
+            page_url: The url of the summary page.
             show_more_clicks: Number of times to click the button for showing
-                more articles on the feature page before starting the crawl.
+                more articles on the summary page before starting the crawl.
+            has_header_sections: Whether or not the summary page has header
+                sections for featured articles in addition to its article
+                summary list.
 
         Returns:
             A list of all of the not yet crawled articles linked to from the
-            feature page.
+            summary page.
         """
         self._web_driver_get_url(page_url)
-
         self._click_show_more(show_more_clicks)
-        soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
 
-        metadatas = self._scrape_feature_article_metadatas(soup)
+        soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
+        metadatas = self._scrape_summary_page_article_metadatas(
+            soup, has_header_sections
+        )
         _log.debug(
             'Found %s metadatas from %s page',
             len(metadatas), self._web_driver.title
@@ -480,7 +510,22 @@ class NhkNewsWebCrawler(object):
     def crawl_most_recent(
         self, show_more_clicks: int = 0
     ) -> Generator[JpnArticle, None, None]:
-        """Gets all not yet crawled articles from the 'Most Recent' page."""
+        """Gets all not yet crawled articles from the 'Most Recent' page.
+
+        Args:
+            show_more_clicks: Number of times to click the button for showing
+                more articles on the Most Recent page before starting the
+                crawl.
+
+                Can only be clicked a maximum of
+                MAX_MOST_RECENT_SHOW_MORE_CLICKS times because the show more
+                button is removed from the Most Recent page after that many
+                clicks.
+
+        Returns:
+            A list of all of the not yet crawled articles linked to from the
+            Most Recent page.
+        """
         if show_more_clicks > self.MAX_MOST_RECENT_SHOW_MORE_CLICKS:
             raise ValueError(
                 'The Most Recent page show more button can only be clicked '
@@ -489,30 +534,37 @@ class NhkNewsWebCrawler(object):
                 )
             )
 
-        self._web_driver_get_url(self._MOST_RECENT_PAGE_URL)
+        yield from self._crawl_summary_page(
+            self._MOST_RECENT_PAGE_URL, show_more_clicks
+        )
 
-        self._click_show_more(show_more_clicks)
-        soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
-        metadatas = self._scrape_most_recent_article_metadatas(soup)
-        _log.debug('Found %s metadatas from most recent page', len(metadatas))
-
-        yield from self._crawl_uncrawled_metadatas(metadatas)
-
-    def crawl_tokushu(
+    def crawl_douga(
         self, show_more_clicks: int = 0
     ) -> Generator[JpnArticle, None, None]:
-        """Gets all not yet crawled articles from the 'Tokushu' page.
+        """Gets all not yet crawled articles from the 'Douga' page.
 
         Args:
             show_more_clicks: Number of times to click the button for showing
-                more articles on the Tokushu page before starting the crawl.
+                more articles on the Douga page before starting the crawl.
+
+                Can only be clicked a maximum of MAX_DOUGA_SHOW_MORE_CLICKS
+                times because the show more button is removed from the Douga
+                page after that many clicks.
 
         Returns:
             A list of all of the not yet crawled articles linked to from the
-            Tokushu page.
+            Douga page.
         """
-        yield from self._crawl_feature_page(
-            self._TOKUSHU_PAGE_URL, show_more_clicks
+        if show_more_clicks > self.MAX_DOUGA_SHOW_MORE_CLICKS:
+            raise ValueError(
+                'The Douga page show more button can only be clicked '
+                'up to {} times, but show_more_clicks is {}'.format(
+                    self.MAX_DOUGA_SHOW_MORE_CLICKS, show_more_clicks
+                )
+            )
+
+        yield from self._crawl_summary_page(
+            self._DOUGA_PAGE_URL, show_more_clicks
         )
 
     def crawl_news_up(
@@ -528,8 +580,25 @@ class NhkNewsWebCrawler(object):
             A list of all of the not yet crawled articles linked to from the
             News Up page.
         """
-        yield from self._crawl_feature_page(
-            self._NEWS_UP_PAGE_URL, show_more_clicks
+        yield from self._crawl_summary_page(
+            self._NEWS_UP_PAGE_URL, show_more_clicks, True
+        )
+
+    def crawl_tokushu(
+        self, show_more_clicks: int = 0
+    ) -> Generator[JpnArticle, None, None]:
+        """Gets all not yet crawled articles from the 'Tokushu' page.
+
+        Args:
+            show_more_clicks: Number of times to click the button for showing
+                more articles on the Tokushu page before starting the crawl.
+
+        Returns:
+            A list of all of the not yet crawled articles linked to from the
+            Tokushu page.
+        """
+        yield from self._crawl_summary_page(
+            self._TOKUSHU_PAGE_URL, show_more_clicks, True
         )
 
     def scrape_article(self, url: str) -> JpnArticle:

@@ -86,6 +86,7 @@ class JpnArticle(object):
             automatically lazily after changes to full_text. Read-only.
         """
     full_text: str = None
+    has_video: bool = None
     metadata: JpnArticleMetadata = None
 
     # Read-only
@@ -332,8 +333,19 @@ class FoundJpnLexicalItem(object):
                 return group_min
         return 0
 
-    def get_containing_sentence(self) -> str:
-        """Gets the sentence from article containing the found lexical item."""
+    def get_containing_sentence(
+        self, include_end_punctuation: bool = False
+    ) -> Tuple[str, int]:
+        """Gets the sentence from article containing the found lexical item.
+
+        Args:
+            include_end_punctuation: If True, will include the sentence ending
+                punctuation character (e.g. period, question mark, etc.) if
+                present.
+
+        Returns:
+            (containing sentence, offset of containing sentence in article)
+        """
         required_attrs = [
             ('article', self.article),
             ('article.full_text', self.article.full_text),
@@ -348,15 +360,18 @@ class FoundJpnLexicalItem(object):
                     '{}'.format(attr[0], self)
                 )
 
-        return self.article.full_text[
-            utils.find_jpn_sentene_start(
-                self.article.full_text, self.text_pos_abs
-            ):
-            utils.find_jpn_sentene_end(
-                self.article.full_text,
-                self.text_pos_abs + len(self.surface_form)
-            )
-        ]
+        start = utils.find_jpn_sentene_start(
+            self.article.full_text, self.text_pos_abs
+        )
+        end = utils.find_jpn_sentene_end(
+            self.article.full_text, self.text_pos_abs + len(self.surface_form)
+        )
+        if (include_end_punctuation
+                and end < len(self.article.full_text)
+                and self.article.full_text[end] != '\n'):
+            return (self.article.full_text[start:end + 1], start)
+
+        return (self.article.full_text[start:end], start)
 
     def quality_key(self) -> Tuple[Any, ...]:
         """Key function for getting usage quality of the found lexical item."""
@@ -364,6 +379,7 @@ class FoundJpnLexicalItem(object):
             ('article', self.article),
             ('article.metadata', self.article.metadata),
             ('article.full_text', self.article.full_text),
+            ('article.has_video', self.article.has_video),
             ('article.alnum_count', self.article.alnum_count),
             ('article.text_hash', self.article.text_hash),
             ('article.metadata.publication_datetime',
@@ -380,11 +396,14 @@ class FoundJpnLexicalItem(object):
                 )
 
         key_list = []
+        key_list.append(int(self.article.has_video))
         key_list.append(self.get_article_len_group())
         key_list.append(self.article.metadata.publication_datetime)
         key_list.append(self.article.alnum_count)
         key_list.append(self.article.text_hash)
-        key_list.append(utils.get_alnum_count(self.get_containing_sentence()))
+        key_list.append(utils.get_alnum_count(
+            self.get_containing_sentence()[0]
+        ))
         key_list.append(-1 * self.text_pos_abs)
         key_list.append(len(self.surface_form))
 

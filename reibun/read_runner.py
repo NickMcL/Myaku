@@ -2,8 +2,8 @@ from operator import methodcaller
 
 import reibun.utils as utils
 from reibun.database import ReibunDb
+from reibun.datatypes import FoundJpnLexicalItem
 
-JPN_PERIOD = '。'
 LOG_FILEPATH = './reibun_read.log'
 
 
@@ -18,6 +18,14 @@ class Color:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     END = '\033[0m'
+
+
+def print_tags(fli: FoundJpnLexicalItem) -> None:
+    tag_strs = []
+    tag_strs.append(str(fli.get_article_len_group()) + '+ characters')
+    if fli.article.has_video:
+        tag_strs.append('Video')
+    print('Tags: ' + ', '.join(tag_strs))
 
 
 if __name__ == '__main__':
@@ -58,24 +66,16 @@ if __name__ == '__main__':
                 )
                 print(s)
                 print('-' * len(s))
+                print_tags(item)
 
-            start = utils.find_jpn_sentene_start(
-                item.article.full_text, item.text_pos_abs
-            )
-            end = utils.find_jpn_sentene_end(
-                item.article.full_text,
-                item.text_pos_abs + len(item.surface_form)
-            )
-
+            sentence, start = item.get_containing_sentence(True)
+            item_sentence_pos = item.text_pos_abs - start
             print()
             print('{:.0%}: '.format(item.text_pos_percent), end='')
-            print(
-                item.article.full_text[start:item.text_pos_abs].lstrip(),
-                end=''
-            )
-            print(Color.CYAN + item.article.full_text[
-                item.text_pos_abs: item.text_pos_abs + len(item.surface_form)
+            print(sentence[:item_sentence_pos], end='')
+            print(Color.CYAN + sentence[
+                item_sentence_pos: item_sentence_pos + len(item.surface_form)
             ], end='')
-            print(Color.END + item.article.full_text[
-                item.text_pos_abs + len(item.surface_form):end
-            ].rstrip())
+            print(Color.END + sentence[
+                item_sentence_pos + len(item.surface_form):
+            ])
