@@ -13,14 +13,16 @@ from collections import defaultdict
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 from xml.etree import ElementTree
 
 import MeCab
 
 import reibun.utils as utils
 from reibun.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
-                              JpnLexicalItemInterp)
+                              JpnLexicalItemInterp, LexicalItemTextPosition,
+                              MecabLexicalItemInterp)
+from reibun.datatypes import reduce_found_lexical_items
 
 _log = logging.getLogger(__name__)
 
@@ -246,7 +248,7 @@ class JapaneseTextAnalyzer(object):
 
             offset += len(text_block) + 1  # +1 for new line char
 
-        return article_lexical_items
+        return reduce_found_lexical_items(article_lexical_items)
 
     def _find_lexical_items(
         self, text: str, offset: int, article: JpnArticle
@@ -261,7 +263,9 @@ class JapaneseTextAnalyzer(object):
         Returns:
             The found Japanese lexical items in the text.
         """
-        mecab_lexical_items = self._mecab_tagger.parse(text)
+        mecab_lexical_items = self._mecab_tagger.parse(text, offset)
+        for lexical_item in mecab_lexical_items:
+            lexical_item.article = article
 
         # MeCab generally parses text into base lexical items while ignoring
         # meta lexical items, so meta lexical items must be found separately.
@@ -276,9 +280,6 @@ class JapaneseTextAnalyzer(object):
             if self._is_symbol(item):
                 continue
 
-            # Adjust offset to account for offset of this text block in the
-            # overall article.
-            item.text_pos_abs += offset
             item.article = article
             processed_lexical_items.append(item)
 
@@ -311,9 +312,8 @@ class JapaneseTextAnalyzer(object):
                 if not self._within_jmdict_max_entry_len(decomp):
                     break
 
-                meta_lexical_item = self._lookup_meta_lexical_item(decomp)
-                if meta_lexical_item is not None:
-                    meta_lexical_items.append(meta_lexical_item)
+                lookup_lexical_items = self._lookup_meta_lexical_item(decomp)
+                meta_lexical_items.extend(lookup_lexical_items)
                 end += 1
             start += 1
 
@@ -342,13 +342,13 @@ class JapaneseTextAnalyzer(object):
         if len(lexical_items) <= self._jmdict.max_mecab_decomp_len:
             return True
 
-        surface_form = ''.join(item.surface_form for item in lexical_items)
+        surface_form = ''.join(
+            item.get_first_surface_form() for item in lexical_items
+        )
         if len(surface_form) <= self._jmdict.max_text_form_len:
             return True
 
-        base_form = ''.join(
-            item.possible_interps[0].base_form for item in lexical_items
-        )
+        base_form = ''.join(item.base_form for item in lexical_items)
         if len(base_form) <= self._jmdict.max_text_form_len:
             return True
 
@@ -357,36 +357,33 @@ class JapaneseTextAnalyzer(object):
     @utils.skip_method_debug_logging
     def _lookup_meta_lexical_item(
         self, base_decomp: List[FoundJpnLexicalItem]
-    ) -> Optional[FoundJpnLexicalItem]:
-        """Looks up the meta lexical item in JMdict and returns it if exists.
+    ) -> List[FoundJpnLexicalItem]:
+        """Looks up the meta lexical item in JMdict.
 
         Args:
             base_decomp: The decomposition of the meta lexical item into base
                 lexical items.
 
         Returns:
-            A FoundJpnLexicalItem with the info for the meta lexical item from
-            JMdict if it exists in JMdict, or None if the meta lexical item
-            does not exist in JMdict.
+            A list of all of the lexical items found in JMdict that match the
+            meta lexical item.
         """
-        decomp_base_forms = tuple(
-            item.possible_interps[0].base_form for item in base_decomp
-        )
+        decomp_base_forms = tuple(item.base_form for item in base_decomp)
         decomp_entries = self._jmdict[decomp_base_forms]
 
-        surface_form = ''.join([item.surface_form for item in base_decomp])
+        surface_form = ''.join(
+            item.get_first_surface_form() for item in base_decomp
+        )
         surface_entries = self._jmdict[surface_form]
 
         base_form = ''.join(decomp_base_forms)
         base_entries = self._jmdict[base_form]
         if not (decomp_entries or surface_entries or base_entries):
-            return None
+            return []
 
-        possible_interps = []
+        lexical_items = []
         entries = utils.unique(decomp_entries + surface_entries + base_entries)
         for entry in entries:
-            possible_interp = entry.to_lexical_item_interp()
-
             sources = []
             if entry in decomp_entries:
                 sources.append(InterpSource.JMDICT_MECAB_DECOMP)
@@ -394,27 +391,33 @@ class JapaneseTextAnalyzer(object):
                 sources.append(InterpSource.JMDICT_SURFACE_FORM)
             if entry in base_entries:
                 sources.append(InterpSource.JMDICT_BASE_FORM)
-            possible_interp.interp_sources = tuple(sources)
-            possible_interps.append(possible_interp)
 
-        lexical_item = FoundJpnLexicalItem(
-            surface_form=surface_form,
-            possible_interps=possible_interps,
-            text_pos_abs=base_decomp[0].text_pos_abs
-        )
-        return lexical_item
+            lexical_items.append(FoundJpnLexicalItem(
+                base_form=entry.text_form,
+                found_positions=[LexicalItemTextPosition(
+                    base_decomp[0].found_positions[0].index, len(surface_form)
+                )],
+                possible_interps=[
+                    JpnLexicalItemInterp(
+                        jmdict_interp_entry_id=entry.entry_id,
+                        interp_sources=tuple(sources)
+                    )
+                ]
+            ))
+
+        return lexical_items
 
     @utils.skip_method_debug_logging
-    def _is_symbol(self, lexical_item: FoundJpnLexicalItem) -> bool:
+    def _is_symbol(self, fli: FoundJpnLexicalItem) -> bool:
         """Returns True if the Japanese lexical item is a non-alnum symbol.
 
         Symbols include things like periods, commas, quote characters, etc.
         """
-        for possible_interp in lexical_item.possible_interps:
-            if possible_interp.parts_of_speech is None:
+        for possible_interp in fli.possible_interps:
+            if possible_interp.mecab_interp is None:
                 continue
 
-            for part_of_speech in possible_interp.parts_of_speech:
+            for part_of_speech in possible_interp.mecab_interp.parts_of_speech:
                 if part_of_speech == self._SYMBOL_PART_OF_SPEECH:
                     return True
         return False
@@ -994,11 +997,18 @@ class MecabTagger:
             neologd_path = self._get_mecab_neologd_dict_path()
             self._mecab_tagger = MeCab.Tagger(f'-Ochasen -d {neologd_path}')
 
-    def parse(self, text: str) -> List[FoundJpnLexicalItem]:
+    def parse(
+        self, text: str, text_offset: int = 0
+    ) -> List[FoundJpnLexicalItem]:
         """Returns the lexical items found by MeCab in the text.
 
         MeCab will give exactly one lexical item interpretation (its best
         guess) for each lexical item found in the text.
+
+        Args:
+            text: The text to parse with MeCab for lexical items.
+            text_offset: Offset that this text starts at if the text is
+                part of a larger body of text.
 
         Raises:
             TextAnalysisError: MeCab gave an unexpected output when parsing the
@@ -1031,11 +1041,13 @@ class MecabTagger:
 
             lexical_item_interp = self._create_interp_obj(parsed_token_tags)
             found_lexical_item = FoundJpnLexicalItem(
-                surface_form=parsed_token_tags[0],
-                possible_interps=[lexical_item_interp],
-                text_pos_abs=offset
+                base_form=parsed_token_tags[2],
+                found_positions=[LexicalItemTextPosition(
+                    text_offset + offset, len(parsed_token_tags[0])
+                )],
+                possible_interps=[lexical_item_interp]
             )
-            offset += len(found_lexical_item.surface_form)
+            offset += len(parsed_token_tags[0])
             found_lexical_items.append(found_lexical_item)
 
         return found_lexical_items
@@ -1092,20 +1104,29 @@ class MecabTagger:
         self, parsed_token_tags: List[str]
     ) -> JpnLexicalItemInterp:
         """Creates a JpnLexicalItemInterp from the parsed token tags."""
-        lexical_item_interp = JpnLexicalItemInterp(
-            reading=parsed_token_tags[1],
-            base_form=parsed_token_tags[2],
-            parts_of_speech=tuple(
-                parsed_token_tags[3].split(self._POS_SPLITTER)
-            ),
+        parts_of_speech = tuple(
+            parsed_token_tags[3].split(self._POS_SPLITTER)
+        )
+        if len(parsed_token_tags) >= 6:
+            mecab_interp = MecabLexicalItemInterp(
+                parts_of_speech=parts_of_speech,
+                conjugated_type=parsed_token_tags[4],
+                conjugated_form=parsed_token_tags[5]
+            )
+        if len(parsed_token_tags) >= 5:
+            mecab_interp = MecabLexicalItemInterp(
+                parts_of_speech=parts_of_speech,
+                conjugated_type=parsed_token_tags[4]
+            )
+        else:
+            mecab_interp = MecabLexicalItemInterp(
+                parts_of_speech=parts_of_speech
+            )
+
+        return JpnLexicalItemInterp(
+            mecab_interp=mecab_interp,
             interp_sources=(InterpSource.MECAB,)
         )
-        if len(parsed_token_tags) >= 5:
-            lexical_item_interp.conjugated_type = parsed_token_tags[4]
-        if len(parsed_token_tags) >= 6:
-            lexical_item_interp.conjugated_form = parsed_token_tags[5]
-
-        return lexical_item_interp
 
     def _get_mecab_neologd_dict_path(self) -> str:
         """Finds the path to the NEologd dict in the system.
