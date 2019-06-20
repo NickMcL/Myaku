@@ -54,7 +54,7 @@ class ReibunDb(object):
     BASE_FORM_COUNT_LIMIT = 1000
     _EXCESS_BASE_FORM_AGGREGATE = [
         {'$match': {'base_form': {'$gt': ''}}},
-        {'$group': {'_id': 'base_form', 'total': {'$sum': 1}}},
+        {'$group': {'_id': '$base_form', 'total': {'$sum': 1}}},
         {'$match': {'total': {'$gt': BASE_FORM_COUNT_LIMIT}}},
     ]
 
@@ -440,15 +440,17 @@ class ReibunDb(object):
         excess_flis.sort(key=methodcaller('quality_key'), reverse=True)
         _log.debug('Sort of "%s" found lexical items finished', base_form)
 
-        low_quality_items = excess_flis[self.BASE_FORM_COUNT_LIMIT:]
+        low_quality_item_oids = []
+        for fli in excess_flis[self.BASE_FORM_COUNT_LIMIT:]:
+            low_quality_item_oids.append(ObjectId(fli.database_id))
         _log.debug(
             'Deleting %s found lexical items from "%s" for "%s" with too low '
             'quality',
-            len(low_quality_items),
+            len(low_quality_item_oids),
             self._found_lexical_item_collection.full_name, base_form
         )
         result = self._found_lexical_item_collection.delete_many(
-            {'_id': {'$in': excess_flis[self.BASE_FORM_COUNT_LIMIT:]}}
+            {'_id': {'$in': low_quality_item_oids}}
         )
         _log.debug(
             'Successfully deleted %s found lexical items from "%s" for "%s"',
@@ -811,6 +813,7 @@ class ReibunDb(object):
                 found_positions=found_positions,
                 possible_interps=interps,
                 interp_position_map=interp_position_map,
+                database_id=str(doc['_id']),
             ))
 
         return found_lexical_items

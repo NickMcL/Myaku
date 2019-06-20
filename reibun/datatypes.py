@@ -284,6 +284,7 @@ class FoundJpnLexicalItem(object):
             If an interpretation applies to all positions the lexical items was
             found in the article, that interpretation will not have an entry in
             this dict.
+        database_id: The ID of this lexical item in the Reibun database.
     """
     base_form: str = None
     article: JpnArticle = None
@@ -292,6 +293,7 @@ class FoundJpnLexicalItem(object):
     interp_position_map: (
         Dict[JpnLexicalItemInterp, List[LexicalItemTextPosition]]
     ) = field(default_factory=dict)
+    database_id: str = None
 
     _base_form: str = field(init=False, repr=False)
 
