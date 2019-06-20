@@ -17,10 +17,8 @@ if __name__ == '__main__':
     with ReibunDb() as db, NhkNewsWebCrawler() as crawler:
         crawls = []
         crawls.append(('Most Recent', crawler.crawl_most_recent(
-            crawler.MAX_MOST_RECENT_SHOW_MORE_CLICKS
         )))
         crawls.append(('Douga', crawler.crawl_douga(
-            crawler.MAX_DOUGA_SHOW_MORE_CLICKS
         )))
         crawls.append(('News Up', crawler.crawl_news_up()))
         crawls.append(('Tokushu', crawler.crawl_tokushu()))

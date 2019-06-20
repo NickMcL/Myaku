@@ -28,16 +28,20 @@ def print_tags(fli: FoundJpnLexicalItem) -> None:
     print('Tags: ' + ', '.join(tag_strs))
 
 
-if __name__ == '__main__':
+def main(search_term: str = None) -> None:
     utils.toggle_reibun_debug_log(filepath=LOG_FILEPATH)
     while True:
-        query = input('\n\n\nSearch for: ')
+        if not search_term:
+            query = input('\n\n\nSearch for: ')
+        else:
+            query = search_term
 
         with ReibunDb() as db:
             found_lexical_items = db.read_found_lexical_items(query, True)
         if len(found_lexical_items) == 0:
             print('\nFound 0 results')
-            continue
+            if not search_term:
+                continue
 
         found_lexical_items.sort(key=methodcaller('quality_key'), reverse=True)
 
@@ -82,3 +86,10 @@ if __name__ == '__main__':
                 print(Color.END + sentence[
                     pos.index + pos.len - start:
                 ])
+
+        if search_term:
+            return
+
+
+if __name__ == '__main__':
+    main()

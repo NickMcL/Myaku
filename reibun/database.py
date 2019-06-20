@@ -711,6 +711,7 @@ class ReibunDb(object):
         for doc in docs:
             oid_article_map[doc['_id']] = JpnArticle(
                 full_text=doc['full_text'],
+                alnum_count=doc['alnum_count'],
                 has_video=doc['has_video'],
                 metadata=JpnArticleMetadata(
                     title=doc['title'],

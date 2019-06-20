@@ -235,6 +235,9 @@ class NhkNewsWebCrawler(object):
         article_data.full_text = '{}\n\n{}'.format(
             article_data.metadata.title, body_text
         )
+        article_data.alnum_count = utils.get_alnum_count(
+            article_data.full_text
+        )
         article_data.has_video = self._contains_news_video(article_tag)
 
         return article_data

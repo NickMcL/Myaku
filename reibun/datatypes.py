@@ -79,25 +79,23 @@ class JpnArticle(object):
 
     Attributes:
         full_text: The full text of the article. Includes the title.
+        alnum_count: The alphanumeric character count of full_text.
+        has_video: True if the article contains a video.
         metadata: The metadata for the article.
         text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
             automatically lazily after changes to full_text. Read-only.
-        alnum_count: The alphanumeric character count of full_text. Evaluated
-            automatically lazily after changes to full_text. Read-only.
         """
     full_text: str = None
+    alnum_count: int = None
     has_video: bool = None
     metadata: JpnArticleMetadata = None
 
     # Read-only
-    alnum_count: int = None
     text_hash: str = None
 
     _full_text: str = field(init=False, repr=False)
     _text_hash: str = field(default=None, init=False, repr=False)
     _text_hash_change: bool = field(default=False, init=False, repr=False)
-    _alnum_count: int = field(default=None, init=False, repr=False)
-    _alnum_count_change: bool = field(default=False, init=False, repr=False)
 
     _ARTICLE_LEN_GROUPS: Tuple[int, ...] = field(
         default=(
@@ -116,7 +114,6 @@ class JpnArticle(object):
     @full_text.setter
     def full_text(self, set_value: str) -> None:
         self._text_hash_change = True
-        self._alnum_count_change = True
         self._full_text = set_value
 
     @property
@@ -129,15 +126,6 @@ class JpnArticle(object):
             self._text_hash_change = False
 
         return self._text_hash
-
-    @property
-    def alnum_count(self) -> int:
-        """See class docstring for alnum_count documentation."""
-        if self._alnum_count_change:
-            self._alnum_count = utils.get_alnum_count(self.full_text)
-            self._alnum_count_change = False
-
-        return self._alnum_count
 
     def __str__(self) -> str:
         if self.metadata is None:
