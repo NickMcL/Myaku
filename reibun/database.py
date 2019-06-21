@@ -84,6 +84,7 @@ class ReibunDb(object):
         self._crawled_collection.create_index('source_name')
         self._crawled_collection.create_index('publication_datetime')
         self._found_lexical_item_collection.create_index('base_form')
+        self._found_lexical_item_collection.create_index('article_oid')
 
     def filter_to_unstored_articles(
         self, articles: List[JpnArticle]
@@ -219,13 +220,6 @@ class ReibunDb(object):
 
         return unstored_objs
 
-    def is_found_lexical_items_db_empty(self) -> bool:
-        """Returns True if the found lexical items db is empty."""
-        fli_count = self._found_lexical_item_collection.count_documents({})
-        if fli_count == 0:
-            return True
-        return False
-
     def write_found_lexical_items(
             self, found_lexical_items: List[FoundJpnLexicalItem],
             write_articles: bool = True
@@ -351,6 +345,20 @@ class ReibunDb(object):
         )
         metadatas = self._convert_docs_to_article_metadata(metadata_docs)
         return metadatas
+
+    def delete_article_found_lexical_items(self, article: JpnArticle) -> None:
+        """Deletes found lexical items from article from the database."""
+        _log.debug(
+            'Will delete found lexical items for "%s" article from "%s"',
+            article, self._found_lexical_item_collection.full_name
+        )
+        result = self._found_lexical_item_collection.delete_many(
+            {'article_oid': ObjectId(article.database_id)}
+        )
+        _log.debug(
+            'Deleted %s found lexical items from "%s"',
+            result.deleted_count, self._found_lexical_item_collection.full_name
+        )
 
     def delete_base_form_excess(self) -> None:
         """Deletes found lexical items with base forms in excess in the db.
@@ -713,6 +721,7 @@ class ReibunDb(object):
                 full_text=doc['full_text'],
                 alnum_count=doc['alnum_count'],
                 has_video=doc['has_video'],
+                database_id=str(doc['_id']),
                 metadata=JpnArticleMetadata(
                     title=doc['title'],
                     source_url=doc['source_url'],

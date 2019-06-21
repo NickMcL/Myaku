@@ -4,7 +4,7 @@ import reibun.utils as utils
 from reibun.database import ReibunDb
 from reibun.datatypes import FoundJpnLexicalItem
 
-LOG_FILEPATH = './reibun_read.log'
+LOG_FILEPATH = './read_run.log'
 
 
 class Color:

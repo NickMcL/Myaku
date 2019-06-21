@@ -5,10 +5,12 @@ from reibun.crawler import NhkNewsWebCrawler
 from reibun.database import ReibunDb
 from reibun.japanese_analysis import JapaneseTextAnalyzer
 
-LOG_FILEPATH = './reibun_write.log'
+LOG_FILEPATH = './write_run.log'
 
-if __name__ == '__main__':
+
+def main() -> None:
     utils.toggle_reibun_debug_log(filepath=LOG_FILEPATH)
+    print('Will start crawl in 5 seconds...')
     time.sleep(5)
 
     jta = JapaneseTextAnalyzer()
@@ -17,9 +19,9 @@ if __name__ == '__main__':
     with ReibunDb() as db, NhkNewsWebCrawler() as crawler:
         crawls = []
         crawls.append(('Most Recent', crawler.crawl_most_recent(
+            crawler.MAX_MOST_RECENT_SHOW_MORE_CLICKS
         )))
-        crawls.append(('Douga', crawler.crawl_douga(
-        )))
+        crawls.append(('Douga', crawler.crawl_douga(2)))
         crawls.append(('News Up', crawler.crawl_news_up()))
         crawls.append(('Tokushu', crawler.crawl_tokushu()))
 
@@ -56,3 +58,7 @@ if __name__ == '__main__':
         )
     )
     print('All done!\n')
+
+
+if __name__ == '__main__':
+    main()

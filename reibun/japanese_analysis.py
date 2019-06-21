@@ -324,7 +324,7 @@ class JapaneseTextAnalyzer(object):
 
     @utils.skip_method_debug_logging
     def _within_jmdict_max_entry_len(
-        self, lexical_items: List[FoundJpnLexicalItem]
+        self, flis: List[FoundJpnLexicalItem]
     ) -> bool:
         """Checks if a lexical item series len is <= max JMdict entry len.
 
@@ -334,25 +334,25 @@ class JapaneseTextAnalyzer(object):
         the maximum JMdict entry length for that measure.
 
         Args:
-            lexical_items: A series of lexical items to check if <= max JMdict
-                entry len.
+            flis: A series of lexical items to check if <= max JMdict entry
+                len.
 
         Returns:
             True if at least one measure of the len of the lexical item series
             is less than the max JMdict entry length for that measure, and
             False if otherwise.
         """
-        if len(lexical_items) <= self._jmdict.max_mecab_decomp_len:
+        if len(flis) <= self._jmdict.max_mecab_decomp_len:
             return True
 
-        surface_form = ''.join(
-            item.get_first_surface_form() for item in lexical_items
+        base_form_len = sum(len(item.base_form) for item in flis)
+        if base_form_len <= self._jmdict.max_text_form_len:
+            return True
+
+        surface_form_len = sum(
+            len(item.get_first_surface_form()) for item in flis
         )
-        if len(surface_form) <= self._jmdict.max_text_form_len:
-            return True
-
-        base_form = ''.join(item.base_form for item in lexical_items)
-        if len(base_form) <= self._jmdict.max_text_form_len:
+        if surface_form_len <= self._jmdict.max_text_form_len:
             return True
 
         return False
@@ -461,19 +461,6 @@ class JMdictEntry(object):
     fields: Tuple[str, ...] = None
     dialects: Tuple[str, ...] = None
     misc: Tuple[str, ...] = None
-
-    def to_lexical_item_interp(self) -> JpnLexicalItemInterp:
-        """Converts to and returns a JpnLexicalItemInterp."""
-        interp = JpnLexicalItemInterp(
-            base_form=self.text_form,
-            parts_of_speech=self.parts_of_speech,
-            text_form_info=self.text_form_info,
-            text_form_freq=self.text_form_freq,
-            fields=self.fields,
-            dialects=self.dialects,
-            misc=self.misc
-        )
-        return interp
 
 
 @utils.singleton_per_config
@@ -1042,16 +1029,12 @@ class MecabTagger:
                    parsed_token_tags[0]):
                 offset += 1
 
-            lexical_item_interp = self._create_interp_obj(parsed_token_tags)
-            found_lexical_item = FoundJpnLexicalItem(
-                base_form=parsed_token_tags[2],
-                found_positions=[LexicalItemTextPosition(
-                    text_offset + offset, len(parsed_token_tags[0])
-                )],
-                possible_interps=[lexical_item_interp]
+            interp = self._create_mecab_interp(parsed_token_tags)
+            fli = self._create_found_lexical_item(
+                parsed_token_tags, interp, text_offset + offset
             )
             offset += len(parsed_token_tags[0])
-            found_lexical_items.append(found_lexical_item)
+            found_lexical_items.append(fli)
 
         return found_lexical_items
 
@@ -1079,7 +1062,6 @@ class MecabTagger:
 
         return parsed_tokens
 
-    @utils.skip_method_debug_logging
     def _adjust_if_known_problem(self, tags: List[str]) -> None:
         """Adjusts tags for token if known MeCab parsing problem.
 
@@ -1102,11 +1084,10 @@ class MecabTagger:
             for i, _ in enumerate(tags):
                 tags[i] = adjusted_tags[i]
 
-    @utils.skip_method_debug_logging
-    def _create_interp_obj(
+    def _create_mecab_interp(
         self, parsed_token_tags: List[str]
-    ) -> JpnLexicalItemInterp:
-        """Creates a JpnLexicalItemInterp from the parsed token tags."""
+    ) -> MecabLexicalItemInterp:
+        """Creates a MecabLexicalItemInterp from the parsed token tags."""
         parts_of_speech = tuple(
             parsed_token_tags[3].split(self._POS_SPLITTER)
         )
@@ -1130,6 +1111,25 @@ class MecabTagger:
             mecab_interp=mecab_interp,
             interp_sources=(InterpSource.MECAB,)
         )
+
+    def _create_found_lexical_item(
+        self, parsed_token_tags: List[str], interp: MecabLexicalItemInterp,
+        offset: int
+    ) -> FoundJpnLexicalItem:
+        """Creates a found lexical item from the tags, interp, and offset."""
+        found_lexical_item = FoundJpnLexicalItem(
+            base_form=parsed_token_tags[2],
+            found_positions=[LexicalItemTextPosition(
+                offset, len(parsed_token_tags[0])
+            )],
+            possible_interps=[interp]
+        )
+        found_lexical_item.cache_surface_form(
+            parsed_token_tags[0],
+            found_lexical_item.found_positions[0]
+        )
+
+        return found_lexical_item
 
     def _get_mecab_neologd_dict_path(self) -> str:
         """Finds the path to the NEologd dict in the system.

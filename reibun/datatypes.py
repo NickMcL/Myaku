@@ -84,11 +84,13 @@ class JpnArticle(object):
         metadata: The metadata for the article.
         text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
             automatically lazily after changes to full_text. Read-only.
+        database_id: The ID for this article in the Reibun database.
         """
     full_text: str = None
     alnum_count: int = None
     has_video: bool = None
     metadata: JpnArticleMetadata = None
+    database_id: str = None
 
     # Read-only
     text_hash: str = None
@@ -284,6 +286,9 @@ class FoundJpnLexicalItem(object):
     database_id: str = None
 
     _base_form: str = field(init=False, repr=False)
+    _surface_form_cache: Dict[LexicalItemTextPosition, str] = (
+        field(default_factory=dict, init=False, repr=False)
+    )
 
     @property
     def base_form(self) -> str:
@@ -300,7 +305,23 @@ class FoundJpnLexicalItem(object):
 
     def get_first_surface_form(self) -> str:
         """Returns surface form at the first position in found_positions."""
-        return self.article.full_text[self.found_positions[0].slice()]
+        first_pos = self.found_positions[0]
+        if first_pos in self._surface_form_cache:
+            return self._surface_form_cache[first_pos]
+
+        _log.debug(
+            'Surface form cache miss for base form "%s" at position %s',
+            self.base_form, first_pos
+        )
+        surface_form = self.article.full_text[first_pos.slice()]
+        self._surface_form_cache[first_pos] = surface_form
+        return surface_form
+
+    def cache_surface_form(
+        self, surface_form: str, text_pos: LexicalItemTextPosition
+    ) -> None:
+        """Adds surface form to a cache for quick retrieval later."""
+        self._surface_form_cache[text_pos] = surface_form
 
     def _text_position_quality_key(
         self, text_pos: LexicalItemTextPosition
