@@ -3,7 +3,7 @@
 # These dependencies aren't updated that frequently, but it can take several
 # minutes to install all of them when building, so for build efficiency, they
 # are split into a separate image from the more frequently changing
-# dependencies and Reibun source code.
+# dependencies and set up.
 
 FROM ubuntu:18.04
 
@@ -19,13 +19,21 @@ RUN apt-get update && apt-get install -y build-essential curl git sudo file \
 RUN git clone https://github.com/neologd/mecab-ipadic-neologd.git --progress \
     && ./mecab-ipadic-neologd/bin/install-mecab-ipadic-neologd -n -y
 
+# Install all other needed packages
+RUN apt-get install -y firefox wget python3.7 python3-pip python3-gdbm
+
 # Get latest JMdict
-RUN curl ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz -o ./JMdict_e.gz \
+RUN wget ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz \
     && gunzip JMdict_e.gz \
     && mv JMdict_e JMdict_e.xml
 
-# Install python packages
-RUN apt-get install -y python3.7 python3-pip python3-gdbm
+# Install geckodriver for use with Selenium
+RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.24.0\
+/geckodriver-v0.24.0-linux64.tar.gz \
+    && tar -xvzf geckodriver-v0.24.0-linux64.tar.gz \
+    && chmod +x geckodriver \
+    && mv geckodriver /usr/local/bin/ \
+    && rm geckodriver-v0.24.0-linux64.tar.gz
 
 # Get latest pip
 RUN python3.7 -m pip install -U pip

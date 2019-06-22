@@ -21,7 +21,7 @@ def main() -> None:
         crawls.append(('Most Recent', crawler.crawl_most_recent(
             crawler.MAX_MOST_RECENT_SHOW_MORE_CLICKS
         )))
-        crawls.append(('Douga', crawler.crawl_douga(2)))
+        crawls.append(('Douga', crawler.crawl_douga(5)))
         crawls.append(('News Up', crawler.crawl_news_up()))
         crawls.append(('Tokushu', crawler.crawl_tokushu()))
 

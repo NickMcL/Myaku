@@ -3,6 +3,7 @@
 import functools
 import logging
 import time
+import os
 from datetime import datetime
 from random import random
 from typing import Generator, List, Optional
@@ -22,6 +23,8 @@ from reibun.datatypes import JpnArticle, JpnArticleMetadata
 from reibun.htmlhelper import HtmlHelper
 
 _log = logging.getLogger(__name__)
+
+_WEB_DRIVER_LOG_DIR = os.environ.get(utils.LOG_DIR_ENV_VAR)
 
 
 class CannotAccessPageError(Exception):
@@ -59,6 +62,7 @@ class NhkNewsWebCrawler(object):
         'publication_datetime'
     ]
 
+    _WEB_DRIVER_LOG_FILENAME = 'webdriver.log'
     _PAGE_LOAD_WAIT_TIME = 6  # in seconds
 
     _MOST_RECENT_PAGE_URL = 'https://www3.nhk.or.jp/news/catnew.html'
@@ -111,9 +115,16 @@ class NhkNewsWebCrawler(object):
 
     def _init_web_driver(self) -> None:
         """Inits the web driver used by the crawler."""
+        log_dir = _WEB_DRIVER_LOG_DIR
+        if log_dir is None:
+            log_dir = os.getcwd()
+        log_path = os.path.join(log_dir, self._WEB_DRIVER_LOG_FILENAME)
+
         options = firefox.options.Options()
         options.headless = True
-        self._web_driver = webdriver.Firefox(options=options)
+        self._web_driver = webdriver.Firefox(
+            options=options, log_path=log_path
+        )
 
     def close(self) -> None:
         """Closes the resources used by the crawler."""

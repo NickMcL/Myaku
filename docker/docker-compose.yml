@@ -1,0 +1,39 @@
+version: "3.7"
+services:
+  crawler:
+    image: friedrice2/reibun/crawler.dev
+    volumes:
+      - type: volume
+        source: reibun-log
+        target: /reibun/log
+
+      - type: volume
+        source: reibun-devconf
+        target: /reibun/devconf
+
+      - type: bind
+        source: ..
+        target: /reibun/src
+        read_only: true
+    depends_on:
+      - db
+    environment:
+      REIBUN_DB_HOST: db
+    stdin_open: true
+    tty: true
+  db:
+    image: mongo:4.0.10
+    volumes:
+      - type: volume
+        source: reibun-db
+        target: /data/db
+
+      - type: volume
+        source: reibun-configdb
+        target: /data/configdb
+
+volumes:
+  reibun-log:
+  reibun-devconf:
+  reibun-db:
+  reibun-configdb:

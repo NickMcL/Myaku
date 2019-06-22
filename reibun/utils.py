@@ -27,7 +27,7 @@ _JPN_SENTENCE_ENDERS = [
     '\n',
 ]
 
-_LOG_DIR_ENV_VAR = 'REIBUN_LOG_DIR'
+LOG_DIR_ENV_VAR = 'REIBUN_LOG_DIR'
 _LOGGING_FORMAT = (
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
@@ -49,9 +49,9 @@ def toggle_reibun_debug_log(
         enable: If True, enables the logger; if False, disables the logger.
         filename: The name of the log file to write to.
     """
-    log_dir = os.environ.get(_LOG_DIR_ENV_VAR)
+    log_dir = os.environ.get(LOG_DIR_ENV_VAR)
     if log_dir is None:
-        log_dir = '.'
+        log_dir = os.getcwd()
     log_filepath = os.path.join(log_dir, filename)
 
     package_log = logging.getLogger('reibun')

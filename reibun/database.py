@@ -7,6 +7,7 @@ access interface consistent.
 
 import logging
 import re
+import os
 from collections import defaultdict
 from datetime import datetime
 from operator import methodcaller
@@ -28,6 +29,13 @@ _log = logging.getLogger(__name__)
 
 T = TypeVar('T')
 _Document = Dict[str, Any]
+
+_DB_HOST_ENV_VAR = 'REIBUN_DB_HOST'
+_DB_HOST = os.environ.get(_DB_HOST_ENV_VAR)
+if _DB_HOST is None:
+    _DB_HOST = 'localhost'
+
+_DB_PORT = 27017
 
 
 @utils.add_method_debug_logging
@@ -60,7 +68,7 @@ class ReibunDb(object):
 
     def __init__(self) -> None:
         """Initializes the connection to the database."""
-        self._mongo_client = MongoClient()
+        self._mongo_client = MongoClient(_DB_HOST, _DB_PORT)
         _log.debug(
             'Connected to MongoDB at %s:%s',
             self._mongo_client.address[0], self._mongo_client.address[1]
