@@ -8,8 +8,12 @@ services:
         target: /reibun/log
 
       - type: volume
-        source: reibun-devconf
-        target: /reibun/devconf
+        source: reibun-appdata
+        target: /reibun/appdata
+
+      - type: volume
+        source: reibun-devdata
+        target: /reibun/devdata
 
       - type: bind
         source: ..
@@ -34,6 +38,7 @@ services:
 
 volumes:
   reibun-log:
-  reibun-devconf:
+  reibun-appdata:
+  reibun-devdata:
   reibun-db:
   reibun-configdb:

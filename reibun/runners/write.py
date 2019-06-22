@@ -1,3 +1,4 @@
+import math
 import time
 
 import reibun.utils as utils
@@ -13,15 +14,16 @@ def main() -> None:
     print('Will start crawl in 5 seconds...')
     time.sleep(5)
 
-    jta = JapaneseTextAnalyzer()
+    start_time = time.perf_counter()
     overall_fli_count = 0
     overall_article_count = 0
+    jta = JapaneseTextAnalyzer()
     with ReibunDb() as db, NhkNewsWebCrawler() as crawler:
         crawls = []
         crawls.append(('Most Recent', crawler.crawl_most_recent(
             crawler.MAX_MOST_RECENT_SHOW_MORE_CLICKS
         )))
-        crawls.append(('Douga', crawler.crawl_douga(5)))
+        crawls.append(('Douga', crawler.crawl_douga(2)))
         crawls.append(('News Up', crawler.crawl_news_up()))
         crawls.append(('Tokushu', crawler.crawl_tokushu()))
 
@@ -52,9 +54,12 @@ def main() -> None:
             overall_fli_count += crawl_fli_count
             overall_article_count += crawl_article_count
 
+    elapsed_secs = time.perf_counter() - start_time
     print(
-        '\nFound {} new lexical items across {} articles overall\n'.format(
-            overall_fli_count, overall_article_count
+        '\nIn total, found {} new lexical items across {} articles in '
+        '{} minutes, {} seconds\n'.format(
+            overall_fli_count, overall_article_count,
+            math.floor(elapsed_secs / 60), round(elapsed_secs % 60)
         )
     )
     print('All done!\n')

@@ -1,9 +1,5 @@
 # Builds an image with the base dependencies for Reibun installed.
-#
-# These dependencies aren't updated that frequently, but it can take several
-# minutes to install all of them when building, so for build efficiency, they
-# are split into a separate image from the more frequently changing
-# dependencies and set up.
+# The image can then be used as a base for dev and prod images.
 
 FROM ubuntu:18.04
 
@@ -38,7 +34,17 @@ RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.24.0\
 # Get latest pip
 RUN python3.7 -m pip install -U pip
 
+ENV REIBUN_SRC_DIR $REIBUN_BASE_DIR/src
+COPY ./requirements.txt $REIBUN_SRC_DIR/
+RUN python3.7 -m pip install -r $REIBUN_SRC_DIR/requirements.txt
+
 ENV IPADIC_NEOLOGD_GIT_DIR $REIBUN_RESOURCE_DIR/mecab-ipadic-neologd
 ENV JMDICT_XML_FILEPATH $REIBUN_RESOURCE_DIR/JMdict_e.xml
+
+ENV REIBUN_LOG_DIR $REIBUN_BASE_DIR/log
+VOLUME ["$REIBUN_LOG_DIR"]
+
+ENV REIBUN_APP_DATA_DIR $REIBUN_BASE_DIR/appdata
+VOLUME ["$REIBUN_APP_DATA_DIR"]
 
 ENTRYPOINT /bin/bash

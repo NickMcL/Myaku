@@ -23,7 +23,7 @@ from reibun.datatypes import reduce_found_lexical_items
 _log = logging.getLogger(__name__)
 
 
-_SHELF_DIR_ENV_VAR = 'REIBUN_RESOURCE_DIR'
+_SHELF_DIR_ENV_VAR = 'REIBUN_APP_DATA_DIR'
 _SHELF_DIR = os.environ.get(_SHELF_DIR_ENV_VAR)
 
 _JMDICT_XML_FILEPATH_ENV_VAR = 'JMDICT_XML_FILEPATH'
