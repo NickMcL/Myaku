@@ -1,0 +1,8 @@
+**/__pycache__/
+**/backups/
+
+**/*.shelf
+**/*.log
+**/*.md
+
+**/.*

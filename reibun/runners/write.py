@@ -5,11 +5,11 @@ from reibun.crawler import NhkNewsWebCrawler
 from reibun.database import ReibunDb
 from reibun.japanese_analysis import JapaneseTextAnalyzer
 
-LOG_FILEPATH = './write_run.log'
+LOG_FILENAME = 'write_run.log'
 
 
 def main() -> None:
-    utils.toggle_reibun_debug_log(filepath=LOG_FILEPATH)
+    utils.toggle_reibun_debug_log(filename=LOG_FILENAME)
     print('Will start crawl in 5 seconds...')
     time.sleep(5)
 

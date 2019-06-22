@@ -4,7 +4,7 @@ import dataclasses
 import functools
 import inspect
 import logging
-import sys
+import os
 from datetime import datetime
 from operator import itemgetter
 from typing import Any, Callable, List, Optional, Tuple, TypeVar
@@ -27,22 +27,33 @@ _JPN_SENTENCE_ENDERS = [
     '\n',
 ]
 
+_LOG_DIR_ENV_VAR = 'REIBUN_LOG_DIR'
 _LOGGING_FORMAT = (
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 
-def toggle_reibun_debug_log(enable: bool = True, filepath: str = None) -> None:
+def toggle_reibun_debug_log(
+    enable: bool = True, filename: str = 'reibun.log'
+) -> None:
     """Toggles the debug logger for the reibun package.
 
-    By default, logs to stdout. If filepath is given, logs to that file
+    Writes log to a file with the given name in the directory specified by the
+    _LOG_DIR_ENV_VAR environment variable. If _LOG_DIR_ENV_VAR does not exist
+    in the environment, write the file to the current working directory
     instead.
+
+    Truncates the log file before starting logging.
 
     Args:
         enable: If True, enables the logger; if False, disables the logger.
-        filepath: If given, the file will be truncated, and the logger will be
-            set to write to it.
+        filename: The name of the log file to write to.
     """
+    log_dir = os.environ.get(_LOG_DIR_ENV_VAR)
+    if log_dir is None:
+        log_dir = '.'
+    log_filepath = os.path.join(log_dir, filename)
+
     package_log = logging.getLogger('reibun')
     for handler in package_log.handlers[:]:
         package_log.removeHandler(handler)
@@ -50,14 +61,9 @@ def toggle_reibun_debug_log(enable: bool = True, filepath: str = None) -> None:
     if not enable:
         return
 
-    reibun_handler = None
-    if filepath is not None:
-        f = open(filepath, 'w')
-        f.close()
-        reibun_handler = logging.FileHandler(filepath)
-    else:
-        reibun_handler = logging.StreamHandler(sys.stderr)
-
+    f = open(log_filepath, 'w')
+    f.close()
+    reibun_handler = logging.FileHandler(log_filepath)
     reibun_handler.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter(_LOGGING_FORMAT)

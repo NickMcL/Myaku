@@ -103,6 +103,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# Reibun resource files
-resources/
+# Reibun files
+.shelf
 backups/

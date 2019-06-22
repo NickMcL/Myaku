@@ -1,16 +1,12 @@
 """Utilities for analyzing Japanese text."""
 
-import gzip
 import logging
 import os
 import re
 import shelve
-import shutil
 import subprocess
 import sys
-import urllib
 from collections import defaultdict
-from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Tuple, Union
@@ -26,19 +22,19 @@ from reibun.datatypes import reduce_found_lexical_items
 
 _log = logging.getLogger(__name__)
 
-_RESOURCE_FILE_DIR = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), 'resources'
-)
-_JMDICT_XML_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.xml')
-_JMDICT_GZ_FILEPATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_e.gz')
-_JMDICT_LATEST_FTP_URL = 'ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz'
+
+_SHELF_DIR_ENV_VAR = 'REIBUN_RESOURCE_DIR'
+_SHELF_DIR = os.environ.get(_SHELF_DIR_ENV_VAR)
+
+_JMDICT_XML_FILEPATH_ENV_VAR = 'JMDICT_XML_FILEPATH'
+_JMDICT_XML_FILEPATH = os.environ.get(_JMDICT_XML_FILEPATH_ENV_VAR)
 _JMDICT_FILE_VERSION_REGEX = re.compile(
     r'^<!-- JMdict created: (\d\d\d\d)-(\d\d)-(\d\d) -->$'
 )
 
 _IPADIC_NEOLOGD_GIT_DIR_ENV_VAR = 'IPADIC_NEOLOGD_GIT_DIR'
 _IPADIC_NEOLOGD_CHANGELOG_PATH = None
-if _IPADIC_NEOLOGD_GIT_DIR_ENV_VAR in os.environ:
+if 'IPADIC_NEOLOGD_GIT_DIR' in os.environ:
     _IPADIC_NEOLOGD_CHANGELOG_PATH = os.path.join(
         os.environ[_IPADIC_NEOLOGD_GIT_DIR_ENV_VAR], 'ChangeLog'
     )
@@ -111,6 +107,12 @@ def _get_jmdict_version() -> str:
     The version for JMdict will be in the form of a date "yyyy.mm.dd". For
     example, 2019.06.11 for the JMdict generated on June 11th, 2019.
     """
+    if _JMDICT_XML_FILEPATH is None:
+        utils.log_and_raise(
+            _log, ResourceLoadError,
+            '"{}" not set in environment'.format(_JMDICT_XML_FILEPATH_ENV_VAR)
+        )
+
     if not os.path.exists(_JMDICT_XML_FILEPATH):
         utils.log_and_raise(
             _log, ResourceLoadError,
@@ -171,32 +173,6 @@ def _get_ipadic_neologd_version() -> str:
         )
 
     return '{}.{}.{}'.format(match.group(1), match.group(2), match.group(3))
-
-
-def update_resources() -> None:
-    """Downloads the latest versions of resources used for JPN analysis."""
-    _update_jmdict_files()
-
-
-def _update_jmdict_files() -> None:
-    """Downloads and unpacks the latest JMdict files."""
-    _log.debug(
-        'Downloading JMdict gz file from "%s" to "%s"',
-        _JMDICT_LATEST_FTP_URL, _JMDICT_GZ_FILEPATH
-    )
-    with closing(urllib.request.urlopen(_JMDICT_LATEST_FTP_URL)) as response:
-        with open(_JMDICT_GZ_FILEPATH, 'wb') as jmdict_gz_file:
-            shutil.copyfileobj(response, jmdict_gz_file)
-
-    _log.debug(
-        'Decompressing "%s" to "%s"', _JMDICT_GZ_FILEPATH, _JMDICT_XML_FILEPATH
-    )
-    with gzip.open(_JMDICT_GZ_FILEPATH, 'rb') as jmdict_decomp_file:
-        with open(_JMDICT_XML_FILEPATH, 'wb') as jmdict_xml_file:
-            shutil.copyfileobj(jmdict_decomp_file, jmdict_xml_file)
-
-    _log.debug('Removing "%s"', _JMDICT_GZ_FILEPATH)
-    os.remove(_JMDICT_GZ_FILEPATH)
 
 
 @utils.singleton_per_config
@@ -468,7 +444,7 @@ class JMdictEntry(object):
 class JMdict(object):
     """Object representation of a JMdict dictionary."""
 
-    _SHELF_PATH = os.path.join(_RESOURCE_FILE_DIR, 'JMdict_shelf')
+    _SHELF_FILENAME = 'JMdict.shelf'
 
     _REPR_ELEMENT_TAGS = {
         'k_ele',  # Kanji representation
@@ -799,10 +775,8 @@ class JMdict(object):
     @utils.skip_method_debug_logging
     def _get_mecab_decomb(self, entry: JMdictEntry) -> Tuple[str, ...]:
         """Get the MeCab decomposition of the text form of the entry."""
-        lexical_items = self._mecab_tagger.parse(entry.text_form)
-        base_forms = []
-        for item in lexical_items:
-            base_forms.append(item.possible_interps[0].base_form)
+        flis = self._mecab_tagger.parse(entry.text_form)
+        base_forms = [item.base_form for item in flis]
         return tuple(base_forms)
 
     def _set_max_entry_lens(self) -> None:
@@ -813,6 +787,16 @@ class JMdict(object):
         self._max_mecab_decomp_len = max(
             len(decomp) for decomp in self._mecab_decomp_map.keys()
         )
+
+    def _get_shelf_filepath(self) -> str:
+        """Returns the file path used for the JMdict shelf."""
+        if _SHELF_DIR is None:
+            utils.log_and_raise(
+                _log, ResourceLoadError,
+                '"{}" is not set in environment'.format(_SHELF_DIR_ENV_VAR)
+            )
+
+        return os.path.join(_SHELF_DIR, self._SHELF_FILENAME)
 
     def _load_from_shelf_if_newer(self, comp_timestamp: float) -> bool:
         """Loads JMdict maps from shelf if shelf is newer than given timestamp.
@@ -829,21 +813,22 @@ class JMdict(object):
             the shelf, or False if the shelf did not exist or was older and no
             JMdict data was loaded.
         """
-        if not os.path.exists(self._SHELF_PATH):
+        shelf_path = self._get_shelf_filepath()
+        if not os.path.exists(shelf_path):
             _log.debug(
                 'Shelf file does not exist at "%s", so no data loaded from '
-                'the shelf', self._SHELF_PATH
+                'the shelf', shelf_path
             )
             return False
 
-        shelf_timestamp = os.path.getmtime(self._SHELF_PATH)
+        shelf_timestamp = os.path.getmtime(shelf_path)
         shelf_dt_timestamp = datetime.utcfromtimestamp(shelf_timestamp)
         comp_dt_timestamp = datetime.utcfromtimestamp(comp_timestamp)
         if shelf_timestamp <= comp_timestamp:
             _log.debug(
                 'Shelf file (%s) last mod time (%s) is before or equal to '
                 'compare last mod time (%s), so no data loaded from the shelf',
-                self._SHELF_PATH, shelf_dt_timestamp.isoformat(),
+                shelf_path, shelf_dt_timestamp.isoformat(),
                 comp_dt_timestamp.isoformat()
             )
             return False
@@ -851,10 +836,10 @@ class JMdict(object):
         _log.debug(
             'Shelf file (%s) last mod time (%s) is after compare last mod '
             'time (%s), so loading data from the shelf',
-            self._SHELF_PATH, shelf_dt_timestamp.isoformat(),
+            shelf_path, shelf_dt_timestamp.isoformat(),
             comp_dt_timestamp.isoformat()
         )
-        with shelve.open(self._SHELF_PATH, 'r') as shelf:
+        with shelve.open(shelf_path, 'r') as shelf:
             self._entry_map = defaultdict(list)
             self._mecab_decomp_map = defaultdict(list)
 
@@ -869,10 +854,11 @@ class JMdict(object):
 
     def _write_to_shelf(self) -> None:
         """Writes current JMdict objects to shelf."""
+        shelf_path = self._get_shelf_filepath()
         _log.debug(
-            'Writing current JMdict maps to shelf at "%s"', self._SHELF_PATH
+            'Writing current JMdict maps to shelf at "%s"', shelf_path
         )
-        with shelve.open(self._SHELF_PATH, 'c') as shelf:
+        with shelve.open(shelf_path, 'c') as shelf:
             shelf['_mecab_decomp_map_items'] = list(
                 self._mecab_decomp_map.items()
             )
