@@ -5,7 +5,10 @@ import functools
 import inspect
 import logging
 import os
+import time
+import sys
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from operator import itemgetter
 from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
@@ -28,49 +31,103 @@ _JPN_SENTENCE_ENDERS = [
 ]
 
 LOG_DIR_ENV_VAR = 'REIBUN_LOG_DIR'
-_LOGGING_FORMAT = (
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+_DEBUG_LOG_MAX_SIZE_ENV_VAR = 'REIBUN_DEBUG_LOG_MAX_SIZE'
+_DEBUG_LOG_MAX_SIZE = os.environ.get(_DEBUG_LOG_MAX_SIZE_ENV_VAR)
+if _DEBUG_LOG_MAX_SIZE is None:
+    _DEBUG_LOG_MAX_SIZE = 0
+
+_INFO_LOG_MAX_SIZE_ENV_VAR = 'REIBUN_INFO_LOG_MAX_SIZE'
+_INFO_LOG_MAX_SIZE = os.environ.get(_INFO_LOG_MAX_SIZE_ENV_VAR)
+if _INFO_LOG_MAX_SIZE is None:
+    _INFO_LOG_MAX_SIZE = 0
+
+_LOG_ROTATING_BACKUP_COUNT = 10
+_FILE_LOGGING_FORMAT = (
+    '%(asctime)s:%(name)s:%(levelname)s: %(message)s'
 )
+_STREAM_LOGGING_FORMAT = '%(message)s'
 
 
-def toggle_reibun_debug_log(
-    enable: bool = True, filename: str = 'reibun.log'
+def toggle_reibun_package_log(
+    enable: bool = True, filename_base: str = 'reibun'
 ) -> None:
-    """Toggles the debug logger for the reibun package.
+    """Toggles the logger for the reibun package.
 
-    Writes log to a file with the given name in the directory specified by the
-    _LOG_DIR_ENV_VAR environment variable. If _LOG_DIR_ENV_VAR does not exist
-    in the environment, write the file to the current working directory
-    instead.
+    Logs to three locations:
+        - DEBUG level to <filename_base>.debug.log files using a rotating
+            handler with a total max size across all files of
+            _DEBUG_LOG_MAX_SIZE
+        - INFO level to <filename_base>.info.log files using a rotating handler
+            with a total max size across all files of _INFO_LOG_MAX_SIZE
+        - INFO level to stderr
 
-    Truncates the log file before starting logging.
+    The log files are written to the dir specified by LOG_DIR_ENV_VAR if it
+    exists in the environment. Otherwise, the files are written to the current
+    working directory instead.
 
     Args:
         enable: If True, enables the logger; if False, disables the logger.
-        filename: The name of the log file to write to.
+        filename_base: A name to prepend to the files written by the logger.
     """
+    # Use UTC time for all logging timestamps
+    logging.Formatter.converter = time.gmtime
+
     log_dir = os.environ.get(LOG_DIR_ENV_VAR)
     if log_dir is None:
         log_dir = os.getcwd()
-    log_filepath = os.path.join(log_dir, filename)
+    filepath_base = os.path.join(log_dir, filename_base)
 
-    package_log = logging.getLogger('reibun')
+    package_log = logging.getLogger(__name__.split('.')[0])
     for handler in package_log.handlers[:]:
         package_log.removeHandler(handler)
 
     if not enable:
         return
 
-    f = open(log_filepath, 'w')
-    f.close()
-    reibun_handler = logging.FileHandler(log_filepath)
-    reibun_handler.setLevel(logging.DEBUG)
+    _add_logging_handlers(package_log, filepath_base)
 
-    formatter = logging.Formatter(_LOGGING_FORMAT)
-    reibun_handler.setFormatter(formatter)
 
-    package_log.addHandler(reibun_handler)
-    package_log.setLevel(logging.DEBUG)
+def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
+    """Adds a set of handlers to the given logger.
+
+    Adds the handlers specified in the docstring of toggle_reibun_package_log.
+    """
+    logger.setLevel(logging.DEBUG)
+
+    # Truncate previous log file if not rotating
+    if _DEBUG_LOG_MAX_SIZE == 0:
+        f = open(filepath_base + 'debug.log', 'w')
+        f.close()
+
+    file_log_formatter = logging.Formatter(_FILE_LOGGING_FORMAT)
+    debug_file_handler = RotatingFileHandler(
+        filepath_base + '.debug.log',
+        maxBytes=_DEBUG_LOG_MAX_SIZE // _LOG_ROTATING_BACKUP_COUNT,
+        backupCount=_LOG_ROTATING_BACKUP_COUNT
+    )
+    debug_file_handler.setLevel(logging.DEBUG)
+    debug_file_handler.setFormatter(file_log_formatter)
+    logger.addHandler(debug_file_handler)
+
+    if _INFO_LOG_MAX_SIZE == 0:
+        f = open(filepath_base + 'info.log', 'w')
+        f.close()
+
+    info_file_handler = RotatingFileHandler(
+        filepath_base + '.info.log',
+        maxBytes=_INFO_LOG_MAX_SIZE // _LOG_ROTATING_BACKUP_COUNT,
+        backupCount=_LOG_ROTATING_BACKUP_COUNT
+    )
+    info_file_handler.setLevel(logging.INFO)
+    info_file_handler.setFormatter(file_log_formatter)
+    logger.addHandler(info_file_handler)
+
+    stream_log_formatter = logging.Formatter(_STREAM_LOGGING_FORMAT)
+    info_stream_handler = logging.StreamHandler(sys.stderr)
+    info_stream_handler.setLevel(logging.INFO)
+    info_stream_handler.setFormatter(stream_log_formatter)
+    logger.addHandler(info_stream_handler)
 
 
 def log_and_raise(log: logging.Logger, exc: Exception, error_msg: str) -> None:

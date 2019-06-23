@@ -5,6 +5,9 @@ FROM friedrice2/reibun/base
 # Copy full source into image
 COPY . $REIBUN_SRC_DIR
 
+ENV DEBUG_LOG_MAX_SIZE 200000
+ENV INFO_LOG_MAX_SIZE 20000
+
 WORKDIR $REIBUN_SRC_DIR
 
 ENTRYPOINT ["ipython"]

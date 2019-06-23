@@ -23,6 +23,7 @@ services:
       - db
     environment:
       REIBUN_DB_HOST: db
+    shm_size: '2gb'
     stdin_open: true
     tty: true
   db:

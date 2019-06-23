@@ -94,6 +94,14 @@ class ReibunDb(object):
         self._found_lexical_item_collection.create_index('base_form')
         self._found_lexical_item_collection.create_index('article_oid')
 
+    def is_article_stored(self, article: JpnArticle) -> bool:
+        """Returns True if article is stored in the db, False otherwise."""
+        docs = self._read_with_log(
+            'text_hash', article.text_hash, self._article_collection,
+            {'text_hash': 1, '_id': 0}
+        )
+        return len(docs) > 0
+
     def filter_to_unstored_articles(
         self, articles: List[JpnArticle]
     ) -> List[JpnArticle]:

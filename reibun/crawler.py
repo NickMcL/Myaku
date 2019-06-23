@@ -6,7 +6,7 @@ import time
 import os
 from datetime import datetime
 from random import random
-from typing import Generator, List, Optional
+from typing import Generator, List, NamedTuple, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -45,11 +45,22 @@ class CannotParsePageError(Exception):
     pass
 
 
+class Crawl(NamedTuple):
+    """Data for a single crawl run for Japanese articles.
+
+    Attributes:
+        name: Name of the section being crawled
+        crawl_gen: Generator for progressing the crawl.
+    """
+    name: str
+    crawl_gen: Generator[JpnArticle, None, None]
+
+
 @utils.add_method_debug_logging
 class NhkNewsWebCrawler(object):
     """Crawls and scrapes articles from the NHK News Web website."""
     MAX_MOST_RECENT_SHOW_MORE_CLICKS = 9
-    MAX_DOUGA_SHOW_MORE_CLICKS = 9
+    MAX_DOUGA_SHOW_MORE_CLICKS = 8
 
     _SOURCE_NAME = 'NHK News Web'
     _SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
@@ -614,6 +625,35 @@ class NhkNewsWebCrawler(object):
         yield from self._crawl_summary_page(
             self._TOKUSHU_PAGE_URL, show_more_clicks, True
         )
+
+    def get_main_crawls(self) -> List[Crawl]:
+        """Gets a list of Crawls for fully crawling the main site pages.
+
+        The crawls include all recently posted articles on NHK News Web.
+        """
+        crawls = []
+        crawls.append(Crawl(
+            name='Most Recent',
+            crawl_gen=self.crawl_most_recent(
+                self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
+            )
+        ))
+        crawls.append(Crawl(
+            name='Douga',
+            crawl_gen=self.crawl_douga(
+                self.MAX_DOUGA_SHOW_MORE_CLICKS
+            )
+        ))
+        crawls.append(Crawl(
+            name='News Up',
+            crawl_gen=self.crawl_news_up()
+        ))
+        crawls.append(Crawl(
+            name='Tokushu',
+            crawl_gen=self.crawl_tokushu()
+        ))
+
+        return crawls
 
     def scrape_article(self, url: str) -> JpnArticle:
         """Scrapes and parses an NHK News Web article.
