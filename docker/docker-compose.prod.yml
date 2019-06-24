@@ -30,6 +30,8 @@ services:
       - db_crawler_password
     networks:
       - crawler_net
+    stdin_open: true
+    tty: true
   db:
     image: friedrice2/reibun/mongo.reibundb:4.0.10
     volumes:
@@ -45,13 +47,36 @@ services:
       MONGO_INITDB_DATABASE: reibun
       MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/db_root_username
       MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      REIBUN_DB_BACKUP_USERNAME_FILE: /run/secrets/db_backup_username
+      REIBUN_DB_BACKUP_PASSWORD_FILE: /run/secrets/db_backup_password
       REIBUN_DB_CRAWLER_USERNAME_FILE: /run/secrets/db_crawler_username
       REIBUN_DB_CRAWLER_PASSWORD_FILE: /run/secrets/db_crawler_password
     secrets:
       - db_root_username
       - db_root_password
+      - db_backup_username
+      - db_backup_password
       - db_crawler_username
       - db_crawler_password
+    networks:
+      - crawler_net
+  backup:
+    image: friedrice2/reibun/backup
+    deploy:
+      restart_policy:
+        condition: none
+    volumes:
+      - type: volume
+        source: backups
+        target: /backups
+    environment:
+      REIBUN_DB_HOST: db
+      REIBUN_DB_MAX_ALLOWED_BACKUPS: 14
+      REIBUN_DB_USERNAME_FILE: /run/secrets/db_backup_username
+      REIBUN_DB_PASSWORD_FILE: /run/secrets/db_backup_password
+    secrets:
+      - db_backup_username
+      - db_backup_password
     networks:
       - crawler_net
 
@@ -61,11 +86,16 @@ volumes:
   devdata:
   datadb:
   configdb:
+  backups:
 
 secrets:
   db_root_username:
     external: true
   db_root_password:
+    external: true
+  db_backup_username:
+    external: true
+  db_backup_password:
     external: true
   db_crawler_username:
     external: true
@@ -74,4 +104,3 @@ secrets:
 
 networks:
   crawler_net:
-

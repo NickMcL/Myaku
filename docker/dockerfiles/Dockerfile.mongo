@@ -4,5 +4,6 @@ FROM mongo
 
 COPY ./docker/setup_scripts/run_mongo_seed.sh /docker-entrypoint-initdb.d/
 
-ENV MONGO_SEED_SCRIPT_PATH /mongo_seed.js
+ENV SCRIPT_DIR /scripts
+ENV MONGO_SEED_SCRIPT_PATH $SCRIPT_DIR/mongo_seed.js
 COPY ./docker/setup_scripts/mongo_seed.js $MONGO_SEED_SCRIPT_PATH

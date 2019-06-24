@@ -1,0 +1,49 @@
+# Handles data backups for all Reibun services
+
+FROM ubuntu:18.04
+
+# Cron does not have access to the env vars set by docker, so the env vars set
+# by docker will be written to this file and specified as the environment
+# explicitly in the cron file.
+ENV ENV_FILE /container.env
+
+ENV SCRIPTS_DIR /scripts
+ENV BACKUPS_DIR /backups
+VOLUME ["$BACKUPS_DIR"]
+
+RUN apt-get update && apt-get install -y cron gnupg ca-certificates
+RUN touch /var/log/cron.log
+
+ENV BACKUP_CRON_FILE /etc/cron.d/backup-cron
+RUN touch $BACKUP_CRON_FILE \
+    && chmod 0644 $BACKUP_CRON_FILE \
+    && echo "SHELL=/bin/bash" >> $BACKUP_CRON_FILE \
+    && echo "BASH_ENV=$ENV_FILE" >> $BACKUP_CRON_FILE
+
+# Install MongoDB tools directly from MongoDB's managed repo so that the exact
+# desired version can be gotten.
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 \
+    --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+RUN echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/\
+mongodb-org/4.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.0.list
+RUN apt-get update && apt-get install -y mongodb-org-tools=4.0.10
+
+ENV REIBUN_DB_BACKUPS_DIR $BACKUPS_DIR/reibun_db
+ENV REIBUN_DB_BACKUP_SCRIPT $SCRIPTS_DIR/reibun_db_backup.sh
+ENV REIBUN_DB_BACKUP_RUN_SCRIPT $SCRIPTS_DIR/reibun_db_backup_runner.sh
+COPY ./docker/setup_scripts/reibun_db_backup.sh $REIBUN_DB_BACKUP_SCRIPT
+COPY ./docker/setup_scripts/reibun_db_backup_runner.sh \
+    $REIBUN_DB_BACKUP_RUN_SCRIPT
+RUN chmod +x $REIBUN_DB_BACKUP_RUN_SCRIPT
+RUN echo "0 */6 * * * root $REIBUN_DB_BACKUP_RUN_SCRIPT" >> $BACKUP_CRON_FILE
+
+# Cron file must end with an empty line to be valid.
+RUN echo >> $BACKUP_CRON_FILE
+
+# Must write the env vars set by docker to the env file in an entrypoint script
+# instead of in the image so that any env vars set in the compose file also get
+# included in the env file.
+COPY ./docker/setup_scripts/cron_entrypoint.sh /
+
+# Must run script with bash and not sh in order for declare to work.
+ENTRYPOINT ["/bin/bash", "/cron_entrypoint.sh"]
