@@ -4,6 +4,9 @@ from typing import Dict
 import reibun.japanese_analysis
 from reibun._version import __version__
 
+LOG_DIR_ENV_VAR = 'REIBUN_LOG_DIR'
+APP_DATA_DIR_ENV_VAR = 'REIBUN_APP_DATA_DIR'
+
 
 def get_version_info() -> Dict[str, str]:
     """Returns a dict with all Reibun-related version info.

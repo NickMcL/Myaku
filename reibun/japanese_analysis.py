@@ -14,6 +14,7 @@ from xml.etree import ElementTree
 
 import MeCab
 
+import reibun
 import reibun.utils as utils
 from reibun.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
                               JpnLexicalItemInterp, LexicalItemTextPosition,
@@ -761,7 +762,7 @@ class JMdict(object):
     def _get_shelf_filepath(self) -> str:
         """Returns the file path used for the JMdict shelf."""
         shelf_dir = utils.get_value_from_environment_variable(
-            utils.APP_DATA_DIR_ENV_VAR, 'App data directory'
+            reibun.APP_DATA_DIR_ENV_VAR, 'App data directory'
         )
 
         return os.path.join(shelf_dir, self._SHELF_FILENAME)

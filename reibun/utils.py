@@ -15,10 +15,8 @@ from typing import Any, Callable, List, Optional, Tuple, TypeVar
 import jaconv
 import pytz
 
+import reibun
 from reibun.errors import EnvironmentNotSetError
-
-LOG_DIR_ENV_VAR = 'REIBUN_LOG_DIR'
-APP_DATA_DIR_ENV_VAR = 'REIBUN_APP_DATA_DIR'
 
 _log = logging.getLogger(__name__)
 
@@ -72,7 +70,7 @@ def toggle_reibun_package_log(
     # Use UTC time for all logging timestamps
     logging.Formatter.converter = time.gmtime
 
-    log_dir = os.environ.get(LOG_DIR_ENV_VAR)
+    log_dir = os.environ.get(reibun.LOG_DIR_ENV_VAR)
     if log_dir is None:
         log_dir = os.getcwd()
     filepath_base = os.path.join(log_dir, filename_base)

@@ -17,6 +17,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver import firefox
 from selenium.webdriver.firefox.webelement import FirefoxWebElement
 
+import reibun
 import reibun.utils as utils
 from reibun.database import ReibunDb
 from reibun.datatypes import JpnArticle, JpnArticleMetadata
@@ -108,7 +109,7 @@ class NhkNewsWebCrawler(object):
     def _init_web_driver(self) -> None:
         """Inits the web driver used by the crawler."""
         log_dir = utils.get_value_from_environment_variable(
-            utils.LOG_DIR_ENV_VAR, 'Log directory'
+            reibun.LOG_DIR_ENV_VAR, 'Log directory'
         )
         log_path = os.path.join(log_dir, self._WEB_DRIVER_LOG_FILENAME)
 
