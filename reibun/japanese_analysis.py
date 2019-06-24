@@ -17,54 +17,23 @@ import MeCab
 import reibun.utils as utils
 from reibun.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
                               JpnLexicalItemInterp, LexicalItemTextPosition,
-                              MecabLexicalItemInterp)
-from reibun.datatypes import reduce_found_lexical_items
+                              MecabLexicalItemInterp,
+                              reduce_found_lexical_items)
+from reibun.errors import (ResourceLoadError, ResourceNotReadyError,
+                           TextAnalysisError)
 
 _log = logging.getLogger(__name__)
 
-
-_SHELF_DIR_ENV_VAR = 'REIBUN_APP_DATA_DIR'
-_SHELF_DIR = os.environ.get(_SHELF_DIR_ENV_VAR)
-
 _JMDICT_XML_FILEPATH_ENV_VAR = 'JMDICT_XML_FILEPATH'
-_JMDICT_XML_FILEPATH = os.environ.get(_JMDICT_XML_FILEPATH_ENV_VAR)
 _JMDICT_FILE_VERSION_REGEX = re.compile(
     r'^<!-- JMdict created: (\d\d\d\d)-(\d\d)-(\d\d) -->$'
 )
 
 _IPADIC_NEOLOGD_GIT_DIR_ENV_VAR = 'IPADIC_NEOLOGD_GIT_DIR'
-_IPADIC_NEOLOGD_CHANGELOG_PATH = None
-if 'IPADIC_NEOLOGD_GIT_DIR' in os.environ:
-    _IPADIC_NEOLOGD_CHANGELOG_PATH = os.path.join(
-        os.environ[_IPADIC_NEOLOGD_GIT_DIR_ENV_VAR], 'ChangeLog'
-    )
-
+_IPADIC_NEOLOGD_CHANGELOG_FILENAME = 'ChangeLog'
 _IPADIC_NEOLOGD_VERSION_REGEX = re.compile(
     r'^# Release (\d\d\d\d)(\d\d)(\d\d)-.*$'
 )
-
-
-class ResourceLoadError(Exception):
-    """Raised if a necessary external resource fails to load.
-
-    For example, an analyzer fails to load a dictionary file necessary for
-    its operation.
-    """
-    pass
-
-
-class ResourceNotReadyError(Exception):
-    """Raised if a resource is used before it is ready to be used.
-
-    For example, trying to use an external resource such as a dictionary before
-    it has been loaded.
-    """
-    pass
-
-
-class TextAnalysisError(Exception):
-    """Raised if an unexpected error occurs related to text analysis."""
-    pass
 
 
 def get_resource_version_info() -> Dict[str, str]:
@@ -107,20 +76,18 @@ def _get_jmdict_version() -> str:
     The version for JMdict will be in the form of a date "yyyy.mm.dd". For
     example, 2019.06.11 for the JMdict generated on June 11th, 2019.
     """
-    if _JMDICT_XML_FILEPATH is None:
-        utils.log_and_raise(
-            _log, ResourceLoadError,
-            '"{}" not set in environment'.format(_JMDICT_XML_FILEPATH_ENV_VAR)
-        )
+    jmdict_xml_filepath = utils.get_value_from_environment_variable(
+        _JMDICT_XML_FILEPATH_ENV_VAR, 'JMdict XML filepath'
+    )
 
-    if not os.path.exists(_JMDICT_XML_FILEPATH):
+    if not os.path.exists(jmdict_xml_filepath):
         utils.log_and_raise(
             _log, ResourceLoadError,
-            'JMdict XML file not found at "{}"'.format(_JMDICT_XML_FILEPATH)
+            'JMdict XML file not found at "{}"'.format(jmdict_xml_filepath)
         )
 
     match = None
-    with open(_JMDICT_XML_FILEPATH) as jmdict_file:
+    with open(jmdict_xml_filepath, 'r') as jmdict_file:
         for line in jmdict_file:
             match = re.match(_JMDICT_FILE_VERSION_REGEX, line)
             if match is not None:
@@ -130,7 +97,7 @@ def _get_jmdict_version() -> str:
         utils.log_and_raise(
             _log, ResourceLoadError,
             'JMdict XML file at "{}" does not contain version info'.format(
-                _JMDICT_XML_FILEPATH
+                jmdict_xml_filepath
             )
         )
 
@@ -144,23 +111,22 @@ def _get_ipadic_neologd_version() -> str:
     For example, 2019.06.11 for the ipadic-NEologd generated on June 11th,
     2019.
     """
-    if _IPADIC_NEOLOGD_CHANGELOG_PATH is None:
-        utils.log_and_raise(
-            _log, ResourceLoadError,
-            '{} not set in environment'.format(_IPADIC_NEOLOGD_GIT_DIR_ENV_VAR)
-        )
+    git_dir = utils.get_value_from_environment_variable(
+        _IPADIC_NEOLOGD_GIT_DIR_ENV_VAR, 'ipadic-NEologd git directory'
+    )
+    changelog_path = os.path.join(git_dir, _IPADIC_NEOLOGD_CHANGELOG_FILENAME)
 
-    if not os.path.exists(_IPADIC_NEOLOGD_CHANGELOG_PATH):
+    if not os.path.exists(changelog_path):
         utils.log_and_raise(
             _log, ResourceLoadError,
-            'ipadic-NEologd ChangeLog file not found at "{}"'.format(
-                _IPADIC_NEOLOGD_CHANGELOG_PATH
+            'ipadic-NEologd change log file not found at "{}"'.format(
+                changelog_path
             )
         )
 
     match = None
-    with open(_IPADIC_NEOLOGD_CHANGELOG_PATH) as neologd_file:
-        for line in neologd_file:
+    with open(changelog_path, 'r') as changelog_file:
+        for line in changelog_file:
             match = re.match(_IPADIC_NEOLOGD_VERSION_REGEX, line)
             if match is not None:
                 break
@@ -168,8 +134,8 @@ def _get_ipadic_neologd_version() -> str:
     if match is None:
         utils.log_and_raise(
             _log, ResourceLoadError,
-            'ipadic-NEologd ChangeLog file at "{}" does not contain verison '
-            'info'.format(_IPADIC_NEOLOGD_CHANGELOG_PATH)
+            'ipadic-NEologd change log file at "{}" does not contain verison '
+            'info'.format(changelog_path)
         )
 
     return '{}.{}.{}'.format(match.group(1), match.group(2), match.group(3))
@@ -183,7 +149,11 @@ class JapaneseTextAnalyzer(object):
 
     def __init__(self) -> None:
         """Loads the external resources needed for text analysis."""
-        self._jmdict = JMdict(_JMDICT_XML_FILEPATH)
+        jmdict_xml_filepath = utils.get_value_from_environment_variable(
+            _JMDICT_XML_FILEPATH_ENV_VAR, 'JMdict XML filepath'
+        )
+        self._jmdict = JMdict(jmdict_xml_filepath)
+
         self._mecab_tagger = MecabTagger()
 
     @utils.add_debug_logging
@@ -752,10 +722,10 @@ class JMdict(object):
         if not os.path.exists(xml_filepath):
             utils.log_and_raise(
                 _log, ResourceLoadError,
-                'JMdict file not found at "{}"'.format(_JMDICT_XML_FILEPATH)
+                'JMdict file not found at "{}"'.format(xml_filepath)
             )
 
-        _log.debug('Reading JMdict XML file at "%s"', _JMDICT_XML_FILEPATH)
+        _log.debug('Reading JMdict XML file at "%s"', xml_filepath)
         tree = ElementTree.parse(xml_filepath)
         _log.debug('Reading of JMdict XML file complete')
 
@@ -790,13 +760,11 @@ class JMdict(object):
 
     def _get_shelf_filepath(self) -> str:
         """Returns the file path used for the JMdict shelf."""
-        if _SHELF_DIR is None:
-            utils.log_and_raise(
-                _log, ResourceLoadError,
-                '"{}" is not set in environment'.format(_SHELF_DIR_ENV_VAR)
-            )
+        shelf_dir = utils.get_value_from_environment_variable(
+            utils.APP_DATA_DIR_ENV_VAR, 'App data directory'
+        )
 
-        return os.path.join(_SHELF_DIR, self._SHELF_FILENAME)
+        return os.path.join(shelf_dir, self._SHELF_FILENAME)
 
     def _load_from_shelf_if_newer(self, comp_timestamp: float) -> bool:
         """Loads JMdict maps from shelf if shelf is newer than given timestamp.

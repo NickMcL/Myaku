@@ -1,0 +1,8 @@
+# Adds scrips for setting up the db for Reibun to the base mongo image.
+
+FROM mongo
+
+COPY ./docker/setup_scripts/run_mongo_seed.sh /docker-entrypoint-initdb.d/
+
+ENV MONGO_SEED_SCRIPT_PATH /mongo_seed.js
+COPY ./docker/setup_scripts/mongo_seed.js $MONGO_SEED_SCRIPT_PATH

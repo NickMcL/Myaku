@@ -4,7 +4,7 @@ import reibun.utils as utils
 from reibun.database import ReibunDb
 from reibun.datatypes import FoundJpnLexicalItem
 
-LOG_FILENAME = 'read_run.log'
+LOG_NAME = 'query'
 
 
 class Color:
@@ -29,7 +29,7 @@ def print_tags(fli: FoundJpnLexicalItem) -> None:
 
 
 def main(search_term: str = None) -> None:
-    utils.toggle_reibun_debug_log(filename=LOG_FILENAME)
+    utils.toggle_reibun_package_log(filename_base=LOG_NAME)
     while True:
         if not search_term:
             query = input('\n\n\nSearch for: ')

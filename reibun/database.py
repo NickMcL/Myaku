@@ -7,11 +7,10 @@ access interface consistent.
 
 import logging
 import re
-import os
 from collections import defaultdict
 from datetime import datetime
 from operator import methodcaller
-from typing import Any, Dict, List, TypeVar, Union
+from typing import Any, Dict, List, Tuple, TypeVar, Union
 
 import pytz
 from bson.objectid import ObjectId
@@ -31,11 +30,10 @@ T = TypeVar('T')
 _Document = Dict[str, Any]
 
 _DB_HOST_ENV_VAR = 'REIBUN_DB_HOST'
-_DB_HOST = os.environ.get(_DB_HOST_ENV_VAR)
-if _DB_HOST is None:
-    _DB_HOST = 'localhost'
-
 _DB_PORT = 27017
+
+_DB_USERNAME_FILE_ENV_VAR = 'REIBUN_DB_USERNAME_FILE'
+_DB_PASSWORD_FILE_ENV_VAR = 'REIBUN_DB_PASSWORD_FILE'
 
 
 @utils.add_method_debug_logging
@@ -43,7 +41,7 @@ class ReibunDb(object):
     """Interface object for accessing the Reibun database.
 
     This database stores mappings from Japanese lexical items to native
-    Japanese web articles that use those lexical item. This allows for easy
+    Japanese web articles that use those lexical items. This allows for easy
     look up of native Japanese articles that make use of a particular lexical
     item of interest.
 
@@ -59,20 +57,18 @@ class ReibunDb(object):
     # collection.
     _CRAWLED_COLL_NAME = 'crawled'
 
-    BASE_FORM_COUNT_LIMIT = 1000
+    # The match stage at the start of the aggergate is necessary in order to
+    # get a covered query that only scans the index for base_form.
+    _BASE_FORM_COUNT_LIMIT = 1000
     _EXCESS_BASE_FORM_AGGREGATE = [
         {'$match': {'base_form': {'$gt': ''}}},
         {'$group': {'_id': '$base_form', 'total': {'$sum': 1}}},
-        {'$match': {'total': {'$gt': BASE_FORM_COUNT_LIMIT}}},
+        {'$match': {'total': {'$gt': _BASE_FORM_COUNT_LIMIT}}},
     ]
 
     def __init__(self) -> None:
         """Initializes the connection to the database."""
-        self._mongo_client = MongoClient(_DB_HOST, _DB_PORT)
-        _log.debug(
-            'Connected to MongoDB at %s:%s',
-            self._mongo_client.address[0], self._mongo_client.address[1]
-        )
+        self._mongo_client = self._init_mongo_client()
 
         self._db = self._mongo_client[self._DB_NAME]
         self._article_collection = self._db[self._ARTICLE_COLL_NAME]
@@ -84,6 +80,60 @@ class ReibunDb(object):
         self._create_indexes()
 
         self._version_doc = reibun.get_version_info()
+
+    def _init_mongo_client(self) -> MongoClient:
+        """Initializes and returns the client for connecting to the database.
+
+        Returns:
+            A client object connected and authenticated with the database.
+
+        Raises:
+            EnvironmentNotSetError: if a needed value from the environment to
+                init the client is not set in the environment.
+        """
+        username = utils.get_value_from_environment_file(
+            _DB_USERNAME_FILE_ENV_VAR, 'Database username'
+        )
+        password = utils.get_value_from_environment_file(
+            _DB_PASSWORD_FILE_ENV_VAR, 'Database password'
+        )
+        hostname = utils.get_value_from_environment_variable(
+            _DB_HOST_ENV_VAR, 'Database hostname'
+        )
+
+        mongo_client = MongoClient(
+            host=hostname, port=_DB_PORT,
+            username=username, password=password, authSource=self._DB_NAME
+        )
+        _log.debug(
+            'Connected to MongoDB at %s:%s as user %s',
+            mongo_client.address[0], mongo_client.address[1], username
+        )
+
+        return mongo_client
+
+    def _get_user_creds_from_environment(self) -> Tuple[str, str]:
+        """Gets username and password to use for db access from environment.
+
+        The username and password to use should be set in the files specified
+        by the environment variables _DB_USERNAME_FILE_ENV_VAR and
+        _DB_PASSWORD_FILE_ENV_VAR.
+
+        Returns:
+            (username, password) tuple.
+
+        Raises:
+            EnvironmentNotSetError: If the username or password could not be
+                obtained from the environment.
+        """
+        username = utils.get_value_from_environment_file(
+            _DB_USERNAME_FILE_ENV_VAR, 'Database username'
+        )
+        password = utils.get_value_from_environment_file(
+            _DB_PASSWORD_FILE_ENV_VAR, 'Database password'
+        )
+
+        return (username, password)
 
     def _create_indexes(self) -> None:
         """Creates the necessary indexes for the db if they don't exist."""
@@ -380,7 +430,7 @@ class ReibunDb(object):
         """Deletes found lexical items with base forms in excess in the db.
 
         A base form is considered in excess if over a certain limit
-        (BASE_FORM_COUNT_LIMIT) of found lexical items with the base form are
+        (_BASE_FORM_COUNT_LIMIT) of found lexical items with the base form are
         in the database.
 
         This function:
@@ -388,7 +438,7 @@ class ReibunDb(object):
             2. Ranks all of the found lexical items for each from highest to
                 lowest quality of usage of that base form.
             3. Deletes all found lexical items for each with quality rank not
-                within BASE_FORM_COUNT_LIMIT.
+                within _BASE_FORM_COUNT_LIMIT.
         """
         excess_base_forms = self._get_base_forms_in_excess()
         excess_flis = self.read_found_lexical_items(
@@ -465,7 +515,7 @@ class ReibunDb(object):
         _log.debug('Sort of "%s" found lexical items finished', base_form)
 
         low_quality_item_oids = []
-        for fli in excess_flis[self.BASE_FORM_COUNT_LIMIT:]:
+        for fli in excess_flis[self._BASE_FORM_COUNT_LIMIT:]:
             low_quality_item_oids.append(ObjectId(fli.database_id))
         _log.debug(
             'Deleting %s found lexical items from "%s" for "%s" with too low '

@@ -1,14 +1,14 @@
 import time
 
-from reibun.utils import toggle_reibun_debug_log
+import reibun.utils as utils
 from reibun.database import ReibunDb
 from reibun.japanese_analysis import JapaneseTextAnalyzer
 
-LOG_FILENAME = 'reparse_run.log'
+LOG_NAME = 'reparse'
 
 
 def main() -> None:
-    toggle_reibun_debug_log(filename=LOG_FILENAME)
+    utils.toggle_reibun_package_log(filename_BASE=LOG_NAME)
 
     start_time = time.perf_counter()
     jta = JapaneseTextAnalyzer()

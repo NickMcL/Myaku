@@ -1,0 +1,77 @@
+version: "3.7"
+services:
+  crawler:
+    image: friedrice2/reibun/crawler.prod
+    deploy:
+      restart_policy:
+        condition: none
+    volumes:
+      - type: volume
+        source: log
+        target: /reibun/log
+
+      - type: volume
+        source: appdata
+        target: /reibun/appdata
+
+      # Needed for Firefox web driver to work reliably in the container
+      - type: tmpfs
+        target: /dev/shm
+        tmpfs:
+          size: 2000000000  # 2gb
+    depends_on:
+      - db
+    environment:
+      REIBUN_DB_HOST: db
+      REIBUN_DB_USERNAME_FILE: /run/secrets/db_crawler_username
+      REIBUN_DB_PASSWORD_FILE: /run/secrets/db_crawler_password
+    secrets:
+      - db_crawler_username
+      - db_crawler_password
+    networks:
+      - crawler_net
+  db:
+    image: friedrice2/reibun/mongo.reibundb:4.0.10
+    volumes:
+      - type: volume
+        source: datadb
+        target: /data/db
+
+      - type: volume
+        source: configdb
+        target: /data/configdb
+    environment:
+      REIBUN_DB_NAME: reibun
+      MONGO_INITDB_DATABASE: reibun
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/db_root_username
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      REIBUN_DB_CRAWLER_USERNAME_FILE: /run/secrets/db_crawler_username
+      REIBUN_DB_CRAWLER_PASSWORD_FILE: /run/secrets/db_crawler_password
+    secrets:
+      - db_root_username
+      - db_root_password
+      - db_crawler_username
+      - db_crawler_password
+    networks:
+      - crawler_net
+
+volumes:
+  log:
+  appdata:
+  devdata:
+  datadb:
+  configdb:
+
+secrets:
+  db_root_username:
+    external: true
+  db_root_password:
+    external: true
+  db_crawler_username:
+    external: true
+  db_crawler_password:
+    external: true
+
+networks:
+  crawler_net:
+

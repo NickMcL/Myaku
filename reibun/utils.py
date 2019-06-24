@@ -15,9 +15,12 @@ from typing import Any, Callable, List, Optional, Tuple, TypeVar
 import jaconv
 import pytz
 
-_log = logging.getLogger(__name__)
+from reibun.errors import EnvironmentNotSetError
 
-T = TypeVar('T')
+LOG_DIR_ENV_VAR = 'REIBUN_LOG_DIR'
+APP_DATA_DIR_ENV_VAR = 'REIBUN_APP_DATA_DIR'
+
+_log = logging.getLogger(__name__)
 
 _JAPAN_TIMEZONE = pytz.timezone('Japan')
 
@@ -30,23 +33,19 @@ _JPN_SENTENCE_ENDERS = [
     '\n',
 ]
 
-LOG_DIR_ENV_VAR = 'REIBUN_LOG_DIR'
-
 _DEBUG_LOG_MAX_SIZE_ENV_VAR = 'REIBUN_DEBUG_LOG_MAX_SIZE'
-_DEBUG_LOG_MAX_SIZE = os.environ.get(_DEBUG_LOG_MAX_SIZE_ENV_VAR)
-if _DEBUG_LOG_MAX_SIZE is None:
-    _DEBUG_LOG_MAX_SIZE = 0
+_DEBUG_LOG_MAX_SIZE = os.environ.get(_DEBUG_LOG_MAX_SIZE_ENV_VAR, 0)
 
 _INFO_LOG_MAX_SIZE_ENV_VAR = 'REIBUN_INFO_LOG_MAX_SIZE'
-_INFO_LOG_MAX_SIZE = os.environ.get(_INFO_LOG_MAX_SIZE_ENV_VAR)
-if _INFO_LOG_MAX_SIZE is None:
-    _INFO_LOG_MAX_SIZE = 0
+_INFO_LOG_MAX_SIZE = os.environ.get(_INFO_LOG_MAX_SIZE_ENV_VAR, 0)
 
 _LOG_ROTATING_BACKUP_COUNT = 10
 _FILE_LOGGING_FORMAT = (
     '%(asctime)s:%(name)s:%(levelname)s: %(message)s'
 )
 _STREAM_LOGGING_FORMAT = '%(message)s'
+
+T = TypeVar('T')
 
 
 def toggle_reibun_package_log(
@@ -134,6 +133,72 @@ def log_and_raise(log: logging.Logger, exc: Exception, error_msg: str) -> None:
     """Logs and raises the exception with the given error message."""
     log.error(error_msg)
     raise exc(error_msg)
+
+
+def get_value_from_environment_variable(env_var: str, value_name: str) -> str:
+    """Gets a value from an environment variable.
+
+    value_name is only used in error messages as a human-readable name for
+    the value being retrieved.
+
+    Raises:
+        EnvironmentNotSetError: One of the following:
+            - The environment variable is not set.
+            - The environment variable is set but empty.
+    """
+    value = os.environ.get(env_var)
+    if value is None:
+        log_and_raise(
+            _log, EnvironmentNotSetError,
+            '{} environment variable "{}" is not set in the '
+            'environment'.format(value_name, env_var)
+        )
+
+    if len(value) == 0:
+        log_and_raise(
+            _log, EnvironmentNotSetError,
+            '{} environment variable "{}" is set but empty'.format(
+                value_name, env_var
+            )
+        )
+
+    return value
+
+
+def get_value_from_environment_file(env_var: str, value_name: str) -> str:
+    """Gets a value from a file specified by an environment variable.
+
+    value_name is only used in error messages as a human-readable name for
+    the value being retrieved.
+
+    Raises:
+        EnvironmentNotSetError: One of the following:
+            - The environment variable is not set.
+            - The environment variable is set but empty.
+            - The file specified by the environment variable doesn't exist.
+            - The file specified by the environment variable is empty.
+    """
+    filepath = get_value_from_environment_variable(
+        env_var, value_name + ' file'
+    )
+
+    if not os.path.exists(filepath):
+        log_and_raise(
+            _log, EnvironmentNotSetError,
+            '{} file specified by environment variable "{}" does not '
+            'exist'.format(filepath, env_var)
+        )
+
+    with open(filepath, 'r') as value_file:
+        value = value_file.read()
+    if value == '':
+        log_and_raise(
+            _log, EnvironmentNotSetError,
+            '{} file specified by environment variable "{}" is '
+            'empty'.format(filepath, env_var)
+        )
+
+    return value
 
 
 def unique(items: List[T]) -> List[T]:

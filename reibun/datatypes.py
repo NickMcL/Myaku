@@ -10,17 +10,9 @@ from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Tuple
 
 import reibun.utils as utils
+from reibun.errors import MissingDataError
 
 _log = logging.getLogger(__name__)
-
-
-class MissingDataError(Exception):
-    """Raised if data expected to be present is missing.
-
-    For example, if an object's method is called that depends on certain attrs
-    of the object being set, but those attrs are not set.
-    """
-    pass
 
 
 @enum.unique
