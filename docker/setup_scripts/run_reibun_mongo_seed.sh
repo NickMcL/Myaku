@@ -12,4 +12,4 @@ mongo --eval "\
     var backup_db_password = \"$backup_db_password\"
     var crawler_db_username = \"$crawler_db_username\"
     var crawler_db_password = \"$crawler_db_password\"
-" $MONGO_SEED_SCRIPT_PATH
+" $REIBUN_MONGO_SEED_JS_PATH
