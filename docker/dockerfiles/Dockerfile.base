@@ -1,7 +1,7 @@
 # Builds an image with the base dependencies for Reibun installed.
 # The image can then be used as a base for dev and prod images.
 
-FROM ubuntu:18.04
+FROM friedrice2/cron
 
 ENV REIBUN_BASE_DIR /reibun
 ENV REIBUN_RESOURCE_DIR $REIBUN_BASE_DIR/resources
@@ -38,6 +38,8 @@ ENV REIBUN_SRC_DIR $REIBUN_BASE_DIR/src
 COPY ./requirements.txt $REIBUN_SRC_DIR/
 RUN python3.7 -m pip install -r $REIBUN_SRC_DIR/requirements.txt
 
+ENV PYTHONPATH $PYTHONPATH:$REIBUN_SRC_DIR
+
 ENV IPADIC_NEOLOGD_GIT_DIR $REIBUN_RESOURCE_DIR/mecab-ipadic-neologd
 ENV JMDICT_XML_FILEPATH $REIBUN_RESOURCE_DIR/JMdict_e.xml
 
@@ -47,4 +49,12 @@ VOLUME ["$REIBUN_LOG_DIR"]
 ENV REIBUN_APP_DATA_DIR $REIBUN_BASE_DIR/appdata
 VOLUME ["$REIBUN_APP_DATA_DIR"]
 
-ENTRYPOINT /bin/bash
+ENV CRAWL_CRON_SCHEDULE "0 */8 * * *"
+ENV CRAWL_PYTHON_SCRIPT $REIBUN_SRC_DIR/reibun/runners/run_crawl.py
+
+# Intentionally insert the env variable name and not its value into the cron
+# file so that the cron schedule can be swapped in for it at run time.
+RUN echo "CRAWL_CRON_SCHEDULE root python3.7 \"$CRAWL_PYTHON_SCRIPT\"" \
+    >> $CRON_FILE
+
+WORKDIR $REIBUN_SRC_DIR

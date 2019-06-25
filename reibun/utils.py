@@ -31,11 +31,8 @@ _JPN_SENTENCE_ENDERS = [
     '\n',
 ]
 
-_DEBUG_LOG_MAX_SIZE_ENV_VAR = 'REIBUN_DEBUG_LOG_MAX_SIZE'
-_DEBUG_LOG_MAX_SIZE = os.environ.get(_DEBUG_LOG_MAX_SIZE_ENV_VAR, 0)
-
-_INFO_LOG_MAX_SIZE_ENV_VAR = 'REIBUN_INFO_LOG_MAX_SIZE'
-_INFO_LOG_MAX_SIZE = os.environ.get(_INFO_LOG_MAX_SIZE_ENV_VAR, 0)
+_DEBUG_LOG_MAX_SIZE_ENV_VAR = 'DEBUG_LOG_MAX_SIZE'
+_INFO_LOG_MAX_SIZE_ENV_VAR = 'INFO_LOG_MAX_SIZE'
 
 _LOG_ROTATING_BACKUP_COUNT = 10
 _FILE_LOGGING_FORMAT = (
@@ -91,29 +88,31 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
     Adds the handlers specified in the docstring of toggle_reibun_package_log.
     """
     logger.setLevel(logging.DEBUG)
+    debug_log_max_size = int(os.environ.get(_DEBUG_LOG_MAX_SIZE_ENV_VAR, 0))
+    info_log_max_size = int(os.environ.get(_INFO_LOG_MAX_SIZE_ENV_VAR, 0))
 
     # Truncate previous log file if not rotating
-    if _DEBUG_LOG_MAX_SIZE == 0:
-        f = open(filepath_base + 'debug.log', 'w')
+    if debug_log_max_size == 0:
+        f = open(filepath_base + '.debug.log', 'w')
         f.close()
 
     file_log_formatter = logging.Formatter(_FILE_LOGGING_FORMAT)
     debug_file_handler = RotatingFileHandler(
         filepath_base + '.debug.log',
-        maxBytes=_DEBUG_LOG_MAX_SIZE // _LOG_ROTATING_BACKUP_COUNT,
+        maxBytes=debug_log_max_size // _LOG_ROTATING_BACKUP_COUNT,
         backupCount=_LOG_ROTATING_BACKUP_COUNT
     )
     debug_file_handler.setLevel(logging.DEBUG)
     debug_file_handler.setFormatter(file_log_formatter)
     logger.addHandler(debug_file_handler)
 
-    if _INFO_LOG_MAX_SIZE == 0:
-        f = open(filepath_base + 'info.log', 'w')
+    if info_log_max_size == 0:
+        f = open(filepath_base + '.info.log', 'w')
         f.close()
 
     info_file_handler = RotatingFileHandler(
         filepath_base + '.info.log',
-        maxBytes=_INFO_LOG_MAX_SIZE // _LOG_ROTATING_BACKUP_COUNT,
+        maxBytes=info_log_max_size // _LOG_ROTATING_BACKUP_COUNT,
         backupCount=_LOG_ROTATING_BACKUP_COUNT
     )
     info_file_handler.setLevel(logging.INFO)

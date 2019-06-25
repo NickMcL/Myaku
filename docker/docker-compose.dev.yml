@@ -31,6 +31,7 @@ services:
     depends_on:
       - db
     environment:
+      CRAWL_CRON_SCHEDULE: "0 */8 * * *"
       REIBUN_DB_HOST: db
       REIBUN_DB_USERNAME_FILE: /run/secrets/db_crawler_username
       REIBUN_DB_PASSWORD_FILE: /run/secrets/db_crawler_password
