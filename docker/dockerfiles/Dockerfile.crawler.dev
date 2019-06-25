@@ -1,6 +1,6 @@
 # Builds a reibun container image for development use.
 
-FROM friedrice2/reibun/crawler.base:latest
+FROM friedrice2/reibun-crawler.base:latest
 
 # Volume for sharing in development source on host with container.
 # Should be a read-only bind.

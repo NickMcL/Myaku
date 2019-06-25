@@ -8,7 +8,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/reibun/crawler.prod:0.3.0
+    image: friedrice2/reibun-crawler.prod:0.3.0
     deploy:
       restart_policy:
         condition: any
@@ -44,7 +44,7 @@ services:
     networks:
       - crawler_net
   db:
-    image: friedrice2/reibun/mongo.reibundb:4.0.10
+    image: friedrice2/reibun-mongo.reibundb:4.0.10
     volumes:
       - type: volume
         source: datadb
