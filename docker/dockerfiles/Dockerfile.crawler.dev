@@ -1,6 +1,6 @@
 # Builds a reibun container image for development use.
 
-FROM friedrice2/reibun/crawler.base
+FROM friedrice2/reibun/crawler.base:latest
 
 # Volume for sharing in development source on host with container.
 # Should be a read-only bind.
@@ -10,7 +10,3 @@ VOLUME ["$REIBUN_SRC_DIR"]
 ENV REIBUN_DEV_DATA_DIR $REIBUN_BASE_DIR/devdata
 ENV IPYTHONDIR $REIBUN_DEV_DATA_DIR/ipython
 VOLUME ["$REIBUN_DEV_DATA_DIR"]
-
-WORKDIR $REIBUN_SRC_DIR
-
-ENTRYPOINT ["ipython"]

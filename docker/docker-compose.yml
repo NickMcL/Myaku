@@ -1,10 +1,20 @@
+# Production stack configuration for reibun.
+#
+# Run docker stack deploy pasing just this file as an -f arg to run the reibun
+# stack configured for production, or pass both this file and the
+# docker-compose.dev.yml file as -f args to run the reibun stack configured for
+# development.
+
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/reibun/crawler.prod
+    image: friedrice2/reibun/crawler.prod:0.3.0
     deploy:
       restart_policy:
-        condition: none
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 2s
     volumes:
       - type: volume
         source: log
@@ -14,7 +24,7 @@ services:
         source: appdata
         target: /reibun/appdata
 
-      # Needed for Firefox web driver to work reliably in the container
+      # Needed for Firefox web driver to work reliably in the container.
       - type: tmpfs
         target: /dev/shm
         tmpfs:
@@ -26,6 +36,8 @@ services:
       REIBUN_DB_HOST: db
       REIBUN_DB_USERNAME_FILE: /run/secrets/db_crawler_username
       REIBUN_DB_PASSWORD_FILE: /run/secrets/db_crawler_password
+      DEBUG_LOG_MAX_SIZE: 200000000  # 200mb
+      INFO_LOG_MAX_SIZE: 20000000 # 20mb
     secrets:
       - db_crawler_username
       - db_crawler_password
@@ -64,7 +76,10 @@ services:
     image: friedrice2/mongobackup:4.0.10
     deploy:
       restart_policy:
-        condition: none
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 2s
     volumes:
       - type: volume
         source: mongobackups
@@ -86,7 +101,6 @@ services:
 volumes:
   log:
   appdata:
-  devdata:
   datadb:
   configdb:
   mongobackups:

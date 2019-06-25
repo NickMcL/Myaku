@@ -1,25 +1,18 @@
+# Development overrides for the reibun stack.
+#
+# Run docker stack deploy pasing both the docker-compose.yml file and this file
+# as -f args to run the reibun stack configured for development, or pass just
+# the docker-compose.yml file as an -f arg to run the reibun stack configured
+# for production.
+
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/reibun/crawler.dev
+    image: friedrice2/reibun/crawler.dev:latest
     deploy:
       restart_policy:
         condition: none
     volumes:
-      - type: volume
-        source: log
-        target: /reibun/log
-
-      - type: volume
-        source: appdata
-        target: /reibun/appdata
-
-      # Needed for Firefox web driver to work reliably in the container
-      - type: tmpfs
-        target: /dev/shm
-        tmpfs:
-          size: 2000000000  # 2gb
-
       - type: volume
         source: devdata
         target: /reibun/devdata
@@ -28,77 +21,19 @@ services:
         source: ..
         target: /reibun/src
         read_only: true
-    depends_on:
-      - db
     environment:
-      CRAWL_CRON_SCHEDULE: "0 */3 * * *"
-      REIBUN_DB_HOST: db
-      REIBUN_DB_USERNAME_FILE: /run/secrets/db_crawler_username
-      REIBUN_DB_PASSWORD_FILE: /run/secrets/db_crawler_password
-    secrets:
-      - db_crawler_username
-      - db_crawler_password
-    networks:
-      - crawler_net
-  db:
-    image: friedrice2/reibun/mongo.reibundb:4.0.10
-    volumes:
-      - type: volume
-        source: datadb
-        target: /data/db
-
-      - type: volume
-        source: configdb
-        target: /data/configdb
-    environment:
-      REIBUN_DB_NAME: reibun
-      MONGO_INITDB_DATABASE: reibun
-      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/db_root_username
-      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
-      REIBUN_DB_BACKUP_USERNAME_FILE: /run/secrets/db_backup_username
-      REIBUN_DB_BACKUP_PASSWORD_FILE: /run/secrets/db_backup_password
-      REIBUN_DB_CRAWLER_USERNAME_FILE: /run/secrets/db_crawler_username
-      REIBUN_DB_CRAWLER_PASSWORD_FILE: /run/secrets/db_crawler_password
-    secrets:
-      - db_root_username
-      - db_root_password
-      - db_backup_username
-      - db_backup_password
-      - db_crawler_username
-      - db_crawler_password
-    networks:
-      - crawler_net
-      - mongobackup_net
+      # A cron schedule of "#" will comment out the line for the crawl job in
+      # the crontab file so that it will not run while doing develpment.
+      CRAWL_CRON_SCHEDULE: "#"  
+      DEBUG_LOG_MAX_SIZE: 0
+      INFO_LOG_MAX_SIZE: 0
   mongobackup:
-    image: friedrice2/mongobackup:4.0.10
     deploy:
       restart_policy:
         condition: none
-    volumes:
-      - type: volume
-        source: mongobackups
-        target: /backups
-    depends_on:
-      - db
-    environment:
-      DB_HOST: db
-      DB_USERNAME_FILE: /run/secrets/db_backup_username
-      DB_PASSWORD_FILE: /run/secrets/db_backup_password
-      DB_MAX_ALLOWED_BACKUPS: 20
-      DB_BACKUP_CRON_SCHEDULE: "0 5,17 * * *"
-    secrets:
-      - db_backup_username
-      - db_backup_password
-    networks:
-      - mongobackup_net
 
 volumes:
-  log:
-  appdata:
   devdata:
-  datadb:
-  configdb:
-  mongobackups:
 
 secrets:
   db_root_username:
@@ -113,7 +48,3 @@ secrets:
     file: ./test_secrets/db_crawler_username_TESTUSEONLY.txt
   db_crawler_password:
     file: ./test_secrets/db_crawler_password_TESTUSEONLY.txt
-
-networks:
-  crawler_net:
-  mongobackup_net:

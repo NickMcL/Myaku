@@ -1,7 +1,7 @@
 # Builds an image with the base dependencies for Reibun installed.
 # The image can then be used as a base for dev and prod images.
 
-FROM friedrice2/cron
+FROM friedrice2/cron:latest
 
 ENV REIBUN_BASE_DIR /reibun
 ENV REIBUN_RESOURCE_DIR $REIBUN_BASE_DIR/resources
