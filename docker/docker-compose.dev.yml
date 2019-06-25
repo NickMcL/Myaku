@@ -80,9 +80,10 @@ services:
         target: /backups
     environment:
       REIBUN_DB_HOST: db
-      REIBUN_DB_MAX_ALLOWED_BACKUPS: 14
       REIBUN_DB_USERNAME_FILE: /run/secrets/db_backup_username
       REIBUN_DB_PASSWORD_FILE: /run/secrets/db_backup_password
+      REIBUN_DB_MAX_ALLOWED_BACKUPS: 14
+      REIBUN_DB_BACKUP_CRON_SCHEDULE: "0 */6 * * *"
     secrets:
       - db_backup_username
       - db_backup_password

@@ -1,0 +1,25 @@
+# Base image for containers that run scheduled cron jobs
+
+FROM ubuntu:18.04
+
+RUN apt-get update && apt-get install -y cron
+RUN touch /var/log/cron.log
+
+# Cron does not have access to the env vars set by docker, so the env vars set
+# by docker will be written to this file and specified as the environment
+# explicitly in the cron file.
+ENV ENV_FILE /container.env
+
+ENV CRON_FILE /etc/cron.d/container-cron
+RUN touch $CRON_FILE \
+    && chmod 0644 $CRON_FILE \
+    && echo "SHELL=/bin/bash" >> $CRON_FILE \
+    && echo "BASH_ENV=$ENV_FILE" >> $CRON_FILE
+
+# Must write the env vars set by docker to the env file in an entrypoint script
+# instead of in the image so that any env vars set in the compose file also get
+# included in the env file.
+COPY ./docker/setup_scripts/cron_entrypoint.sh /
+
+# Must run script with bash and not sh in order for declare to work.
+ENTRYPOINT ["/bin/bash", "/cron_entrypoint.sh"]
