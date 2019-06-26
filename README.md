@@ -1,14 +1,16 @@
 # Reibun: Japanese Sample Sentences _in Context_
 A search engine for finding high quality native Japanese articles published on
 the web demonstrating in-context usage for any bit of Japanese language of
-interest. Can be used to search for native in-context usage of Japanese words,
-set phrases, sayings, idioms, and more.
+interest.
+
+Can be used to search for native in-context usage of Japanese words,
+set phrases, sayings, idioms, and more!
 
 ## Motivation
 
 After years of Japanese study, I've found that the most important thing for me
 to understanding new bits of Japanese language is to see those bits of language
-used by natives in context as possible. 
+used by natives in as much context as possible. 
 
 There are multiple large collections of Japanese sample sentences out there
 such as [the Tatoeba Project][1], [Weblio][2], and [Yourei][3] that can help
@@ -25,26 +27,27 @@ language.
 
 Reibun attempts to solve this issue of context by linking users to high quality
 native Japanese articles published on the web that demonstrate usage of a bit
-of lanugage of interest.
+of lanugage searched for.
 
 When deciding which articles to return for a search, in addition to article
 relevance to the searched bit of language, Reibun has the following additional
 priorities:
 
-    - _Accompanying videos and pictures are awesome_
-        - If an article has accompanying videos or pictures, they serve to add
-          even more context that could aid in learning the searched bit of
-          language. Videos esspecially are given high prioriy.
-    - _The more recent the article, the better_
-        - Articles published more recently tend to be about more currently
-          relevent topics in the world which make for more memorable context
-          than old articles about no longer relevant topics.
-    - _Not too short, not too long_
-        - Articles that are only a couple hundred characters tend to be too
-          short to give much context, but articles that are many thousands of
-          characters take too much time to read to understand the context, so
-          articles somewhere in the middle (~1000-1500 characters) are
-          prioritized.
+* _Accompanying videos and pictures are awesome_
+Accompanying videos or pictures in articles serve to add even more context to
+aid in learning the searched bit of language. Videos esspecially are given high
+prioriy.
+
+* _The more recent the article, the better_
+Articles published more recently tend to be about more currently relevent
+topics in the world which make for more memorable context than old articles
+about no longer relevant topics.
+
+* _Not too short, not too long_
+Articles that are only a couple hundred characters tend to be too short to give
+much context, but articles that are many thousands of characters take too much
+time to read to understand the context, so articles of moderate length
+(~1000-1500 characters) are prioritized.
 
 ### License Info
 
