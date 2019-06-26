@@ -34,16 +34,19 @@ relevance to the searched bit of language, Reibun has the following additional
 priorities:
 
 * _Accompanying videos and pictures are awesome_
+
 Accompanying videos or pictures in articles serve to add even more context to
 aid in learning the searched bit of language. Videos esspecially are given high
 prioriy.
 
 * _The more recent the article, the better_
+
 Articles published more recently tend to be about more currently relevent
 topics in the world which make for more memorable context than old articles
 about no longer relevant topics.
 
 * _Not too short, not too long_
+
 Articles that are only a couple hundred characters tend to be too short to give
 much context, but articles that are many thousands of characters take too much
 time to read to understand the context, so articles of moderate length
