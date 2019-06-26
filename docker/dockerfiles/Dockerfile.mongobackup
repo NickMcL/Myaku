@@ -1,6 +1,6 @@
 # Makes routine data backups of a full MongoDB mongod instance.
 
-FROM friedrice2/cron:latest
+FROM friedrice2/ubuntu.cron:1.0.0-18.04
 
 # Needed packages for adding the official MongoDB repo to apt in the next step.
 RUN apt-get update && apt-get install -y gnupg ca-certificates

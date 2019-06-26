@@ -1,7 +1,6 @@
-# Builds an image with the base dependencies for Reibun installed.
-# The image can then be used as a base for dev and prod images.
+# Builds a prod or dev image for the Reibun crawler.
 
-FROM friedrice2/cron:latest
+FROM friedrice2/ubuntu.cron:1.0.0-18.04 AS base
 
 ENV REIBUN_BASE_DIR /reibun
 ENV REIBUN_RESOURCE_DIR $REIBUN_BASE_DIR/resources
@@ -58,3 +57,21 @@ RUN echo "CRAWL_CRON_SCHEDULE root python3.7 \"$CRAWL_PYTHON_SCRIPT\"" \
     >> $CRON_FILE
 
 WORKDIR $REIBUN_SRC_DIR
+
+
+FROM base AS dev
+
+# Volume for sharing in development source on host with container.
+# Should be a read-only bind.
+VOLUME ["$REIBUN_SRC_DIR"]
+
+# Volume for persisting data only used in development such as ipython history.
+ENV REIBUN_DEV_DATA_DIR $REIBUN_BASE_DIR/devdata
+ENV IPYTHONDIR $REIBUN_DEV_DATA_DIR/ipython
+VOLUME ["$REIBUN_DEV_DATA_DIR"]
+
+
+FROM base AS prod
+
+# Copy full source into image
+COPY . $REIBUN_SRC_DIR

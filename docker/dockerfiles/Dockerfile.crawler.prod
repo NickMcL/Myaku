@@ -1,6 +1,0 @@
-# Builds a reibun container image for production use.
-
-FROM friedrice2/reibun-crawler.base:latest
-
-# Copy full source into image
-COPY . $REIBUN_SRC_DIR

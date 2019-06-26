@@ -8,7 +8,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/reibun-crawler.prod:0.3.1
+    image: friedrice2/reibun-crawler.prod:latest
     deploy:
       restart_policy:
         condition: any
@@ -73,7 +73,7 @@ services:
       - crawler_net
       - mongobackup_net
   mongobackup:
-    image: friedrice2/mongobackup:4.0.10
+    image: friedrice2/mongobackup:latest
     deploy:
       restart_policy:
         condition: any
