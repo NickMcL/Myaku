@@ -8,7 +8,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/reibun-crawler.dev:latest
+    image: friedrice2/reibun_crawler.dev:latest
     deploy:
       restart_policy:
         condition: none
