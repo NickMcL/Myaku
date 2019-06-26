@@ -622,9 +622,7 @@ class NhkNewsWebCrawler(object):
         ))
         crawls.append(Crawl(
             name='Douga',
-            crawl_gen=self.crawl_douga(
-                self.MAX_DOUGA_SHOW_MORE_CLICKS
-            )
+            crawl_gen=self.crawl_douga(4)
         ))
         crawls.append(Crawl(
             name='News Up',
