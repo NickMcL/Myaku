@@ -6,6 +6,7 @@ interest.
 Can be used to search for native in-context usage of Japanese words,
 set phrases, sayings, idioms, and more!
 
+
 ## Motivation
 
 After years of Japanese study, I've found that the most important thing for me
@@ -23,36 +24,38 @@ feel for the greater context of _when_ and _where_ natives use that bit of
 language which is paramount to getting a native understanding of that bit of
 language.
 
+
 ## Reibun Priorities
 
 Reibun attempts to solve this issue of context by linking users to high quality
 native Japanese articles published on the web that demonstrate usage of a bit
-of lanugage searched for.
+of language searched for.
 
 When deciding which articles to return for a search, in addition to article
 relevance to the searched bit of language, Reibun has the following additional
 priorities:
 
-* _Accompanying videos and pictures are awesome_
+#### Accompanying videos and pictures are awesome
 
 Accompanying videos or pictures in articles serve to add even more context to
-aid in learning the searched bit of language. Videos esspecially are given high
-prioriy.
+aid in learning the searched bit of language. Videos especially are given high
+priority.
 
-* _The more recent the article, the better_
+#### The more recent the article, the better
 
-Articles published more recently tend to be about more currently relevent
+Articles published more recently tend to be about more currently relevant
 topics in the world which make for more memorable context than old articles
 about no longer relevant topics.
 
-* _Not too short, not too long_
+#### Not too short, not too long
 
 Articles that are only a couple hundred characters tend to be too short to give
 much context, but articles that are many thousands of characters take too much
 time to read to understand the context, so articles of moderate length
 (~1000-1500 characters) are prioritized.
 
-### License Info
+
+## License Info
 
 Reibun is licensed under the GNU Affero General Public License v3.0 license.
 
