@@ -1,8 +1,10 @@
-# Development overrides for the reibun stack.
+# Development overrides for the Reibun stack.
+# Always uses the versions tagged as latest for all images instead of fixed
+# versions.
 #
 # Run docker stack deploy pasing both the docker-compose.yml file and this file
-# as -f args to run the reibun stack configured for development, or pass just
-# the docker-compose.yml file as an -f arg to run the reibun stack configured
+# as -f args to run the Reibun stack configured for development, or pass just
+# the docker-compose.yml file as an -f arg to run the Reibun stack configured
 # for production.
 
 version: "3.7"
@@ -27,7 +29,10 @@ services:
       CRAWL_CRON_SCHEDULE: "#"  
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
+  db:
+    image: friedrice2/reibun_mongo.reibundb:latest
   mongobackup:
+    image: friedrice2/reibun_mongobackup:latest
     deploy:
       restart_policy:
         condition: none

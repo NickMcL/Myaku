@@ -1,4 +1,7 @@
 #!/bin/bash
+# Script for building and tagging reibun images.
+
+set -e
 
 IMAGE_NAME_PREFIX="friedrice2/reibun_"
 
@@ -19,9 +22,7 @@ generate_image_id()
 {
     timestamp="$(date -u +"%Y%m%dT%H%M%S")"
     git_hash="$(git log --oneline | head -n 1 | cut -d " " -f 1)"
-    rand_hex="$(
-        hexdump -n 4 -e '"%08X"' /dev/random | tr '[:upper:]' '[:lower:]'
-    )"
+    rand_hex="$(hexdump -n 4 -e '"%08x"' /dev/urandom)"
     echo "${timestamp}-${git_hash}-${rand_hex}"
 }
 
@@ -31,6 +32,9 @@ if [ $# -ne 1 ] ; then
     exit 1
 fi
 
+# To make sure that the most recent git commit is representative of the current
+# state of the working directory, do not build images unless there are
+# currently no uncommitted changes in the working directory.
 if [ -n "$(git status --porcelain)" ]; then
     echo "
 There are changes in the git working directory, so images cannot be built.

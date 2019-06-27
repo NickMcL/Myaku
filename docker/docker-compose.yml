@@ -1,14 +1,16 @@
-# Production stack configuration for reibun.
+# Production stack configuration for Reibun.
+# Image versions are all fixed to the versions that are currently deployed in
+# production.
 #
-# Run docker stack deploy pasing just this file as an -f arg to run the reibun
+# Run docker stack deploy pasing just this file as an -f arg to run the Reibun
 # stack configured for production, or pass both this file and the
-# docker-compose.dev.yml file as -f args to run the reibun stack configured for
+# docker-compose.dev.yml file as -f args to run the Reibun stack configured for
 # development.
 
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/reibun_crawler.prod:latest
+    image: friedrice2/reibun_crawler.prod:20190626T221608-af93c76-0615974a
     deploy:
       restart_policy:
         condition: any
@@ -44,7 +46,7 @@ services:
     networks:
       - crawler_net
   db:
-    image: friedrice2/reibun_mongo.reibundb:4.0.10
+    image: friedrice2/reibun_mongo.reibundb:20190626T221751-af93c76-a2f098d5
     volumes:
       - type: volume
         source: datadb
@@ -73,7 +75,7 @@ services:
       - crawler_net
       - mongobackup_net
   mongobackup:
-    image: friedrice2/reibun_mongobackup:latest
+    image: friedrice2/reibun_mongobackup:20190626T221645-af93c76-7010d682
     deploy:
       restart_policy:
         condition: any
