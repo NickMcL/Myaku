@@ -35,10 +35,9 @@ _DEBUG_LOG_MAX_SIZE_ENV_VAR = 'DEBUG_LOG_MAX_SIZE'
 _INFO_LOG_MAX_SIZE_ENV_VAR = 'INFO_LOG_MAX_SIZE'
 
 _LOG_ROTATING_BACKUP_COUNT = 10
-_FILE_LOGGING_FORMAT = (
+_LOGGING_FORMAT = (
     '%(asctime)s:%(name)s:%(levelname)s: %(message)s'
 )
-_STREAM_LOGGING_FORMAT = '%(message)s'
 
 T = TypeVar('T')
 
@@ -88,6 +87,7 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
     Adds the handlers specified in the docstring of toggle_reibun_package_log.
     """
     logger.setLevel(logging.DEBUG)
+    log_formatter = logging.Formatter(_LOGGING_FORMAT)
     debug_log_max_size = int(os.environ.get(_DEBUG_LOG_MAX_SIZE_ENV_VAR, 0))
     info_log_max_size = int(os.environ.get(_INFO_LOG_MAX_SIZE_ENV_VAR, 0))
 
@@ -96,14 +96,13 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
         f = open(filepath_base + '.debug.log', 'w')
         f.close()
 
-    file_log_formatter = logging.Formatter(_FILE_LOGGING_FORMAT)
     debug_file_handler = RotatingFileHandler(
         filepath_base + '.debug.log',
         maxBytes=debug_log_max_size // _LOG_ROTATING_BACKUP_COUNT,
         backupCount=_LOG_ROTATING_BACKUP_COUNT
     )
     debug_file_handler.setLevel(logging.DEBUG)
-    debug_file_handler.setFormatter(file_log_formatter)
+    debug_file_handler.setFormatter(log_formatter)
     logger.addHandler(debug_file_handler)
 
     if info_log_max_size == 0:
@@ -116,13 +115,12 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
         backupCount=_LOG_ROTATING_BACKUP_COUNT
     )
     info_file_handler.setLevel(logging.INFO)
-    info_file_handler.setFormatter(file_log_formatter)
+    info_file_handler.setFormatter(log_formatter)
     logger.addHandler(info_file_handler)
 
-    stream_log_formatter = logging.Formatter(_STREAM_LOGGING_FORMAT)
     info_stream_handler = logging.StreamHandler(sys.stderr)
     info_stream_handler.setLevel(logging.INFO)
-    info_stream_handler.setFormatter(stream_log_formatter)
+    info_stream_handler.setFormatter(log_formatter)
     logger.addHandler(info_stream_handler)
 
 
