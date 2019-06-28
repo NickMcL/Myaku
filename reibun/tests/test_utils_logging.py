@@ -134,6 +134,23 @@ def get_dir_size(dir_path):
     )
 
 
+def test_log_and_raise(caplog):
+    """Test utils.log_and_raise to make sure it logs and raises as expected."""
+    class TestError(Exception):
+        pass
+
+    log = logging.getLogger('test')
+    with pytest.raises(TestError) as exc_info:
+        utils.log_and_raise(log, TestError, ERROR_LOG_MESSAGE)
+
+    assert exc_info.type is TestError
+    assert exc_info.value.args[0] == ERROR_LOG_MESSAGE
+    assert len(caplog.records) == 1
+    assert (
+        caplog.record_tuples[0] == ('test', logging.ERROR, ERROR_LOG_MESSAGE)
+    )
+
+
 def test_toggle_reibun_package_log_on_default(default_log_environment, capsys):
     """Test enabling the package log with default settings."""
     assert_toggle_reibun_package_log_on(default_log_environment, capsys)
