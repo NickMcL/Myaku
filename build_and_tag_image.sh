@@ -46,7 +46,7 @@ if [ -n "$(git status --porcelain)" ]; then
 There are changes in the git working directory, so images cannot be built.
 Please commit all changes then run again.
 "
-exit 1
+#exit 1
 fi
 
 case $1 in
@@ -80,11 +80,11 @@ esac
 image_name="${IMAGE_NAME_PREFIX}${1}"
 sudo docker build $target -f $dockerfile -t "$image_name:latest" .
 short_image_id="$(
-    sudo docker image ls | grep "$image_name:latest" | \
+    sudo docker image ls | grep "$image_name\s*latest" | \
         awk '{print $3}' | head -c 8
 )"
 
 timestamp="$(date -u +"%Y%m%dT%H%M%S")"
 git_hash="$(git log --oneline | head -n 1 | awk '{print $1}')"
 unique_id="$timestamp-$git_hash-$short_image_id"
-sudo docker build $target -f $dockerfile -t "$image_name:$image_id" .
+sudo docker build $target -f $dockerfile -t "$image_name:$unique_id" .
