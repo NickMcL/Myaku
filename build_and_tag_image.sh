@@ -1,24 +1,30 @@
 #!/bin/bash
-# Script for building and tagging reibun images.
+# Script for building and tagging Reibun images with unique tags.
 
 set -e
 
 IMAGE_NAME_PREFIX="friedrice2/reibun_"
 
-usage()
+function usage()
 {
-    echo "
-usage: build_image.sh <image>
+    cat << EOF
+usage: build_and_tag_image.sh <image_type>
 
-<image> must be one of:
+Builds a docker image of the given type and gives it a unique ID tag.
+
+The unique ID tag has the form:
+
+<timestamp>-<git_hash>-<
+
+<image_type> must be one of:
     - crawler.dev
     - crawler.prod
     - mongo.reibundb
     - mongobackup
-"
+EOF
 }
 
-generate_image_id()
+function generate_image_id()
 {
     timestamp="$(date -u +"%Y%m%dT%H%M%S")"
     git_hash="$(git log --oneline | head -n 1 | cut -d " " -f 1)"
@@ -70,7 +76,15 @@ case $1 in
         ;;
 esac
 
-image_id="$(generate_image_id)"
+# Build the :latest version first so the image hash can be gotten
 image_name="${IMAGE_NAME_PREFIX}${1}"
-sudo docker build $target -f $dockerfile -t "$image_name:${image_id}" .
 sudo docker build $target -f $dockerfile -t "$image_name:latest" .
+short_image_id="$(
+    sudo docker image ls | grep "$image_name:latest" | \
+        awk '{print $3}' | head -c 8
+)"
+
+timestamp="$(date -u +"%Y%m%dT%H%M%S")"
+git_hash="$(git log --oneline | head -n 1 | awk '{print $1}')"
+unique_id="$timestamp-$git_hash-$short_image_id"
+sudo docker build $target -f $dockerfile -t "$image_name:$image_id" .

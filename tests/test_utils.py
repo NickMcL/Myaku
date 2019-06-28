@@ -18,8 +18,7 @@ T = TypeVar('T')
 class UnhashableDataClass(object):
     """Explicitly unhashable dataclass for testing.
 
-    Used for testing functions that are intended for use with unhashable
-    objects.
+    Used for testing functions that must work with unhashable objects.
     """
     number: int
     string: str
@@ -62,6 +61,10 @@ UNIQUE_BEFORE_AFTERS = [
         [obj3, obj3, obj3, obj3, obj3, obj2, obj3, obj3, obj4],
         [obj3, obj2, obj4]
     ),
+    BeforeAfterLists(
+        [obj4, obj3, obj2, obj1] * 20,
+        [obj4, obj3, obj2, obj1]
+    ),
 ]
 
 
@@ -70,12 +73,16 @@ def test_unique_unhashable():
     for before_after in UNIQUE_BEFORE_AFTERS:
         after = utils.unique(before_after.before)
         assert len(after) == len(before_after.after)
+
+        # Use id for comparison to ensure that the first occurrence of each
+        # object with a given value is the unique object for that value in the
+        # after list.
         for i, obj in enumerate(after):
             assert id(obj) == id(before_after.after[i])
 
 
 def test_get_value_from_enviroment_variable_set(monkeypatch):
-    """Test get_value_from_enviroment_variable with a set env var."""
+    """Test get_value_from_environment_variable with a set env var."""
     monkeypatch.setenv(TEST_ENV_VAR, 'TestString')
     value = utils.get_value_from_environment_variable(TEST_ENV_VAR, 'test')
     assert value == 'TestString'
@@ -92,7 +99,7 @@ def test_get_value_from_enviroment_variable_not_set(monkeypatch):
 
 
 def test_get_value_from_enviroment_variable_empty(monkeypatch):
-    """Test get_value_from_enviroment_variable with empty env var."""
+    """Test get_value_from_environment_variable with empty env var."""
     monkeypatch.setenv(TEST_ENV_VAR, "")
     with pytest.raises(EnvironmentNotSetError) as exc_info:
         utils.get_value_from_environment_variable(TEST_ENV_VAR, 'test')
@@ -102,7 +109,7 @@ def test_get_value_from_enviroment_variable_empty(monkeypatch):
 
 
 def test_get_value_from_environment_file_all_set(monkeypatch, tmpdir):
-    """Test get_value_from_enviroment_file with set var and file."""
+    """Test get_value_from_environment_file with set var and file."""
     test_file_path = os.path.join(tmpdir, 'test.txt')
     monkeypatch.setenv(TEST_ENV_VAR, test_file_path)
     with open(test_file_path, 'w') as f:
@@ -113,7 +120,7 @@ def test_get_value_from_environment_file_all_set(monkeypatch, tmpdir):
 
 
 def test_get_value_from_enviroment_file_var_not_set(monkeypatch):
-    """Test get_value_from_enviroment_file with no set env var."""
+    """Test get_value_from_environment_file with no set env var."""
     monkeypatch.delenv(TEST_ENV_VAR, False)
     with pytest.raises(EnvironmentNotSetError) as exc_info:
         utils.get_value_from_environment_file(TEST_ENV_VAR, 'test')
@@ -123,7 +130,7 @@ def test_get_value_from_enviroment_file_var_not_set(monkeypatch):
 
 
 def test_get_value_from_enviroment_file_var_empty(monkeypatch):
-    """Test get_value_from_enviroment_file with empty env var."""
+    """Test get_value_from_environment_file with empty env var."""
     monkeypatch.setenv(TEST_ENV_VAR, "")
     with pytest.raises(EnvironmentNotSetError) as exc_info:
         utils.get_value_from_environment_file(TEST_ENV_VAR, 'test')
@@ -133,7 +140,7 @@ def test_get_value_from_enviroment_file_var_empty(monkeypatch):
 
 
 def test_get_value_from_enviroment_file_no_file(monkeypatch, tmpdir):
-    """Test get_value_from_enviroment_file with no file at the var path."""
+    """Test get_value_from_environment_file with no file at the var path."""
     test_file_path = os.path.join(tmpdir, 'test.txt')
     monkeypatch.setenv(TEST_ENV_VAR, test_file_path)
     with pytest.raises(EnvironmentNotSetError) as exc_info:
@@ -144,7 +151,7 @@ def test_get_value_from_enviroment_file_no_file(monkeypatch, tmpdir):
 
 
 def test_get_value_from_enviroment_file_file_empty(monkeypatch, tmpdir):
-    """Test get_value_from_enviroment_file with empty file at the var path."""
+    """Test get_value_from_environment_file with empty file at the var path."""
     test_file_path = os.path.join(tmpdir, 'test.txt')
     monkeypatch.setenv(TEST_ENV_VAR, test_file_path)
     with open(test_file_path, 'w') as f:

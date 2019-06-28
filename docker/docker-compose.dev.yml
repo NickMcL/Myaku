@@ -22,7 +22,6 @@ services:
       - type: bind
         source: ..
         target: /reibun/src
-        read_only: true
     environment:
       # A cron schedule of "#" will comment out the line for the crawl job in
       # the crontab file so that it will not run while doing develpment.

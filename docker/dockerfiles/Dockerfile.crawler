@@ -30,12 +30,15 @@ RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.24.0\
     && mv geckodriver /usr/local/bin/ \
     && rm geckodriver-v0.24.0-linux64.tar.gz
 
+# Set python binary that should be used in the container
+ENV PYTHON_BIN python3.7
+
 # Get latest pip
-RUN python3.7 -m pip install -U pip
+RUN $PYTHON_BIN -m pip install -U pip
 
 ENV REIBUN_SRC_DIR $REIBUN_BASE_DIR/src
 COPY ./requirements.txt $REIBUN_SRC_DIR/
-RUN python3.7 -m pip install -r $REIBUN_SRC_DIR/requirements.txt
+RUN $PYTHON_BIN -m pip install -r $REIBUN_SRC_DIR/requirements.txt
 
 ENV PYTHONPATH $PYTHONPATH:$REIBUN_SRC_DIR
 
@@ -53,7 +56,7 @@ ENV CRAWL_PYTHON_SCRIPT $REIBUN_SRC_DIR/reibun/runners/run_crawl.py
 
 # Intentionally insert the env variable name and not its value into the cron
 # file so that the cron schedule can be swapped in for it at run time.
-RUN echo "CRAWL_CRON_SCHEDULE root python3.7 \"$CRAWL_PYTHON_SCRIPT\"" \
+RUN echo "CRAWL_CRON_SCHEDULE root $PYTHON_BIN \"$CRAWL_PYTHON_SCRIPT\"" \
     >> $CRON_FILE
 
 WORKDIR $REIBUN_SRC_DIR
@@ -62,7 +65,6 @@ WORKDIR $REIBUN_SRC_DIR
 FROM base AS dev
 
 # Volume for sharing in development source on host with container.
-# Should be a read-only bind.
 VOLUME ["$REIBUN_SRC_DIR"]
 
 # Volume for persisting data only used in development such as ipython history.
