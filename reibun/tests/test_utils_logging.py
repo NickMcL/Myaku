@@ -1,4 +1,4 @@
-"""Tests for reibun.utils."""
+"""Tests for logging-related functions in reibun.utils."""
 import functools
 import glob
 import logging
@@ -36,7 +36,16 @@ LOG_FILE_NAME_TEST_VALUE = 'test'
 
 
 class LogEnvironment(NamedTuple):
-    """Named tuple for log environment variable values."""
+    """Named tuple for log-related environment variable values.
+
+    Attributes:
+        toggle_func: Function for toggling logging on and off. Either
+            utils.toggle_reibun_package_log or a functools.partial of it.
+        filepath_base: The directory + base file name to use for writing log
+            files.
+        debug_max_size: Maximum total allowable size of the debug log files.
+        info_max_size: Maximum total allowable size of the info log files.
+    """
     toggle_func: Callable
     filepath_base: str
     debug_max_size: int
@@ -45,6 +54,7 @@ class LogEnvironment(NamedTuple):
 
 @pytest.fixture
 def custom_log_environment(monkeypatch, tmpdir):
+    """Pytest fixture for a log environment with all custom settings."""
     os.chdir(tmpdir)
     log_dir = os.path.join(os.getcwd(), 'log/sub/dir')
     os.makedirs(log_dir)
@@ -69,6 +79,7 @@ def custom_log_environment(monkeypatch, tmpdir):
 
 @pytest.fixture
 def default_log_environment(monkeypatch, tmpdir):
+    """Pytest fixture for a log environment with pure default settings."""
     os.chdir(tmpdir)
     monkeypatch.delenv(reibun.LOG_DIR_ENV_VAR, False)
     monkeypatch.delenv(utils._DEBUG_LOG_MAX_SIZE_ENV_VAR, False)
@@ -81,7 +92,7 @@ def default_log_environment(monkeypatch, tmpdir):
 
 
 def test_log_rotate(custom_log_environment, caplog):
-    """Test log rotation after lots of logging."""
+    """Test rotation of log files by doing lots of logging."""
     custom_log_environment.toggle_func()
     log = logging.getLogger('reibun')
 
@@ -117,7 +128,7 @@ def test_log_rotate(custom_log_environment, caplog):
 
 
 def get_dir_size(dir_path):
-    """Returns size in bites of all files in a directory without sub dirs."""
+    """Returns size in bytes of all files in a directory without sub dirs."""
     return sum(
         os.path.getsize(f) for f in os.listdir(dir_path) if os.path.isfile(f)
     )
@@ -260,8 +271,8 @@ def assert_toggle_reibun_package_log_on_on(
 ):
     """Test enabling the Reibun package log twice in a row.
 
-    If enable_no_truncate is True, it is asserted that enabling the package log
-    does not truncate the log files.
+    If enable_no_truncate is True, it is asserted that each enabling of the
+    package log does not truncate the log files.
     """
     log = logging.getLogger('reibun')
     log_environment.toggle_func(True)
@@ -326,8 +337,8 @@ def assert_toggle_reibun_package_log_on_off_on(
 ):
     """Test enabling, disabling, then re-enabling the Reibun package log.
 
-    If enable_no_truncate is True, it is asserted that enabling the package log
-    does not truncate the log files.
+    If enable_no_truncate is True, it is asserted that each enabling of the
+    package log does not truncate the log files.
     """
     log = logging.getLogger('reibun')
     log_environment.toggle_func(True)
@@ -379,7 +390,7 @@ def log_all_levels_once(log):
 def assert_log_existence(
     log_entries, log_environment, capsys, stderr_has_half=False
 ):
-    """Asserts the given list of log entries exist in all expected locations.
+    """Asserts that the given log entries exist in all expected locations.
 
     Args:
         log_entries: A list of some combination of the characters 'd', 'i',
