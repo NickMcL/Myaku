@@ -148,9 +148,6 @@ class JpnArticle(object):
 
         Args:
             item_pos: The position whose containing sentence to get.
-            include_end_punctuation: If True, will include the sentence ending
-                punctuation character (e.g. period, question mark, etc.) if
-                present.
 
         Returns:
             (containing sentence, offset of containing sentence in article)
@@ -162,18 +159,14 @@ class JpnArticle(object):
                 '{!r}'.format(self)
             )
 
-        start = utils.find_jpn_sentene_start(
+        start = utils.find_jpn_sentence_start(
             self.full_text, item_pos.index
         )
-        end = utils.find_jpn_sentene_end(
+        end = utils.find_jpn_sentence_end(
             self.full_text, item_pos.index + item_pos.len
         )
-        if (include_end_punctuation
-                and end < len(self.full_text)
-                and self.full_text[end] != '\n'):
-            return (self.full_text[start:end + 1], start)
 
-        return (self.full_text[start:end], start)
+        return (self.full_text[start:end + 1], start)
 
 
 class JpnLexicalItemInterp(NamedTuple):

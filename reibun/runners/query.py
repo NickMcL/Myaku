@@ -71,9 +71,8 @@ def main(search_term: str = None) -> None:
             print_tags(item)
 
             for pos in item.found_positions:
-                sentence, start = item.article.get_containing_sentence(
-                    pos, True
-                )
+                sentence, start = item.article.get_containing_sentence(pos)
+                sentence = sentence.rstrip()
                 print()
                 print(
                     '{:.0%}: '.format(pos.index / len(item.article.full_text)),

@@ -5,8 +5,8 @@ import functools
 import inspect
 import logging
 import os
-import time
 import sys
+import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from operator import itemgetter
@@ -211,8 +211,14 @@ def unique(items: List[T]) -> List[T]:
     return unique_items
 
 
-def find_jpn_sentene_start(text: str, pos: int) -> int:
+def find_jpn_sentence_start(text: str, pos: int) -> int:
     """Find the start index of the Japanese sentence in text containing pos."""
+    # If there is a sentence ender at pos, move pos left until it is next to a
+    # non-sentence ending character.
+    while (pos > 0 and text[pos] in _JPN_SENTENCE_ENDERS
+            and text[pos - 1] in _JPN_SENTENCE_ENDERS):
+        pos -= 1
+
     sentence_ender_indexes = [
         text.rfind(char, 0, pos) for char in _JPN_SENTENCE_ENDERS
     ]
@@ -222,17 +228,49 @@ def find_jpn_sentene_start(text: str, pos: int) -> int:
     return previous_ender_index + 1
 
 
-def find_jpn_sentene_end(text: str, pos: int) -> int:
-    """Finds one past the end index of the sentence in text containing pos."""
+def find_jpn_sentence_end(text: str, pos: int) -> int:
+    """Finds the end index of the Japanese sentence in text containing pos."""
     sentence_ender_indexes = [
         text.find(char, pos) for char in _JPN_SENTENCE_ENDERS
     ]
-    for i, index in enumerate(sentence_ender_indexes):
+    full_sentence_ender_indexes = []
+    for index in sentence_ender_indexes:
         if index == -1:
-            sentence_ender_indexes[i] = len(text)
+            full_sentence_ender_indexes.append(len(text) - 1)
+            continue
 
-    next_ender_index = min(sentence_ender_indexes)
+        full_sentence_ender_indexes.append(
+            _get_full_sentence_ender(text, index)
+        )
+
+    next_ender_index = min(full_sentence_ender_indexes)
     return next_ender_index
+
+
+def _get_full_sentence_ender(text: str, ender_pos: int) -> int:
+    """Gets the full sentence ender for a given sentence ender position.
+
+    A full sentence ender is a sentence ender without another sentence ender
+    to its right. For example, in "Hello?!", only ! is a full sentence ender.
+
+    Args:
+        text: The text containing the given sentence ender position
+        ender_pos: Index of a sentence ending character in the text.
+
+    Returns:
+        The index of the full sentence ender for the sentence containing the
+        sentence ender at the given position.
+
+        Note that the return value could certainly be the same index as the
+        given index.
+    """
+    full_ender_pos = ender_pos
+    while ((full_ender_pos < len(text) - 1)
+           and text[full_ender_pos] in _JPN_SENTENCE_ENDERS
+           and text[full_ender_pos + 1] in _JPN_SENTENCE_ENDERS):
+        full_ender_pos += 1
+
+    return full_ender_pos
 
 
 def tuple_or_none(item: Any) -> Tuple:
@@ -245,8 +283,10 @@ def tuple_or_none(item: Any) -> Tuple:
 def convert_jst_to_utc(dt: datetime) -> datetime:
     """Returns Japan Standard Time (JST) datetime converted to UTC.
 
+    JST is always UTC+9:00. Japan does not do daylight savings time.
+
     Args:
-        dt: JST datetime to be converted. The tzinfo does not need to be set.
+        dt: JST datetime to be converted. The tzinfo must not be set.
 
     Returns:
         New datetime with dt converted to UTC.
