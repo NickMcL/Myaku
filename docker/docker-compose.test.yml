@@ -1,0 +1,35 @@
+# Test overrides for the Myaku stack.
+# Uses the crawler.prod:test image instead of the current production version.
+#
+# Run docker stack deploy pasing both the docker-compose.yml file and this file
+# as -f args to run the Myaku stack configured for running the test suite.
+
+version: "3.7"
+services:
+  crawler:
+    image: friedrice2/myaku_crawler.prod:test
+    deploy:
+      restart_policy:
+        condition: none
+  db:
+    deploy:
+      restart_policy:
+        condition: none
+  mongobackup:
+    deploy:
+      restart_policy:
+        condition: none
+
+secrets:
+  db_root_username:
+    file: ./test_secrets/db_root_username_TESTUSEONLY.txt
+  db_root_password:
+    file: ./test_secrets/db_root_password_TESTUSEONLY.txt
+  db_backup_username:
+    file: ./test_secrets/db_backup_username_TESTUSEONLY.txt
+  db_backup_password:
+    file: ./test_secrets/db_backup_password_TESTUSEONLY.txt
+  db_crawler_username:
+    file: ./test_secrets/db_crawler_username_TESTUSEONLY.txt
+  db_crawler_password:
+    file: ./test_secrets/db_crawler_password_TESTUSEONLY.txt

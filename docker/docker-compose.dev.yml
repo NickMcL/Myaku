@@ -16,7 +16,7 @@ services:
         condition: none
     volumes:
       - type: volume
-        source: devdata
+        source: crawler_devdata
         target: /myaku/devdata
 
       - type: bind
@@ -30,14 +30,17 @@ services:
       INFO_LOG_MAX_SIZE: 0
   db:
     image: friedrice2/myaku_mongo.myakudb:latest
+    deploy:
+      restart_policy:
+        condition: none
   mongobackup:
-    image: friedrice2/myaku_mongobackup:latest
+    image: friedrice2/mongobackup:latest
     deploy:
       restart_policy:
         condition: none
 
 volumes:
-  devdata:
+  crawler_devdata:
 
 secrets:
   db_root_username:

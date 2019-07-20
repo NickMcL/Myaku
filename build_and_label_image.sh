@@ -6,6 +6,7 @@ NC='\e[0m'
 
 IMAGE_NAME_PREFIX="friedrice2/"
 
+
 function usage()
 {
     cat << EOF
@@ -23,6 +24,7 @@ appropriate labels to the image such as git commit hash.
 EOF
 }
 
+
 error_handler()
 {
     lineno="$1"
@@ -36,6 +38,7 @@ error_handler()
     exit 1
 }
 trap 'error_handler ${LINENO}' ERR
+
 
 function generate_image_id()
 {

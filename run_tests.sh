@@ -50,16 +50,15 @@ usage()
 {
     test_status="N/A"
     cat << EOF
-usage: run_tests.sh [dev|prod] [-n|--no-cleanup] [-h|--help]
+usage: run_tests.sh [<tag>] [-n|--no-cleanup] [-h|--help]
 
-Runs all tests on the current code in the working directory in a deployed
-Myaku docker stack.
+Runs all tests in a deployed Myaku docker stack.
 
-With the dev option or no option, uses the dev stack which automatically uses
-the local images tagged :latest.
+By default, builds a new crawler.prod:test image with the current code in the
+working directory to use for the tests.
 
-With the prod option, uses the prod stack which uses the images specified in
-the docker/docker-compose.yml file.
+If a tag is passed as a parameter, will use the existing crawler.prod:<tag>
+image for the tests instead.
 
 -n|--no-cleanup: By default, attempts to delete any docker objects from the
     test run or previous test runs to clean up, but if this option is set, will
@@ -72,7 +71,7 @@ EOF
 
 test_status="NotStarted"
 no_cleanup=0
-test_type="dev"
+image_tag=""
 while [[ $# -gt 0 ]]
 do
     key="$1"
@@ -87,19 +86,14 @@ do
             exit 1
             ;;
 
-        dev|prod)
-            if [ -z "$test_type" ]; then
-                test_type="$1"
+        *)
+            if [ -z "$image_tag" ]; then
+                image_tag="$1"
+                shift
             else
                 usage
                 exit 1
             fi
-            shift
-            ;;
-
-        *)
-            usage
-            exit 1
             ;;
     esac
 done
@@ -113,7 +107,7 @@ else
     echo "Skipped clean up of previous test docker objects"
 fi
 
-stack=$(./deploy_test_stack.sh)
+stack=$(./deploy_test_stack.sh "$image_tag")
 if [ $? -ne 0 ] || [ -z "$stack" ]; then
     error_handler ${LINENO} "${RED}Test stack deployment failed${NC}"
 fi

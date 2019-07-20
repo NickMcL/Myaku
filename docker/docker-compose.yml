@@ -1,5 +1,5 @@
 # Production stack configuration for Myaku.
-# Image versions are all fixed to the versions that are currently deployed in
+# Image versions are all the versions that are currently deployed in
 # production.
 #
 # Run docker stack deploy pasing just this file as an -f arg to run the Myaku
@@ -10,7 +10,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler.prod:20190626T221608-af93c76-0615974a
+    image: friedrice2/myaku_crawler.prod:1.0.0
     deploy:
       restart_policy:
         condition: any
@@ -19,11 +19,11 @@ services:
         window: 2s
     volumes:
       - type: volume
-        source: log
+        source: crawler_log
         target: /myaku/log
 
       - type: volume
-        source: appdata
+        source: crawler_appdata
         target: /myaku/appdata
 
       # Needed for Firefox web driver to work reliably in the container.
@@ -46,14 +46,20 @@ services:
     networks:
       - crawler_net
   db:
-    image: friedrice2/myaku_mongo.myakudb:20190626T221751-af93c76-a2f098d5
+    image: friedrice2/myaku_mongo.myakudb:1.0.0
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 2s
     volumes:
       - type: volume
-        source: datadb
+        source: myakudb_datadb
         target: /data/db
 
       - type: volume
-        source: configdb
+        source: myakudb_configdb
         target: /data/configdb
     environment:
       MYAKU_DB_NAME: myaku
@@ -75,7 +81,7 @@ services:
       - crawler_net
       - mongobackup_net
   mongobackup:
-    image: friedrice2/myaku_mongobackup:20190626T221645-af93c76-7010d682
+    image: friedrice2/mongobackup:1.0.0_4.0.10
     deploy:
       restart_policy:
         condition: any
@@ -84,7 +90,7 @@ services:
         window: 2s
     volumes:
       - type: volume
-        source: mongobackups
+        source: myakudb_backups
         target: /backups
     depends_on:
       - db
@@ -101,11 +107,11 @@ services:
       - mongobackup_net
 
 volumes:
-  log:
-  appdata:
-  datadb:
-  configdb:
-  mongobackups:
+  crawler_log:
+  crawler_appdata:
+  myakudb_datadb:
+  myakudb_configdb:
+  myakudb_backups:
 
 secrets:
   db_root_username:
