@@ -8,7 +8,7 @@ LOG_NAME = 'reparse'
 
 
 def main() -> None:
-    utils.toggle_myaku_package_log(filename_BASE=LOG_NAME)
+    utils.toggle_myaku_package_log(filename_base=LOG_NAME)
 
     start_time = time.perf_counter()
     jta = JapaneseTextAnalyzer()
