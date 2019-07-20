@@ -28,7 +28,7 @@ usage()
     cat << EOF
 usage: deloy_test_stack.sh [dev|prod] [-h|--help]
 
-Deploys a Reibun docker stack for testing.
+Deploys a Myaku docker stack for testing.
 
 With the dev option or no option, uses the dev stack which automatically uses
 the local images tagged :latest.
@@ -52,15 +52,15 @@ if [ $# -eq 1 ] && [ "$1" != "dev" ] && [ "$1" != "prod" ]; then
 fi
 
 test_run_id="$(hexdump -n 4 -e '"%08x"' /dev/urandom)"
-test_stack="reibun_test_$test_run_id"
+test_stack="myaku_test_$test_run_id"
 
 if [ "$1" == "prod" ]; then
-    echo "Deploying Reibun prod stack $test_stack..." >&2
+    echo "Deploying Myaku prod stack $test_stack..." >&2
     sudo docker stack deploy \
         -c "../docker/docker-compose.yml" \
         --resolve-image never $test_stack > /dev/null
 else
-    echo "Deploying Reibun dev stack $test_stack..." >&2
+    echo "Deploying Myaku dev stack $test_stack..." >&2
     sudo docker stack deploy \
         -c "../docker/docker-compose.yml" \
         -c "../docker/docker-compose.dev.yml" \

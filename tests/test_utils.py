@@ -1,4 +1,4 @@
-"""Tests for non-logging-related function in reibun.utils."""
+"""Tests for non-logging-related function in myaku.utils."""
 
 import copy
 import os
@@ -9,8 +9,8 @@ from typing import List, NamedTuple, TypeVar
 import pytest
 import pytz
 
-import reibun.utils as utils
-from reibun.errors import EnvironmentNotSetError
+import myaku.utils as utils
+from myaku.errors import EnvironmentNotSetError
 
 TEST_ENV_VAR = 'TEST_ENV_VAR'
 

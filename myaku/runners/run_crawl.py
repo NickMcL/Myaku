@@ -4,11 +4,11 @@ import time
 from dataclasses import dataclass
 from typing import List
 
-import reibun.utils as utils
-from reibun.crawler import NhkNewsWebCrawler
-from reibun.database import ReibunDb
-from reibun.datatypes import JpnArticle, FoundJpnLexicalItem
-from reibun.japanese_analysis import JapaneseTextAnalyzer
+import myaku.utils as utils
+from myaku.crawler import NhkNewsWebCrawler
+from myaku.database import MyakuDb
+from myaku.datatypes import JpnArticle, FoundJpnLexicalItem
+from myaku.japanese_analysis import JapaneseTextAnalyzer
 
 LOG_NAME = 'crawl'
 
@@ -102,11 +102,11 @@ class CrawlStats(object):
 
 def main() -> None:
     """Runs a full crawl of the top NHK News Web pages."""
-    utils.toggle_reibun_package_log(filename_base=LOG_NAME)
+    utils.toggle_myaku_package_log(filename_base=LOG_NAME)
 
     stats = CrawlStats()
     jta = JapaneseTextAnalyzer()
-    with ReibunDb() as db, NhkNewsWebCrawler() as crawler:
+    with MyakuDb() as db, NhkNewsWebCrawler() as crawler:
         crawls = crawler.get_main_crawls()
 
         for crawl in crawls:
@@ -126,5 +126,5 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    _log = logging.getLogger('reibun.runners.run_crawl')
+    _log = logging.getLogger('myaku.runners.run_crawl')
     main()

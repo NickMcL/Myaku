@@ -17,12 +17,12 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver import firefox
 from selenium.webdriver.firefox.webelement import FirefoxWebElement
 
-import reibun
-import reibun.utils as utils
-from reibun.database import ReibunDb
-from reibun.datatypes import JpnArticle, JpnArticleMetadata
-from reibun.errors import CannotAccessPageError, CannotParsePageError
-from reibun.htmlhelper import HtmlHelper
+import myaku
+import myaku.utils as utils
+from myaku.database import MyakuDb
+from myaku.datatypes import JpnArticle, JpnArticleMetadata
+from myaku.errors import CannotAccessPageError, CannotParsePageError
+from myaku.htmlhelper import HtmlHelper
 
 _log = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ class NhkNewsWebCrawler(object):
     def _init_web_driver(self) -> None:
         """Inits the web driver used by the crawler."""
         log_dir = utils.get_value_from_environment_variable(
-            reibun.LOG_DIR_ENV_VAR, 'Log directory'
+            myaku.LOG_DIR_ENV_VAR, 'Log directory'
         )
         log_path = os.path.join(log_dir, self._WEB_DRIVER_LOG_FILENAME)
 
@@ -365,7 +365,7 @@ class NhkNewsWebCrawler(object):
         self, metadatas: List[JpnArticleMetadata]
     ) -> Generator[JpnArticle, None, None]:
         """Crawls all not yet crawled articles specified by the metadatas."""
-        with ReibunDb() as db:
+        with MyakuDb() as db:
             uncrawled_metadatas = db.filter_to_unstored_article_metadatas(
                 metadatas, self._ARTICLE_METADATA_CMP_FIELDS
             )
@@ -378,7 +378,7 @@ class NhkNewsWebCrawler(object):
 
         crawl_urls = [m.source_url for m in uncrawled_metadatas]
         crawl_urls = self._make_rel_urls_absolute(crawl_urls)
-        with ReibunDb() as db:
+        with MyakuDb() as db:
             for i, crawl_url in enumerate(crawl_urls):
                 sleep_time = (random() * 4) + 3
                 _log.debug(

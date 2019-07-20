@@ -1,4 +1,4 @@
-"""Classes for holding data used across the Reibun project."""
+"""Classes for holding data used across the Myaku project."""
 
 import enum
 import functools
@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Tuple
 
-import reibun.utils as utils
-from reibun.errors import MissingDataError
+import myaku.utils as utils
+from myaku.errors import MissingDataError
 
 _log = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class JpnArticle(object):
         metadata: The metadata for the article.
         text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
             automatically lazily after changes to full_text. Read-only.
-        database_id: The ID for this article in the Reibun database.
+        database_id: The ID for this article in the Myaku database.
         """
     full_text: str = None
     alnum_count: int = None
@@ -259,7 +259,7 @@ class FoundJpnLexicalItem(object):
             If an interpretation applies to all positions the lexical items was
             found in the article, that interpretation will not have an entry in
             this dict.
-        database_id: The ID of this lexical item in the Reibun database.
+        database_id: The ID of this lexical item in the Myaku database.
     """
     base_form: str = None
     article: JpnArticle = None

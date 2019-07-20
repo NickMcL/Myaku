@@ -1,70 +1,51 @@
-# Reibun: Japanese Sample Sentences _in Context_
-A search engine for finding high quality native Japanese articles published on
-the web demonstrating in-context usage for any bit of Japanese language of
-interest.
-
-Can be used to search for native in-context usage of Japanese words,
+# Myaku: Learning Japanese _from Context_
+A search engine for finding native Japanese articles on the web that
+demonstrate in-context usage for any bit of Japanese language including words,
 set phrases, sayings, idioms, and more!
 
+Searching for a bit of Japanese language on Myaku will return links to articles
+that demonstrate _when_ and _where_ Japanese people use that bit of language.
+These articles can then be read in order to build a deeper and more natural
+understanding for how that bit of language is used in Japanese than can be
+gained from looking at definitions or sample sentences alone.
 
-## Motivation
 
-After years of Japanese study, I've found that the most important thing for me
-to understanding new bits of Japanese language is to see those bits of language
-used by natives in as much context as possible. 
+### Why not just use a normal web search engine like Google?
 
-There are multiple large collections of Japanese sample sentences out there
-such as [the Tatoeba Project][1], [Weblio][2], and [Yourei][3] that can help
-with this, but these collections all tend to have the same problem: They lack
-the vital _context_ around the sample sentence.
+Myaku is a search engine completely built around finding native Japanese
+articles that are the best for learning when and where a searched bit of
+Japanese language is used by natives.
 
-An isolated sample sentence might be great to show grammatically how a bit of
-language is used, but without more context, it's difficult to get a natural
-feel for the greater context of _when_ and _where_ natives use that bit of
-language which is paramount to getting a native understanding of that bit of
+This fundamentally differs from normal web search engines such as Google which
+are built around finding web pages that are the most relevant to the given
+search terms. When searching for bits of Japanese language, this often leads to
+search results full of just meta discussion about that bit of Japanese
 language.
 
+For example, if you search for a single Japanese word such as 千載一遇 in
+Google, the top results are all either dictionary, thesaurus, or encyclopedia entries for
+that word, forum posts asking questions about that word, or articles with meta
+discussion about the word. Although these results are useful to gain a
+technical understanding of the word, they are very poor for getting a natural
+feel for when and where natives use that word.
 
-## Reibun Priorities
+In contrast, when the same word is searched in Myaku, it gives results such as
+NHK news articles or Japanese blog posts that aren't specifically about the
+word, but made use of the word to convey the message of the article. Although
+these articles given no technical details about the word, they are clear examples
+of when and where natives use the word.
 
-Reibun attempts to solve this issue of context by linking users to high quality
-native Japanese articles published on the web that demonstrate usage of a bit
-of language searched for.
-
-When deciding which articles to return for a search, in addition to article
-relevance to the searched bit of language, Reibun has the following additional
-priorities:
-
-#### Accompanying videos and pictures are awesome
-
-Accompanying videos or pictures in articles serve to add even more context to
-aid in learning the searched bit of language. Videos especially are given high
-priority.
-
-#### The more recent the article, the better
-
-Articles published more recently tend to be about more currently relevant
-topics in the world which make for more memorable context than old articles
-about no longer relevant topics.
-
-#### Not too short, not too long
-
-Articles that are only a couple hundred characters tend to be too short to give
-much context, but articles that are many thousands of characters take too much
-time to read to understand the context, so articles of moderate length
-(~1000-1500 characters) are prioritized.
+More than reading technical details about the word given by Google, reading
+these articles gives a natural feel for how the word is used in Japanese.
 
 
 ## License Info
 
-Reibun is licensed under the GNU Affero General Public License v3.0 license.
+Myaku is licensed under the GNU Affero General Public License v3.0 license.
 
-Reibun uses the [JMdict][4] dictionary files in accordance with the [licence
-provisions][5] of the [Electronic Dictionaries Research Group][6].
+Myaku uses the [JMdict][1] dictionary files in accordance with the [licence
+provisions][2] of the [Electronic Dictionaries Research Group][3].
 
-[1]: http://tatoeba.org/
-[2]: https://ejje.weblio.jp/sentence/
-[3]: http://yourei.jp/
-[4]: http://www.edrdg.org/jmdict/j_jmdict.html
-[5]: http://www.edrdg.org/edrdg/licence.html
-[6]: http://www.edrdg.org/
+[1]: http://www.edrdg.org/jmdict/j_jmdict.html
+[2]: http://www.edrdg.org/edrdg/licence.html
+[3]: http://www.edrdg.org/

@@ -1,10 +1,10 @@
-# Builds a prod or dev image for the Reibun crawler.
+# Builds a prod or dev image for the Myaku crawler.
 
 FROM friedrice2/ubuntu.cron:1.0.0-18.04 AS base
 
-ENV REIBUN_BASE_DIR /reibun
-ENV REIBUN_RESOURCE_DIR $REIBUN_BASE_DIR/resources
-WORKDIR $REIBUN_RESOURCE_DIR
+ENV MYAKU_BASE_DIR /myaku
+ENV MYAKU_RESOURCE_DIR $MYAKU_BASE_DIR/resources
+WORKDIR $MYAKU_RESOURCE_DIR
 
 # All needed to install ipadic-NEologd in the next run statement
 RUN apt-get update && apt-get install -y build-essential curl git sudo file \
@@ -36,44 +36,44 @@ ENV PYTHON_BIN python3.7
 # Get latest pip
 RUN $PYTHON_BIN -m pip install -U pip
 
-ENV REIBUN_SRC_DIR $REIBUN_BASE_DIR/src
-COPY ./requirements.txt $REIBUN_SRC_DIR/
-RUN $PYTHON_BIN -m pip install -r $REIBUN_SRC_DIR/requirements.txt
+ENV MYAKU_SRC_DIR $MYAKU_BASE_DIR/src
+COPY ./requirements.txt $MYAKU_SRC_DIR/
+RUN $PYTHON_BIN -m pip install -r $MYAKU_SRC_DIR/requirements.txt
 
-ENV PYTHONPATH $PYTHONPATH:$REIBUN_SRC_DIR
+ENV PYTHONPATH $PYTHONPATH:$MYAKU_SRC_DIR
 
-ENV IPADIC_NEOLOGD_GIT_DIR $REIBUN_RESOURCE_DIR/mecab-ipadic-neologd
-ENV JMDICT_XML_FILEPATH $REIBUN_RESOURCE_DIR/JMdict_e.xml
+ENV IPADIC_NEOLOGD_GIT_DIR $MYAKU_RESOURCE_DIR/mecab-ipadic-neologd
+ENV JMDICT_XML_FILEPATH $MYAKU_RESOURCE_DIR/JMdict_e.xml
 
-ENV REIBUN_LOG_DIR $REIBUN_BASE_DIR/log
-VOLUME ["$REIBUN_LOG_DIR"]
+ENV MYAKU_LOG_DIR $MYAKU_BASE_DIR/log
+VOLUME ["$MYAKU_LOG_DIR"]
 
-ENV REIBUN_APP_DATA_DIR $REIBUN_BASE_DIR/appdata
-VOLUME ["$REIBUN_APP_DATA_DIR"]
+ENV MYAKU_APP_DATA_DIR $MYAKU_BASE_DIR/appdata
+VOLUME ["$MYAKU_APP_DATA_DIR"]
 
 ENV CRAWL_CRON_SCHEDULE "0 */8 * * *"
-ENV CRAWL_PYTHON_SCRIPT $REIBUN_SRC_DIR/reibun/runners/run_crawl.py
+ENV CRAWL_PYTHON_SCRIPT $MYAKU_SRC_DIR/myaku/runners/run_crawl.py
 
 # Intentionally insert the env variable name and not its value into the cron
 # file so that the cron schedule can be swapped in for it at run time.
 RUN echo "CRAWL_CRON_SCHEDULE root $PYTHON_BIN \"$CRAWL_PYTHON_SCRIPT\"" \
     >> $CRON_FILE
 
-WORKDIR $REIBUN_SRC_DIR
+WORKDIR $MYAKU_SRC_DIR
 
 
 FROM base AS dev
 
 # Volume for sharing in development source on host with container.
-VOLUME ["$REIBUN_SRC_DIR"]
+VOLUME ["$MYAKU_SRC_DIR"]
 
 # Volume for persisting data only used in development such as ipython history.
-ENV REIBUN_DEV_DATA_DIR $REIBUN_BASE_DIR/devdata
-ENV IPYTHONDIR $REIBUN_DEV_DATA_DIR/ipython
-VOLUME ["$REIBUN_DEV_DATA_DIR"]
+ENV MYAKU_DEV_DATA_DIR $MYAKU_BASE_DIR/devdata
+ENV IPYTHONDIR $MYAKU_DEV_DATA_DIR/ipython
+VOLUME ["$MYAKU_DEV_DATA_DIR"]
 
 
 FROM base AS prod
 
 # Copy full source into image
-COPY . $REIBUN_SRC_DIR
+COPY . $MYAKU_SRC_DIR

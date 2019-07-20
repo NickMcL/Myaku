@@ -1,8 +1,8 @@
 from operator import methodcaller
 
-import reibun.utils as utils
-from reibun.database import ReibunDb
-from reibun.datatypes import FoundJpnLexicalItem
+import myaku.utils as utils
+from myaku.database import MyakuDb
+from myaku.datatypes import FoundJpnLexicalItem
 
 LOG_NAME = 'query'
 
@@ -29,14 +29,14 @@ def print_tags(fli: FoundJpnLexicalItem) -> None:
 
 
 def main(search_term: str = None) -> None:
-    utils.toggle_reibun_package_log(filename_base=LOG_NAME)
+    utils.toggle_myaku_package_log(filename_base=LOG_NAME)
     while True:
         if not search_term:
             query = input('\n\n\nSearch for: ')
         else:
             query = search_term
 
-        with ReibunDb() as db:
+        with MyakuDb() as db:
             found_lexical_items = db.read_found_lexical_items(query, True)
         if len(found_lexical_items) == 0:
             print('\nFound 0 results')

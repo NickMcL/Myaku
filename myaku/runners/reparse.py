@@ -1,18 +1,18 @@
 import time
 
-import reibun.utils as utils
-from reibun.database import ReibunDb
-from reibun.japanese_analysis import JapaneseTextAnalyzer
+import myaku.utils as utils
+from myaku.database import MyakuDb
+from myaku.japanese_analysis import JapaneseTextAnalyzer
 
 LOG_NAME = 'reparse'
 
 
 def main() -> None:
-    utils.toggle_reibun_package_log(filename_BASE=LOG_NAME)
+    utils.toggle_myaku_package_log(filename_BASE=LOG_NAME)
 
     start_time = time.perf_counter()
     jta = JapaneseTextAnalyzer()
-    with ReibunDb() as db:
+    with MyakuDb() as db:
         articles = db.read_articles()
         print('{} articles read from database'.format(len(articles)))
 

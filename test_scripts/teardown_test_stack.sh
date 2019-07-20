@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TEST_STACK_PREFIX="reibun_test_"
+TEST_STACK_PREFIX="myaku_test_"
 RED='\e[31m'
 BLUE='\e[34m'
 NC='\e[0m'

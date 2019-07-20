@@ -1,4 +1,4 @@
-"""Tests for logging-related functions in reibun.utils."""
+"""Tests for logging-related functions in myaku.utils."""
 import functools
 import glob
 import logging
@@ -8,8 +8,8 @@ from typing import Callable, NamedTuple
 
 import pytest
 
-import reibun
-import reibun.utils as utils
+import myaku
+import myaku.utils as utils
 
 LOG_MESSAGE_TEMPLATE = '{0} LOG TEST'
 DEBUG_LOG_MESSAGE = LOG_MESSAGE_TEMPLATE.format('DEBUG')
@@ -19,7 +19,7 @@ ERROR_LOG_MESSAGE = LOG_MESSAGE_TEMPLATE.format('ERROR')
 CRITICAL_LOG_MESSAGE = LOG_MESSAGE_TEMPLATE.format('CRITICAL')
 
 LOG_REGEX_TEMPLATE = (
-    r'^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d,\d\d\d:reibun:{0}: ' +
+    r'^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d,\d\d\d:myaku:{0}: ' +
     LOG_MESSAGE_TEMPLATE + '$'
 )
 LOG_MESSAGE_REGEX_MAP = {
@@ -40,7 +40,7 @@ class LogEnvironment(NamedTuple):
 
     Attributes:
         toggle_func: Function for toggling logging on and off. Either
-            utils.toggle_reibun_package_log or a functools.partial of it.
+            utils.toggle_myaku_package_log or a functools.partial of it.
         filepath_base: The directory + base file name to use for writing log
             files.
         debug_max_size: Maximum total allowable size of the debug log files.
@@ -58,7 +58,7 @@ def custom_log_environment(monkeypatch, tmpdir):
     os.chdir(tmpdir)
     log_dir = os.path.join(os.getcwd(), 'log/sub/dir')
     os.makedirs(log_dir)
-    monkeypatch.setenv(reibun.LOG_DIR_ENV_VAR, log_dir)
+    monkeypatch.setenv(myaku.LOG_DIR_ENV_VAR, log_dir)
 
     monkeypatch.setenv(
         utils._DEBUG_LOG_MAX_SIZE_ENV_VAR, DEBUG_MAX_LOG_SIZE_TEST_VALUE
@@ -69,7 +69,7 @@ def custom_log_environment(monkeypatch, tmpdir):
 
     return LogEnvironment(
         functools.partial(
-            utils.toggle_reibun_package_log,
+            utils.toggle_myaku_package_log,
             filename_base=LOG_FILE_NAME_TEST_VALUE
         ),
         os.path.join(log_dir, LOG_FILE_NAME_TEST_VALUE),
@@ -81,12 +81,12 @@ def custom_log_environment(monkeypatch, tmpdir):
 def default_log_environment(monkeypatch, tmpdir):
     """Pytest fixture for a log environment with pure default settings."""
     os.chdir(tmpdir)
-    monkeypatch.delenv(reibun.LOG_DIR_ENV_VAR, False)
+    monkeypatch.delenv(myaku.LOG_DIR_ENV_VAR, False)
     monkeypatch.delenv(utils._DEBUG_LOG_MAX_SIZE_ENV_VAR, False)
     monkeypatch.delenv(utils._INFO_LOG_MAX_SIZE_ENV_VAR, False)
 
     return LogEnvironment(
-        utils.toggle_reibun_package_log, os.path.join(os.getcwd(), 'reibun'),
+        utils.toggle_myaku_package_log, os.path.join(os.getcwd(), 'myaku'),
         None, None
     )
 
@@ -94,7 +94,7 @@ def default_log_environment(monkeypatch, tmpdir):
 def test_log_rotate(custom_log_environment, caplog):
     """Test rotation of log files by doing lots of logging."""
     custom_log_environment.toggle_func()
-    log = logging.getLogger('reibun')
+    log = logging.getLogger('myaku')
 
     debug_file_path = custom_log_environment.filepath_base + '.debug.log'
     info_file_path = custom_log_environment.filepath_base + '.info.log'
@@ -151,121 +151,121 @@ def test_log_and_raise(caplog):
     )
 
 
-def test_toggle_reibun_package_log_on_default(default_log_environment, capsys):
+def test_toggle_myaku_package_log_on_default(default_log_environment, capsys):
     """Test enabling the package log with default settings."""
-    assert_toggle_reibun_package_log_on(default_log_environment, capsys)
+    assert_toggle_myaku_package_log_on(default_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_on_custom(custom_log_environment, capsys):
+def test_toggle_myaku_package_log_on_custom(custom_log_environment, capsys):
     """Test enabling the package log with custom settings."""
-    assert_toggle_reibun_package_log_on(custom_log_environment, capsys)
+    assert_toggle_myaku_package_log_on(custom_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_off_default(
+def test_toggle_myaku_package_log_off_default(
         default_log_environment, capsys
 ):
     """Test disabling the package log with default settings."""
-    assert_toggle_reibun_package_log_off(default_log_environment, capsys)
+    assert_toggle_myaku_package_log_off(default_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_off_custom(custom_log_environment, capsys):
+def test_toggle_myaku_package_log_off_custom(custom_log_environment, capsys):
     """Test disabling the package log with custom settings."""
-    assert_toggle_reibun_package_log_off(custom_log_environment, capsys)
+    assert_toggle_myaku_package_log_off(custom_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_on_on_default(
+def test_toggle_myaku_package_log_on_on_default(
         default_log_environment, capsys
 ):
     """Test enabling the package log twice in a row with default settings."""
-    assert_toggle_reibun_package_log_on_on(default_log_environment, capsys)
+    assert_toggle_myaku_package_log_on_on(default_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_on_on_custom(
+def test_toggle_myaku_package_log_on_on_custom(
         custom_log_environment, capsys
 ):
     """Test enabling the package log twice in a row with custom settings."""
-    assert_toggle_reibun_package_log_on_on(
+    assert_toggle_myaku_package_log_on_on(
         custom_log_environment, capsys, True
     )
 
 
-def test_toggle_reibun_package_log_off_off_default(
+def test_toggle_myaku_package_log_off_off_default(
         default_log_environment, capsys
 ):
     """Test disabling the package log twice in a row with default settings."""
-    assert_toggle_reibun_package_log_off_off(default_log_environment, capsys)
+    assert_toggle_myaku_package_log_off_off(default_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_off_off_custom(
+def test_toggle_myaku_package_log_off_off_custom(
         custom_log_environment, capsys
 ):
     """Test disabling the package log twice in a row with custom settings."""
-    assert_toggle_reibun_package_log_off_off(custom_log_environment, capsys)
+    assert_toggle_myaku_package_log_off_off(custom_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_on_off_default(
+def test_toggle_myaku_package_log_on_off_default(
         default_log_environment, capsys
 ):
     """Test enabling then disabling the package log with default settings."""
-    assert_toggle_reibun_package_log_on_off(default_log_environment, capsys)
+    assert_toggle_myaku_package_log_on_off(default_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_on_off_custom(
+def test_toggle_myaku_package_log_on_off_custom(
         custom_log_environment, capsys
 ):
     """Test enabling then disabling the package log with custom settings."""
-    assert_toggle_reibun_package_log_on_off(custom_log_environment, capsys)
+    assert_toggle_myaku_package_log_on_off(custom_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_off_on_default(
+def test_toggle_myaku_package_log_off_on_default(
         default_log_environment, capsys
 ):
     """Test disabling then enabling the package log with default settings."""
-    assert_toggle_reibun_package_log_off_on(default_log_environment, capsys)
+    assert_toggle_myaku_package_log_off_on(default_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_off_on_custom(
+def test_toggle_myaku_package_log_off_on_custom(
         custom_log_environment, capsys
 ):
     """Test disabling then enabling the package log with custom settings."""
-    assert_toggle_reibun_package_log_off_on(custom_log_environment, capsys)
+    assert_toggle_myaku_package_log_off_on(custom_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_on_off_on_default(
+def test_toggle_myaku_package_log_on_off_on_default(
         default_log_environment, capsys
 ):
     """Test enabling, disabling, then re-enabling log - default settings."""
-    assert_toggle_reibun_package_log_on_off_on(default_log_environment, capsys)
+    assert_toggle_myaku_package_log_on_off_on(default_log_environment, capsys)
 
 
-def test_toggle_reibun_package_log_on_off_on_custom(
+def test_toggle_myaku_package_log_on_off_on_custom(
         custom_log_environment, capsys
 ):
     """Test enabling, disabling, then re-enabling log - custom settings."""
-    assert_toggle_reibun_package_log_on_off_on(
+    assert_toggle_myaku_package_log_on_off_on(
         custom_log_environment, capsys, True
     )
 
 
-def test_toggle_reibun_package_log_off_on_off_default(
+def test_toggle_myaku_package_log_off_on_off_default(
         default_log_environment, capsys
 ):
     """Test disabling, enabling, then re-disabling log - default settings."""
-    assert_toggle_reibun_package_log_off_on_off(
+    assert_toggle_myaku_package_log_off_on_off(
         default_log_environment, capsys
     )
 
 
-def test_toggle_reibun_package_log_off_on_off_custom(
+def test_toggle_myaku_package_log_off_on_off_custom(
         custom_log_environment, capsys
 ):
     """Test disabling, enabling, then re-disabling log - custom settings."""
-    assert_toggle_reibun_package_log_off_on_off(custom_log_environment, capsys)
+    assert_toggle_myaku_package_log_off_on_off(custom_log_environment, capsys)
 
 
-def assert_toggle_reibun_package_log_on(log_environment, capsys):
-    """Test enabling the Reibun package log."""
-    log = logging.getLogger('reibun')
+def assert_toggle_myaku_package_log_on(log_environment, capsys):
+    """Test enabling the Myaku package log."""
+    log = logging.getLogger('myaku')
     log_environment.toggle_func(True)
     log_all_levels_once(log)
 
@@ -274,24 +274,24 @@ def assert_toggle_reibun_package_log_on(log_environment, capsys):
     )
 
 
-def assert_toggle_reibun_package_log_off(log_environment, capsys):
-    """Test disabling the Reibun package log."""
-    log = logging.getLogger('reibun')
+def assert_toggle_myaku_package_log_off(log_environment, capsys):
+    """Test disabling the Myaku package log."""
+    log = logging.getLogger('myaku')
     log_environment.toggle_func(False)
     log_all_levels_once(log)
 
     assert_no_logs(log_environment, capsys)
 
 
-def assert_toggle_reibun_package_log_on_on(
+def assert_toggle_myaku_package_log_on_on(
         log_environment, capsys, enable_no_truncate=False
 ):
-    """Test enabling the Reibun package log twice in a row.
+    """Test enabling the Myaku package log twice in a row.
 
     If enable_no_truncate is True, it is asserted that each enabling of the
     package log does not truncate the log files.
     """
-    log = logging.getLogger('reibun')
+    log = logging.getLogger('myaku')
     log_environment.toggle_func(True)
     log_all_levels_once(log)
 
@@ -312,9 +312,9 @@ def assert_toggle_reibun_package_log_on_on(
         )
 
 
-def assert_toggle_reibun_package_log_off_off(log_environment, capsys):
-    """Test disabling the Reibun package log twice in a row."""
-    log = logging.getLogger('reibun')
+def assert_toggle_myaku_package_log_off_off(log_environment, capsys):
+    """Test disabling the Myaku package log twice in a row."""
+    log = logging.getLogger('myaku')
     log_environment.toggle_func(False)
     log_all_levels_once(log)
     log_environment.toggle_func(False)
@@ -323,9 +323,9 @@ def assert_toggle_reibun_package_log_off_off(log_environment, capsys):
     assert_no_logs(log_environment, capsys)
 
 
-def assert_toggle_reibun_package_log_on_off(log_environment, capsys):
-    """Test enabling then disabling the Reibun package log."""
-    log = logging.getLogger('reibun')
+def assert_toggle_myaku_package_log_on_off(log_environment, capsys):
+    """Test enabling then disabling the Myaku package log."""
+    log = logging.getLogger('myaku')
     log_environment.toggle_func(True)
     log_all_levels_once(log)
     log_environment.toggle_func(False)
@@ -336,9 +336,9 @@ def assert_toggle_reibun_package_log_on_off(log_environment, capsys):
     )
 
 
-def assert_toggle_reibun_package_log_off_on(log_environment, capsys):
-    """Test disabling then enabling the Reibun package log."""
-    log = logging.getLogger('reibun')
+def assert_toggle_myaku_package_log_off_on(log_environment, capsys):
+    """Test disabling then enabling the Myaku package log."""
+    log = logging.getLogger('myaku')
     log_environment.toggle_func(False)
     log_all_levels_once(log)
     log_environment.toggle_func(True)
@@ -349,15 +349,15 @@ def assert_toggle_reibun_package_log_off_on(log_environment, capsys):
     )
 
 
-def assert_toggle_reibun_package_log_on_off_on(
+def assert_toggle_myaku_package_log_on_off_on(
     log_environment, capsys, enable_no_truncate=False
 ):
-    """Test enabling, disabling, then re-enabling the Reibun package log.
+    """Test enabling, disabling, then re-enabling the Myaku package log.
 
     If enable_no_truncate is True, it is asserted that each enabling of the
     package log does not truncate the log files.
     """
-    log = logging.getLogger('reibun')
+    log = logging.getLogger('myaku')
     log_environment.toggle_func(True)
     log_all_levels_once(log)
 
@@ -380,9 +380,9 @@ def assert_toggle_reibun_package_log_on_off_on(
         )
 
 
-def assert_toggle_reibun_package_log_off_on_off(log_environment, capsys):
-    """Test disabling, enabling, then re-disabling the Reibun package log."""
-    log = logging.getLogger('reibun')
+def assert_toggle_myaku_package_log_off_on_off(log_environment, capsys):
+    """Test disabling, enabling, then re-disabling the Myaku package log."""
+    log = logging.getLogger('myaku')
     log_environment.toggle_func(False)
     log_all_levels_once(log)
     log_environment.toggle_func(True)

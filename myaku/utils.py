@@ -15,8 +15,8 @@ from typing import Any, Callable, List, Optional, Tuple, TypeVar
 import jaconv
 import pytz
 
-import reibun
-from reibun.errors import EnvironmentNotSetError
+import myaku
+from myaku.errors import EnvironmentNotSetError
 
 _log = logging.getLogger(__name__)
 
@@ -42,10 +42,10 @@ _LOGGING_FORMAT = (
 T = TypeVar('T')
 
 
-def toggle_reibun_package_log(
-    enable: bool = True, filename_base: str = 'reibun'
+def toggle_myaku_package_log(
+    enable: bool = True, filename_base: str = 'myaku'
 ) -> None:
-    """Toggles the logger for the reibun package.
+    """Toggles the logger for the myaku package.
 
     Logs to three locations:
         - DEBUG level to <filename_base>.debug.log files using a rotating
@@ -66,7 +66,7 @@ def toggle_reibun_package_log(
     # Use UTC time for all logging timestamps
     logging.Formatter.converter = time.gmtime
 
-    log_dir = os.environ.get(reibun.LOG_DIR_ENV_VAR)
+    log_dir = os.environ.get(myaku.LOG_DIR_ENV_VAR)
     if log_dir is None:
         log_dir = os.getcwd()
     filepath_base = os.path.join(log_dir, filename_base)
@@ -84,7 +84,7 @@ def toggle_reibun_package_log(
 def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
     """Adds a set of handlers to the given logger.
 
-    Adds the handlers specified in the docstring of toggle_reibun_package_log.
+    Adds the handlers specified in the docstring of toggle_myaku_package_log.
     """
     logger.setLevel(logging.DEBUG)
     log_formatter = logging.Formatter(_LOGGING_FORMAT)

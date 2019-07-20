@@ -1,4 +1,4 @@
-"""Handles CRUD operations for the Reibun database.
+"""Handles CRUD operations for the Myaku database.
 
 The public members of this module are defined generically so that the
 implementation of the article index can be changed freely while keeping the
@@ -18,36 +18,36 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.results import InsertManyResult
 
-import reibun
-import reibun.utils as utils
-from reibun.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
-                              JpnArticleMetadata, JpnLexicalItemInterp,
-                              LexicalItemTextPosition, MecabLexicalItemInterp)
+import myaku
+import myaku.utils as utils
+from myaku.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
+                             JpnArticleMetadata, JpnLexicalItemInterp,
+                             LexicalItemTextPosition, MecabLexicalItemInterp)
 
 _log = logging.getLogger(__name__)
 
 T = TypeVar('T')
 _Document = Dict[str, Any]
 
-_DB_HOST_ENV_VAR = 'REIBUN_DB_HOST'
+_DB_HOST_ENV_VAR = 'MYAKU_DB_HOST'
 _DB_PORT = 27017
 
-_DB_USERNAME_FILE_ENV_VAR = 'REIBUN_DB_USERNAME_FILE'
-_DB_PASSWORD_FILE_ENV_VAR = 'REIBUN_DB_PASSWORD_FILE'
+_DB_USERNAME_FILE_ENV_VAR = 'MYAKU_DB_USERNAME_FILE'
+_DB_PASSWORD_FILE_ENV_VAR = 'MYAKU_DB_PASSWORD_FILE'
 
 
 @utils.add_method_debug_logging
-class ReibunDb(object):
-    """Interface object for accessing the Reibun database.
+class MyakuDb(object):
+    """Interface object for accessing the Myaku database.
 
     This database stores mappings from Japanese lexical items to native
     Japanese web articles that use those lexical items. This allows for easy
     look up of native Japanese articles that make use of a particular lexical
     item of interest.
 
-    Implements the Reibun database using MongoDB.
+    Implements the Myaku database using MongoDB.
     """
-    _DB_NAME = 'reibun'
+    _DB_NAME = 'myaku'
     _ARTICLE_COLL_NAME = 'articles'
     _FOUND_LEXICAL_ITEM_COLL_NAME = 'found_lexical_items'
 
@@ -79,7 +79,7 @@ class ReibunDb(object):
 
         self._create_indexes()
 
-        self._version_doc = reibun.get_version_info()
+        self._version_doc = myaku.get_version_info()
 
     def _init_mongo_client(self) -> MongoClient:
         """Initializes and returns the client for connecting to the database.
@@ -565,7 +565,7 @@ class ReibunDb(object):
         """Closes the connection to the database."""
         self._mongo_client.close()
 
-    def __enter__(self) -> 'ReibunDb':
+    def __enter__(self) -> 'MyakuDb':
         """Initializes the connection to the database."""
         return self
 
@@ -637,7 +637,7 @@ class ReibunDb(object):
                 'source_name': metadata.source_name,
                 'publication_datetime': metadata.publication_datetime,
                 'scraped_datetime': metadata.scraped_datetime,
-                'reibun_version_info': self._version_doc,
+                'myaku_version_info': self._version_doc,
             })
 
         return docs
@@ -657,7 +657,7 @@ class ReibunDb(object):
                 'scraped_datetime': article.metadata.scraped_datetime,
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
-                'reibun_version_info': self._version_doc,
+                'myaku_version_info': self._version_doc,
                 'has_video': article.has_video,
             })
 
@@ -750,7 +750,7 @@ class ReibunDb(object):
                 'found_positions': found_positions_docs,
                 'possible_interps': interp_docs,
                 'interp_position_map': interp_pos_map_doc,
-                'reibun_version_info': self._version_doc,
+                'myaku_version_info': self._version_doc,
             })
 
         return docs

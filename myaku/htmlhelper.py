@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, Tag
 
-import reibun.utils as utils
+import myaku.utils as utils
 
 _log = logging.getLogger(__name__)
 

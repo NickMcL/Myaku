@@ -1,27 +1,27 @@
-# Development overrides for the Reibun stack.
+# Development overrides for the Myaku stack.
 # Always uses the versions tagged as latest for all images instead of fixed
 # versions.
 #
 # Run docker stack deploy pasing both the docker-compose.yml file and this file
-# as -f args to run the Reibun stack configured for development, or pass just
-# the docker-compose.yml file as an -f arg to run the Reibun stack configured
+# as -f args to run the Myaku stack configured for development, or pass just
+# the docker-compose.yml file as an -f arg to run the Myaku stack configured
 # for production.
 
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/reibun_crawler.dev:latest
+    image: friedrice2/myaku_crawler.dev:latest
     deploy:
       restart_policy:
         condition: none
     volumes:
       - type: volume
         source: devdata
-        target: /reibun/devdata
+        target: /myaku/devdata
 
       - type: bind
         source: ..
-        target: /reibun/src
+        target: /myaku/src
     environment:
       # A cron schedule of "#" will comment out the line for the crawl job in
       # the crontab file so that it will not run while doing develpment.
@@ -29,9 +29,9 @@ services:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   db:
-    image: friedrice2/reibun_mongo.reibundb:latest
+    image: friedrice2/myaku_mongo.myakudb:latest
   mongobackup:
-    image: friedrice2/reibun_mongobackup:latest
+    image: friedrice2/myaku_mongobackup:latest
     deploy:
       restart_policy:
         condition: none

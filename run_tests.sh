@@ -53,7 +53,7 @@ usage()
 usage: run_tests.sh [dev|prod] [-n|--no-cleanup] [-h|--help]
 
 Runs all tests on the current code in the working directory in a deployed
-Reibun docker stack.
+Myaku docker stack.
 
 With the dev option or no option, uses the dev stack which automatically uses
 the local images tagged :latest.

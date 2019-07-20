@@ -1,4 +1,4 @@
-"""Exceptions raised by the reibun package."""
+"""Exceptions raised by the myaku package."""
 
 
 class CannotAccessPageError(Exception):

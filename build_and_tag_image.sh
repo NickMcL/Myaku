@@ -1,9 +1,9 @@
 #!/bin/bash
-# Script for building and tagging Reibun images with unique tags.
+# Script for building and tagging Myaku images with unique tags.
 
 set -e
 
-IMAGE_NAME_PREFIX="friedrice2/reibun_"
+IMAGE_NAME_PREFIX="friedrice2/myaku_"
 
 function usage()
 {
@@ -19,7 +19,7 @@ The unique ID tag has the form:
 <image_type> must be one of:
     - crawler.dev
     - crawler.prod
-    - mongo.reibundb
+    - mongo.myakudb
     - mongobackup
 EOF
 }
@@ -60,8 +60,8 @@ case $1 in
         target="--target prod"
         ;;
 
-    "mongo.reibundb")
-        dockerfile="./docker/dockerfiles/Dockerfile.mongo.reibundb"
+    "mongo.myakudb")
+        dockerfile="./docker/dockerfiles/Dockerfile.mongo.myakudb"
         target=""
         ;;
 
