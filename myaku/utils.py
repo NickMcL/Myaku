@@ -343,7 +343,7 @@ def add_debug_logging(func: Callable) -> Callable:
         func_args = ', '.join(args_repr + kwargs_repr)
         _log.debug('Calling %s(%s)', func_name, func_args)
         try:
-            value = func(*args, *kwargs)
+            value = func(*args, **kwargs)
         except BaseException:
             _log.exception('%s raised an exception', func_name)
             raise

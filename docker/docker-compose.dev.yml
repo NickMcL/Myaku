@@ -29,25 +29,19 @@ services:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   web:
-    image: friedrice2/myaku_myakuweb.dev:latest
-    command: python manage.py runserver 0.0.0.0:8000
+    image: friedrice2/myaku_web.dev:latest
+    deploy:
+      restart_policy:
+        condition: none
     volumes:
       - type: bind
         source: ..
         target: /myakuweb/src
     ports:
       - "8000:8000"
-    depends_on:
-      - db
     environment:
-      MYAKU_DB_HOST: db
-      MYAKU_DB_USERNAME_FILE: /run/secrets/db_crawler_username
-      MYAKU_DB_PASSWORD_FILE: /run/secrets/db_crawler_password
-    secrets:
-      - db_crawler_username
-      - db_crawler_password
-    networks:
-      - crawler_net
+      DEBUG_LOG_MAX_SIZE: 0
+      INFO_LOG_MAX_SIZE: 0
   db:
     image: friedrice2/myaku_mongo.myakudb:latest
     deploy:
@@ -75,3 +69,9 @@ secrets:
     file: ./test_secrets/db_crawler_username_TESTUSEONLY.txt
   db_crawler_password:
     file: ./test_secrets/db_crawler_password_TESTUSEONLY.txt
+  db_web_username:
+    file: ./test_secrets/db_web_username_TESTUSEONLY.txt
+  db_web_password:
+    file: ./test_secrets/db_web_password_TESTUSEONLY.txt
+  web_django_secret_key:
+    file: ./test_secrets/web_django_secret_key_TESTUSEONLY.txt

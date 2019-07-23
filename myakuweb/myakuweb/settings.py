@@ -2,18 +2,23 @@
 
 import os
 
+from myaku.utils import (get_value_from_environment_file,
+                         get_value_from_environment_variable)
+
+debug_mode_flag = get_value_from_environment_variable(
+    'IN_DEBUG_MODE', 'Django debug mode flag'
+)
+if int(debug_mode_flag) == 1:
+    DEBUG = True
+else:
+    DEBUG = False
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'bo62ql#%lh@*&#*9%529*-h8tc*&62woy0*y*7!bze$e)(5uh$'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+SECRET_KEY = get_value_from_environment_file(
+    'DJANGO_SECRET_KEY_FILE', 'Django secret key'
+)
 
 ALLOWED_HOSTS = []
 

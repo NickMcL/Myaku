@@ -5,12 +5,13 @@ implementation of the article index can be changed freely while keeping the
 access interface consistent.
 """
 
+import functools
 import logging
 import re
 from collections import defaultdict
 from datetime import datetime
 from operator import methodcaller
-from typing import Any, Dict, List, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, List, Tuple, TypeVar, Union
 
 import pytz
 from bson.objectid import ObjectId
@@ -23,6 +24,7 @@ import myaku.utils as utils
 from myaku.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
                              JpnArticleMetadata, JpnLexicalItemInterp,
                              LexicalItemTextPosition, MecabLexicalItemInterp)
+from myaku.errors import NoDbWritePermissionError
 
 _log = logging.getLogger(__name__)
 
@@ -34,6 +36,29 @@ _DB_PORT = 27017
 
 _DB_USERNAME_FILE_ENV_VAR = 'MYAKU_DB_USERNAME_FILE'
 _DB_PASSWORD_FILE_ENV_VAR = 'MYAKU_DB_PASSWORD_FILE'
+
+
+def _require_write_permission(func: Callable) -> Callable:
+    """Checks that the db object instance is not read-only before running func.
+
+    Can only be used to wrap db class methods for a db class with a read_only
+    member variable.
+
+    Raises:
+        NoDbWritePermissionError: If the db object is read-only.
+    """
+    @functools.wraps(func)
+    def wrapper_require_write_permission(*args, **kwargs):
+        if args[0].read_only:
+            utils.log_and_raise(
+                _log, NoDbWritePermissionError,
+                'Write operation "{}" was attempted with a read-only database '
+                'connection'.format(utils.get_full_name(func))
+            )
+
+        value = func(*args, **kwargs)
+        return value
+    return wrapper_require_write_permission
 
 
 @utils.add_method_debug_logging
@@ -77,7 +102,7 @@ class MyakuDb(object):
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
 
-        self._read_only = read_only
+        self.read_only = read_only
         if not read_only:
             self._create_indexes()
             self._version_doc = myaku.get_version_info()
@@ -287,6 +312,7 @@ class MyakuDb(object):
 
         return unstored_objs
 
+    @_require_write_permission
     def write_found_lexical_items(
             self, found_lexical_items: List[FoundJpnLexicalItem],
             write_articles: bool = True
@@ -392,6 +418,7 @@ class MyakuDb(object):
         article_oid_map = self._convert_docs_to_articles(docs)
         return list(article_oid_map.values())
 
+    @_require_write_permission
     def write_crawled(self, metadatas: List[JpnArticleMetadata]) -> None:
         """Writes the article metadata to the crawled database."""
         metadata_docs = self._convert_article_metadata_to_docs(metadatas)
@@ -413,6 +440,7 @@ class MyakuDb(object):
         metadatas = self._convert_docs_to_article_metadata(metadata_docs)
         return metadatas
 
+    @_require_write_permission
     def delete_article_found_lexical_items(self, article: JpnArticle) -> None:
         """Deletes found lexical items from article from the database."""
         _log.debug(
@@ -427,6 +455,7 @@ class MyakuDb(object):
             result.deleted_count, self._found_lexical_item_collection.full_name
         )
 
+    @_require_write_permission
     def delete_base_form_excess(self) -> None:
         """Deletes found lexical items with base forms in excess in the db.
 

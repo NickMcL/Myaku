@@ -1,16 +1,47 @@
-FROM python:3.7.4
+# Builds a prod or dev image for Myaku web.
 
-ENV PYTHONUNBUFFERED 1
+FROM ubuntu:18.04 AS base
+
+# Set up deadsnakes ppa for installing newer Python versions
+RUN apt-get update \
+    && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update
+
+# Install needed python packages
+RUN apt-get install -y python3.7 python3-pip python3-gdbm
+
+# Set python binary that should be used in the container
+ENV PYTHON_BIN python3.7
+
+# Get latest pip
+RUN $PYTHON_BIN -m pip install -U pip
 
 ENV MYAKUWEB_SRC_DIR /myakuweb/src
 ENV PYTHONPATH $PYTHONPATH:$MYAKUWEB_SRC_DIR
 
-# Volume for sharing in development source on host with container.
-VOLUME ["$MYAKUWEB_SRC_DIR"]
-
 COPY ./requirements.txt $MYAKUWEB_SRC_DIR/
-RUN pip install -r $MYAKUWEB_SRC_DIR/requirements.txt
+RUN $PYTHON_BIN -m pip install -r $MYAKUWEB_SRC_DIR/requirements.txt
+
+ENV MYAKUWEB_LOG_DIR /myakuweb/log
+VOLUME ["$MYAKUWEB_LOG_DIR"]
 
 ENV MYAKUWEB_PROJECT_DIR $MYAKUWEB_SRC_DIR/myakuweb
 RUN mkdir -p $MYAKUWEB_PROJECT_DIR
 WORKDIR $MYAKUWEB_PROJECT_DIR
+
+ENV PYTHONUNBUFFERED 1
+ENTRYPOINT ["python3.7", "manage.py", "runserver", "0.0.0.0:8000"]
+
+
+FROM base AS dev
+
+ENV IN_DEBUG_MODE 1
+
+# Volume for sharing in development source on host with container.
+VOLUME ["$MYAKUWEB_SRC_DIR"]
+
+
+FROM base AS prod
+
+ENV IN_DEBUG_MODE 0

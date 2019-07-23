@@ -17,3 +17,11 @@ db.createUser(
         roles: [ { role: "readWrite", db: "myaku" } ]
     }
 )
+
+db.createUser(
+    {
+        user: web_db_username,
+        pwd: web_db_password,
+        roles: [ { role: "read", db: "myaku" } ]
+    }
+)

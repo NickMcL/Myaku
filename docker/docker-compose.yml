@@ -14,9 +14,8 @@ services:
     deploy:
       restart_policy:
         condition: any
-        delay: 5s
         max_attempts: 3
-        window: 2s
+        window: 10s
     volumes:
       - type: volume
         source: crawler_log
@@ -45,21 +44,48 @@ services:
       - db_crawler_password
     networks:
       - crawler_net
+  web:
+    image: friedrice2/myaku_web.prod:1.0.0
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+    volumes:
+      - type: volume
+        source: web_log
+        target: /myakuweb/log
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      MYAKU_DB_HOST: db
+      MYAKU_DB_USERNAME_FILE: /run/secrets/db_web_username
+      MYAKU_DB_PASSWORD_FILE: /run/secrets/db_web_password
+      DJANGO_SECRET_KEY_FILE: /run/secrets/web_django_secret_key
+      DEBUG_LOG_MAX_SIZE: 200000000  # 200mb
+      INFO_LOG_MAX_SIZE: 20000000 # 20mb
+    secrets:
+      - db_web_username
+      - db_web_password
+      - web_django_secret_key
+    networks:
+      - web_net
   db:
     image: friedrice2/myaku_mongo.myakudb:1.0.0
     deploy:
       restart_policy:
         condition: any
-        delay: 5s
         max_attempts: 3
-        window: 2s
+        window: 10s
     volumes:
       - type: volume
-        source: myakudb_datadb
+        source: db_datadb
         target: /data/db
 
       - type: volume
-        source: myakudb_configdb
+        source: db_configdb
         target: /data/configdb
     environment:
       MYAKU_DB_NAME: myaku
@@ -70,6 +96,8 @@ services:
       MYAKU_DB_BACKUP_PASSWORD_FILE: /run/secrets/db_backup_password
       MYAKU_DB_CRAWLER_USERNAME_FILE: /run/secrets/db_crawler_username
       MYAKU_DB_CRAWLER_PASSWORD_FILE: /run/secrets/db_crawler_password
+      MYAKU_DB_WEB_USERNAME_FILE: /run/secrets/db_web_username
+      MYAKU_DB_WEB_PASSWORD_FILE: /run/secrets/db_web_password
     secrets:
       - db_root_username
       - db_root_password
@@ -77,20 +105,22 @@ services:
       - db_backup_password
       - db_crawler_username
       - db_crawler_password
+      - db_web_username
+      - db_web_password
     networks:
       - crawler_net
+      - web_net
       - mongobackup_net
   mongobackup:
     image: friedrice2/mongobackup:1.0.0_4.0.10
     deploy:
       restart_policy:
         condition: any
-        delay: 5s
         max_attempts: 3
-        window: 2s
+        window: 10s
     volumes:
       - type: volume
-        source: myakudb_backups
+        source: db_backups
         target: /backups
     depends_on:
       - db
@@ -109,9 +139,10 @@ services:
 volumes:
   crawler_log:
   crawler_appdata:
-  myakudb_datadb:
-  myakudb_configdb:
-  myakudb_backups:
+  web_log:
+  db_datadb:
+  db_configdb:
+  db_backups:
 
 secrets:
   db_root_username:
@@ -126,7 +157,14 @@ secrets:
     external: true
   db_crawler_password:
     external: true
+  db_web_username:
+    external: true
+  db_web_password:
+    external: true
+  web_django_secret_key:
+    external: true
 
 networks:
   crawler_net:
+  web_net:
   mongobackup_net:

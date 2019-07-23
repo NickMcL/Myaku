@@ -29,6 +29,15 @@ class MissingDataError(Exception):
     pass
 
 
+class NoDbWritePermissionError(Exception):
+    """A database operation needing write permission was attempted without it.
+
+    For example, if a read-only connection to the database was used to perform
+    a write operation to the database.
+    """
+    pass
+
+
 class ResourceLoadError(Exception):
     """A necessary external resource failed to load.
 
