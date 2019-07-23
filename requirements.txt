@@ -6,6 +6,7 @@ beautifulsoup4==4.7.1
 certifi==2019.3.9
 chardet==3.0.4
 decorator==4.4.0
+Django==2.2.3
 entrypoints==0.3
 flake8==3.7.7
 idna==2.8
@@ -37,6 +38,7 @@ requests==2.22.0
 selenium==3.141.0
 six==1.12.0
 soupsieve==1.9.1
+sqlparse==0.3.0
 traitlets==4.3.2
 urllib3==1.25.3
 wcwidth==0.1.7

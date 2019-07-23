@@ -1,0 +1,16 @@
+FROM python:3.7.4
+
+ENV PYTHONUNBUFFERED 1
+
+ENV MYAKUWEB_SRC_DIR /myakuweb/src
+ENV PYTHONPATH $PYTHONPATH:$MYAKUWEB_SRC_DIR
+
+# Volume for sharing in development source on host with container.
+VOLUME ["$MYAKUWEB_SRC_DIR"]
+
+COPY ./requirements.txt $MYAKUWEB_SRC_DIR/
+RUN pip install -r $MYAKUWEB_SRC_DIR/requirements.txt
+
+ENV MYAKUWEB_PROJECT_DIR $MYAKUWEB_SRC_DIR/myakuweb
+RUN mkdir -p $MYAKUWEB_PROJECT_DIR
+WORKDIR $MYAKUWEB_PROJECT_DIR

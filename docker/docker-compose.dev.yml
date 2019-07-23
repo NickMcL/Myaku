@@ -28,6 +28,26 @@ services:
       CRAWL_CRON_SCHEDULE: "#"  
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
+  web:
+    image: friedrice2/myaku_myakuweb.dev:latest
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - type: bind
+        source: ..
+        target: /myakuweb/src
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      MYAKU_DB_HOST: db
+      MYAKU_DB_USERNAME_FILE: /run/secrets/db_crawler_username
+      MYAKU_DB_PASSWORD_FILE: /run/secrets/db_crawler_password
+    secrets:
+      - db_crawler_username
+      - db_crawler_password
+    networks:
+      - crawler_net
   db:
     image: friedrice2/myaku_mongo.myakudb:latest
     deploy:

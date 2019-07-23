@@ -66,7 +66,7 @@ class MyakuDb(object):
         {'$match': {'total': {'$gt': _BASE_FORM_COUNT_LIMIT}}},
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, read_only: bool = False) -> None:
         """Initializes the connection to the database."""
         self._mongo_client = self._init_mongo_client()
 
@@ -77,9 +77,10 @@ class MyakuDb(object):
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
 
-        self._create_indexes()
-
-        self._version_doc = myaku.get_version_info()
+        self._read_only = read_only
+        if not read_only:
+            self._create_indexes()
+            self._version_doc = myaku.get_version_info()
 
     def _init_mongo_client(self) -> MongoClient:
         """Initializes and returns the client for connecting to the database.
