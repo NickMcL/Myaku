@@ -12,6 +12,7 @@ envsubst < $NGINX_CONF_TEMPLATE > \
 ln -s /etc/nginx/sites-available/myakuweb_nginx.conf /etc/nginx/sites-enabled/
 
 rm /etc/nginx/sites-enabled/default
+mkdir -p $NGINX_LOG_DIR
 /etc/init.d/nginx start
 
 uwsgi --socket $UWSGI_SOCKET_FILE --module myakuweb.wsgi \

@@ -28,7 +28,6 @@ ENV MYAKUWEB_LOG_DIR /myakuweb/log
 VOLUME ["$MYAKUWEB_LOG_DIR"]
 
 ENV MYAKUWEB_PROJECT_DIR $MYAKUWEB_SRC_DIR/myakuweb
-RUN mkdir -p $MYAKUWEB_PROJECT_DIR
 WORKDIR $MYAKUWEB_PROJECT_DIR
 
 ENV PYTHONUNBUFFERED 1
@@ -61,6 +60,8 @@ ENV NGINX_CONF_TEMPLATE \
     $MYAKUWEB_PROJECT_DIR/prod_server_config/nginx_template.conf
 ENV UWSGI_PARAMS_FILE $MYAKUWEB_PROJECT_DIR/prod_server_config/uwsgi_params
 ENV UWSGI_SOCKET_FILE $MYAKUWEB_BASE_DIR/myakuweb_uwsgi.sock
+
+ENV NGINX_LOG_DIR $MYAKUWEB_LOG_DIR/nginx
 
 COPY ./docker/setup_scripts/run_myakuweb_nginx.sh /
 ENTRYPOINT ["/bin/bash", "/run_myakuweb_nginx.sh"]

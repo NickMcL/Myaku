@@ -43,7 +43,7 @@ services:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   db:
-    image: friedrice2/myaku_mongo.myakudb:1.1.0
+    image: friedrice2/myaku_mongo.myakudb:latest
     deploy:
       restart_policy:
         condition: none
