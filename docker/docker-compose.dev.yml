@@ -29,21 +29,21 @@ services:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   web:
-    image: friedrice2/myaku_web.dev:latest
+    image: friedrice2/myaku_web.prod:latest
     deploy:
       restart_policy:
         condition: none
-    volumes:
-      - type: bind
-        source: ..
-        target: /myakuweb/src
+    #volumes:
+      #- type: bind
+        #source: ..
+        #target: /myakuweb/src
     ports:
-      - "8000:8000"
+      - "8000:80"
     environment:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   db:
-    image: friedrice2/myaku_mongo.myakudb:latest
+    image: friedrice2/myaku_mongo.myakudb:1.1.0
     deploy:
       restart_policy:
         condition: none

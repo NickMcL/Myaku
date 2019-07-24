@@ -110,6 +110,15 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/2.2/howto/static-files/
 
-STATIC_URL = '/static/'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
+STATIC_ROOT = get_value_from_environment_variable(
+    'MYAKUWEB_STATIC_ROOT', 'Myakuweb static root directory'
+)
+
+STATIC_URL = get_value_from_environment_variable(
+    'MYAKUWEB_STATIC_URL', 'Myakuweb static URL'
+)

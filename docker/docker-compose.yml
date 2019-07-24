@@ -73,7 +73,7 @@ services:
     networks:
       - web_net
   db:
-    image: friedrice2/myaku_mongo.myakudb:1.0.0
+    image: friedrice2/myaku_mongo.myakudb:1.1.0
     deploy:
       restart_policy:
         condition: any

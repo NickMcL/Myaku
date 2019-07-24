@@ -9,7 +9,7 @@ RUN apt-get update \
     && apt-get update
 
 # Install needed python packages
-RUN apt-get install -y python3.7 python3-pip python3-gdbm
+RUN apt-get install -y python3.7 python3.7-dev python3-pip python3-gdbm
 
 # Set python binary that should be used in the container
 ENV PYTHON_BIN python3.7
@@ -17,7 +17,8 @@ ENV PYTHON_BIN python3.7
 # Get latest pip
 RUN $PYTHON_BIN -m pip install -U pip
 
-ENV MYAKUWEB_SRC_DIR /myakuweb/src
+ENV MYAKUWEB_BASE_DIR /myakuweb
+ENV MYAKUWEB_SRC_DIR $MYAKUWEB_BASE_DIR/src
 ENV PYTHONPATH $PYTHONPATH:$MYAKUWEB_SRC_DIR
 
 COPY ./requirements.txt $MYAKUWEB_SRC_DIR/
@@ -31,7 +32,9 @@ RUN mkdir -p $MYAKUWEB_PROJECT_DIR
 WORKDIR $MYAKUWEB_PROJECT_DIR
 
 ENV PYTHONUNBUFFERED 1
-ENTRYPOINT ["python3.7", "manage.py", "runserver", "0.0.0.0:8000"]
+
+ENV MYAKUWEB_STATIC_URL /static
+ENV MYAKUWEB_STATIC_ROOT $MYAKUWEB_BASE_DIR/static
 
 
 FROM base AS dev
@@ -41,7 +44,23 @@ ENV IN_DEBUG_MODE 1
 # Volume for sharing in development source on host with container.
 VOLUME ["$MYAKUWEB_SRC_DIR"]
 
+ENTRYPOINT ["python3.7", "manage.py", "runserver", "0.0.0.0:8000"]
+
 
 FROM base AS prod
 
-ENV IN_DEBUG_MODE 0
+# gettext-base needed for envsubst used in run_myakuweb_nginx.sh
+RUN apt-get install -y nginx gettext-base
+
+# Copy all source code into the container.
+COPY . $MYAKUWEB_SRC_DIR
+
+ENV IN_DEBUG_MODE 1
+
+ENV NGINX_CONF_TEMPLATE \
+    $MYAKUWEB_PROJECT_DIR/prod_server_config/nginx_template.conf
+ENV UWSGI_PARAMS_FILE $MYAKUWEB_PROJECT_DIR/prod_server_config/uwsgi_params
+ENV UWSGI_SOCKET_FILE $MYAKUWEB_BASE_DIR/myakuweb_uwsgi.sock
+
+COPY ./docker/setup_scripts/run_myakuweb_nginx.sh /
+ENTRYPOINT ["/bin/bash", "/run_myakuweb_nginx.sh"]

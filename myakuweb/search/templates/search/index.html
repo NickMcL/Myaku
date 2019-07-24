@@ -1,8 +1,11 @@
 {% extends "search/base.html" %}
+{% load static %}
 
 {% block title %}Myaku{% endblock %}
 
 {% block content %}
+<img src="{% static "images/logo_small.gif" %}" alt="脈"/>
+
 <form action="/" method="get">
     <input id="query" type="text" name="q" required>
     <input type="submit" value="Search">
@@ -40,4 +43,5 @@
         </ul>
     {% endfor %}
 {% endif %}
+
 {% endblock %}
