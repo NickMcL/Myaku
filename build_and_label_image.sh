@@ -81,31 +81,31 @@ git_commit_hash="$(git log --format="%H" -n 1)"
 case $1 in
     "crawler.dev")
         image_name="${IMAGE_NAME_PREFIX}myaku_$1"
-        dockerfile="./docker/dockerfiles/Dockerfile.crawler"
+        dockerfile="./docker/myaku_crawler/Dockerfile.crawler"
         build_flags="--target dev"
         ;;
 
     "crawler.prod")
         image_name="${IMAGE_NAME_PREFIX}myaku_$1"
-        dockerfile="./docker/dockerfiles/Dockerfile.crawler"
+        dockerfile="./docker/myaku_crawler/Dockerfile.crawler"
         build_flags="--target prod"
         ;;
 
     "mongo.myakudb")
         image_name="${IMAGE_NAME_PREFIX}myaku_$1"
-        dockerfile="./docker/dockerfiles/Dockerfile.mongo.myakudb"
+        dockerfile="./docker/myaku_mongo-myakudb/Dockerfile.mongo.myakudb"
         build_flags=""
         ;;
 
     "mongobackup")
         image_name="${IMAGE_NAME_PREFIX}$1"
-        dockerfile="./docker/dockerfiles/Dockerfile.mongobackup"
+        dockerfile="./docker/mongobackup/Dockerfile.mongobackup"
         build_flags="--label mongo_version=$(echo "$2" | cut -d '_' -f 2)"
         ;;
 
     "ubuntu.cron")
         image_name="${IMAGE_NAME_PREFIX}$1"
-        dockerfile="./docker/dockerfiles/Dockerfile.ubuntu.cron"
+        dockerfile="./docker/ubuntu-cron/Dockerfile.ubuntu.cron"
         build_flags="--label ubuntu_version=$(echo "$2" | cut -d '_' -f 2)"
         ;;
 

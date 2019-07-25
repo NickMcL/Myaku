@@ -1,6 +1,6 @@
 # Makes routine data backups of a full MongoDB mongod instance.
 
-FROM friedrice2/ubuntu.cron:1.0.0_18.04
+FROM friedrice2/ubuntu.cron:1.0.1_18.04
 
 # Needed packages for adding the official MongoDB repo to apt in the next step.
 RUN apt-get update && apt-get install -y gnupg ca-certificates
@@ -22,8 +22,8 @@ ENV DB_BACKUP_CRON_SCHEDULE "0 0 * * *"
 
 ENV DB_BACKUP_SCRIPT $SCRIPTS_DIR/mongo_backup.sh
 ENV DB_BACKUP_RUN_SCRIPT $SCRIPTS_DIR/run_mongo_backup.sh
-COPY ./docker/setup_scripts/mongo_backup.sh $DB_BACKUP_SCRIPT
-COPY ./docker/setup_scripts/run_mongo_backup.sh $DB_BACKUP_RUN_SCRIPT
+COPY ./docker/mongobackup/mongo_backup.sh $DB_BACKUP_SCRIPT
+COPY ./docker/mongobackup/run_mongo_backup.sh $DB_BACKUP_RUN_SCRIPT
 RUN chmod +x $DB_BACKUP_RUN_SCRIPT
 
 # Intentionally insert the DB_BACKUP_CRON_SCHEDULE env variable name and not

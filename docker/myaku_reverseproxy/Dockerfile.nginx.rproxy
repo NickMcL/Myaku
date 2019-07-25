@@ -1,0 +1,22 @@
+# Nginx reverse proxy server for Myaku web
+
+FROM nginx:1.17.2 AS base
+
+ENV NGINX_STATIC_URL /static/
+ENV NGINX_STATIC_ROOT /myaku/static
+
+COPY ./docker/myaku_reverseproxy/nginx_template.conf /
+RUN envsubst < /nginx_template.conf > \
+    /etc/nginx/conf.d/myaku_reverseproxy.conf \
+    && rm /nginx_template.conf
+
+
+FROM base AS dev
+
+# Volume for sharing in development static on host with container.
+VOLUME ["$NGINX_STATIC_ROOT"]
+
+
+FROM base AS prod
+
+COPY ./myakuweb_static $NGINX_STATIC_ROOT

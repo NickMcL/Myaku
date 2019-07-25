@@ -63,5 +63,5 @@ ENV UWSGI_SOCKET_FILE $MYAKUWEB_BASE_DIR/myakuweb_uwsgi.sock
 
 ENV NGINX_LOG_DIR $MYAKUWEB_LOG_DIR/nginx
 
-COPY ./docker/setup_scripts/run_myakuweb_nginx.sh /
+COPY ./docker/myaku_web/run_myakuweb_nginx.sh /
 ENTRYPOINT ["/bin/bash", "/run_myakuweb_nginx.sh"]
