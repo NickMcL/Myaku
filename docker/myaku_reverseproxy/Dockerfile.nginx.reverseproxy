@@ -1,0 +1,40 @@
+# Nginx reverse proxy server for Myaku web
+
+FROM nginx:1.17.2 AS base
+
+RUN apt-get update && apt-get install -y wait-for-it
+
+ENV NGINX_STATIC_URL /static/
+ENV NGINX_STATIC_ALIAS /www/static/
+
+ENV NGINX_DOCKER_FILES_DIR /nginx_docker
+
+# Setting for passing requests to myakuweb uwsgi
+ENV MYAKUWEB_HOST web
+ENV MYAKUWEB_UWSGI_PORT 3031
+ENV MYAKUWEB_UWSGI_PARAMS_FILE $NGINX_DOCKER_FILES_DIR/uwsgi_params
+COPY ./docker/myaku_reverseproxy/uwsgi_params $MYAKUWEB_UWSGI_PARAMS_FILE
+
+# Volume for persisting nginx log files to host
+ENV NGINX_LOG_DIR $NGINX_DOCKER_FILES_DIR/log
+VOLUME ["$NGINX_LOG_DIR"]
+
+COPY ./docker/myaku_reverseproxy/nginx_template.conf $NGINX_DOCKER_FILES_DIR/
+COPY ./docker/myaku_reverseproxy/run_nginx.sh /
+ENTRYPOINT ["/bin/bash", "/run_nginx.sh"]
+
+
+FROM base AS dev
+
+ENV NGINX_DEBUG_MODE 1
+
+# Volume for sharing in development static on host with container.
+VOLUME ["$NGINX_STATIC_ALIAS"]
+
+
+FROM base AS prod
+
+ENV NGINX_DEBUG_MODE 0
+ENV MYAKUWEB_ALLOWED_HOSTS_FILE /myakuweb_allowed_hosts
+
+COPY ./myakuweb/static $NGINX_STATIC_ALIAS

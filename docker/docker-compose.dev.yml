@@ -29,19 +29,28 @@ services:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   web:
-    image: friedrice2/myaku_web.prod:latest
+    image: friedrice2/myaku_web.dev:latest
     deploy:
       restart_policy:
         condition: none
-    #volumes:
-      #- type: bind
-        #source: ..
-        #target: /myakuweb/src
-    ports:
-      - "8000:80"
+    volumes:
+      - type: bind
+        source: ..
+        target: /myakuweb/src
     environment:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
+  reverseproxy:
+    image: friedrice2/myaku_nginx.reverseproxy.dev:latest
+    deploy:
+      restart_policy:
+        condition: none
+    volumes:
+      - type: bind
+        source: ../myakuweb/static
+        target: /www/static
+    ports:
+      - "8000:80"
   db:
     image: friedrice2/myaku_mongo.myakudb:latest
     deploy:
@@ -55,6 +64,10 @@ services:
 
 volumes:
   crawler_devdata:
+
+configs:
+  myakuweb_allowed_hosts:
+    file: ./test_configs/myakuweb_allowed_hosts_TESTUSEONLY.txt
 
 secrets:
   db_root_username:

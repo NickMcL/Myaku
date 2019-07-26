@@ -11,6 +11,15 @@ services:
     deploy:
       restart_policy:
         condition: none
+  web:
+    image: friedrice2/myaku_crawler.prod:test
+    deploy:
+      restart_policy:
+        condition: none
+  reverseproxy:
+    deploy:
+      restart_policy:
+        condition: none
   db:
     deploy:
       restart_policy:
@@ -19,6 +28,10 @@ services:
     deploy:
       restart_policy:
         condition: none
+
+configs:
+  myakuweb_allowed_hosts:
+    file: ./test_configs/myakuweb_allowed_hosts_TESTUSEONLY.txt
 
 secrets:
   db_root_username:

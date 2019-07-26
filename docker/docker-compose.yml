@@ -30,8 +30,6 @@ services:
         target: /dev/shm
         tmpfs:
           size: 2000000000  # 2gb
-    depends_on:
-      - db
     environment:
       CRAWL_CRON_SCHEDULE: "0 */3 * * *"
       MYAKU_DB_HOST: db
@@ -55,23 +53,43 @@ services:
       - type: volume
         source: web_log
         target: /myakuweb/log
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
     environment:
+      UWSGI_PORT: 3031
       MYAKU_DB_HOST: db
       MYAKU_DB_USERNAME_FILE: /run/secrets/db_web_username
       MYAKU_DB_PASSWORD_FILE: /run/secrets/db_web_password
       DJANGO_SECRET_KEY_FILE: /run/secrets/web_django_secret_key
       DEBUG_LOG_MAX_SIZE: 200000000  # 200mb
       INFO_LOG_MAX_SIZE: 20000000 # 20mb
+    configs:
+      - myakuweb_allowed_hosts
     secrets:
       - db_web_username
       - db_web_password
       - web_django_secret_key
     networks:
+      - reverseproxy_net
       - web_net
+  reverseproxy:
+    image: friedrice2/myaku_nginx.reverseproxy.prod:1.0.0
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+    volumes:
+      - type: volume
+        source: reverseproxy_log
+        target: /nginx_docker/log
+    ports:
+      - "80:80"
+    environment:
+      MYAKUWEB_HOST: web
+      MYAKUWEB_UWSGI_PORT: 3031
+    configs:
+      - myakuweb_allowed_hosts
+    networks:
+      - reverseproxy_net
   db:
     image: friedrice2/myaku_mongo.myakudb:1.1.0
     deploy:
@@ -122,8 +140,6 @@ services:
       - type: volume
         source: db_backups
         target: /backups
-    depends_on:
-      - db
     environment:
       DB_HOST: db
       DB_USERNAME_FILE: /run/secrets/db_backup_username
@@ -140,9 +156,14 @@ volumes:
   crawler_log:
   crawler_appdata:
   web_log:
+  reverseproxy_log:
   db_datadb:
   db_configdb:
   db_backups:
+
+configs:
+  myakuweb_allowed_hosts:
+    file: ./myakuweb_allowed_hosts.txt
 
 secrets:
   db_root_username:
@@ -167,4 +188,5 @@ secrets:
 networks:
   crawler_net:
   web_net:
+  reverseproxy_net:
   mongobackup_net:

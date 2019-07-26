@@ -103,6 +103,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# Reibun files
+# Myaku data files
 .shelf
 backups/
+
+# Myaku web collectstatic directory
+myakuweb/static/

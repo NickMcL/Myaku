@@ -6,7 +6,7 @@ from myaku.utils import (get_value_from_environment_file,
                          get_value_from_environment_variable)
 
 debug_mode_flag = get_value_from_environment_variable(
-    'IN_DEBUG_MODE', 'Django debug mode flag'
+    'DJANGO_DEBUG_MODE', 'Django debug mode flag'
 )
 if int(debug_mode_flag) == 1:
     DEBUG = True
@@ -20,7 +20,15 @@ SECRET_KEY = get_value_from_environment_file(
     'DJANGO_SECRET_KEY_FILE', 'Django secret key'
 )
 
-ALLOWED_HOSTS = []
+if DEBUG:
+    ALLOWED_HOSTS = []
+else:
+    allowed_hosts_filedata = get_value_from_environment_file(
+        'MYAKUWEB_ALLOWED_HOSTS_FILE', 'Allowed hosts file'
+    )
+    ALLOWED_HOSTS = [
+        host for host in allowed_hosts_filedata.split() if len(host) > 0
+    ]
 
 
 # Application definition
@@ -112,12 +120,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static'),
 ]
 
-STATIC_ROOT = get_value_from_environment_variable(
-    'MYAKUWEB_STATIC_ROOT', 'Myakuweb static root directory'
-)
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 STATIC_URL = get_value_from_environment_variable(
     'MYAKUWEB_STATIC_URL', 'Myakuweb static URL'
