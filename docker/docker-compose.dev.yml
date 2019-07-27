@@ -1,16 +1,26 @@
-# Development overrides for the Myaku stack.
-# Always uses the versions tagged as latest for all images instead of fixed
-# versions.
+# Development overrides for the Myaku stack
 #
-# Run docker stack deploy pasing both the docker-compose.yml file and this file
-# as -f args to run the Myaku stack configured for development, or pass just
-# the docker-compose.yml file as an -f arg to run the Myaku stack configured
-# for production.
+# Overrides the image for all services with the dev tagged version.
+# 
+# The dev tagged version of the image for each service is built using the same
+# Dockerfile as the prod versions, but the dev target is used instead of the
+# prod target.
+#
+# The dev target builds the image expecting binds from the host to supply all
+# needed files from the host instead of copying the needed files directly into
+# the image. This means changes to the host files are then automatically
+# reflected in the service containers without having to rebuild images.
+#
+# The dev tagged images are not publicly published and must be built locally
+# using build_image.sh. Run build_image.sh with no args for usage details.
+#
+# Run docker stack deploy passing both the docker-compose.yml file and this file
+# as -f args to run the Myaku stack configured for development.
 
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler.dev:latest
+    image: friedrice2/myaku_crawler:dev
     deploy:
       restart_policy:
         condition: none
@@ -24,12 +34,12 @@ services:
         target: /myaku/src
     environment:
       # A cron schedule of "#" will comment out the line for the crawl job in
-      # the crontab file so that it will not run while doing develpment.
+      # the crontab file so that it will not run while doing development.
       CRAWL_CRON_SCHEDULE: "#"  
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   web:
-    image: friedrice2/myaku_web.dev:latest
+    image: friedrice2/myaku_web:dev
     deploy:
       restart_policy:
         condition: none
@@ -41,26 +51,40 @@ services:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy.dev:latest
+    image: friedrice2/myaku_nginx.reverseproxy:dev
     deploy:
       restart_policy:
         condition: none
     volumes:
       - type: bind
+        source: ../docker/myaku_nginx-reverseproxy
+        target: /run_files
+      - type: bind
         source: ../myakuweb/static
         target: /www/static
     ports:
       - "8000:80"
-  db:
-    image: friedrice2/myaku_mongo.myakudb:latest
+  crawldb:
+    image: friedrice2/myaku_mongo.crawldb:dev
     deploy:
       restart_policy:
         condition: none
-  mongobackup:
-    image: friedrice2/mongobackup:latest
+    volumes:
+      - type: bind
+        source: ../docker/myaku_mongo-crawldb/initdb.d
+        target: /docker-entrypoint-init.d
+      - type: bind
+        source: ../docker/myaku_mongo-crawldb/run_files
+        target: /run_files
+  crawledb_backup:
+    image: friedrice2/mongobackup:dev
     deploy:
       restart_policy:
         condition: none
+    volumes:
+      - type: bind
+        source: ../docker/mongobackup
+        target: /run_files
 
 volumes:
   crawler_devdata:
@@ -70,21 +94,21 @@ configs:
     file: ./test_configs/myakuweb_allowed_hosts_TESTUSEONLY.txt
 
 secrets:
-  db_root_username:
-    file: ./test_secrets/db_root_username_TESTUSEONLY.txt
-  db_root_password:
-    file: ./test_secrets/db_root_password_TESTUSEONLY.txt
-  db_backup_username:
-    file: ./test_secrets/db_backup_username_TESTUSEONLY.txt
-  db_backup_password:
-    file: ./test_secrets/db_backup_password_TESTUSEONLY.txt
-  db_crawler_username:
-    file: ./test_secrets/db_crawler_username_TESTUSEONLY.txt
-  db_crawler_password:
-    file: ./test_secrets/db_crawler_password_TESTUSEONLY.txt
-  db_web_username:
-    file: ./test_secrets/db_web_username_TESTUSEONLY.txt
-  db_web_password:
-    file: ./test_secrets/db_web_password_TESTUSEONLY.txt
+  crawldb_root_username:
+    file: ./test_secrets/crawldb_root_username_TESTUSEONLY.txt
+  crawldb_root_password:
+    file: ./test_secrets/crawldb_root_password_TESTUSEONLY.txt
+  crawldb_backup_username:
+    file: ./test_secrets/crawldb_backup_username_TESTUSEONLY.txt
+  crawldb_backup_password:
+    file: ./test_secrets/crawldb_backup_password_TESTUSEONLY.txt
+  crawldb_crawler_username:
+    file: ./test_secrets/crawldb_crawler_username_TESTUSEONLY.txt
+  crawldb_crawler_password:
+    file: ./test_secrets/crawldb_crawler_password_TESTUSEONLY.txt
+  crawldb_web_username:
+    file: ./test_secrets/crawldb_web_username_TESTUSEONLY.txt
+  crawldb_web_password:
+    file: ./test_secrets/crawldb_web_password_TESTUSEONLY.txt
   web_django_secret_key:
     file: ./test_secrets/web_django_secret_key_TESTUSEONLY.txt

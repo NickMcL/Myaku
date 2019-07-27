@@ -31,11 +31,11 @@ _log = logging.getLogger(__name__)
 T = TypeVar('T')
 _Document = Dict[str, Any]
 
-_DB_HOST_ENV_VAR = 'MYAKU_DB_HOST'
+_DB_HOST_ENV_VAR = 'MYAKU_CRAWLDB_HOST'
 _DB_PORT = 27017
 
-_DB_USERNAME_FILE_ENV_VAR = 'MYAKU_DB_USERNAME_FILE'
-_DB_PASSWORD_FILE_ENV_VAR = 'MYAKU_DB_PASSWORD_FILE'
+_DB_USERNAME_FILE_ENV_VAR = 'MYAKU_CRAWLDB_USERNAME_FILE'
+_DB_PASSWORD_FILE_ENV_VAR = 'MYAKU_CRAWLDB_PASSWORD_FILE'
 
 
 def _require_write_permission(func: Callable) -> Callable:
@@ -62,7 +62,7 @@ def _require_write_permission(func: Callable) -> Callable:
 
 
 @utils.add_method_debug_logging
-class MyakuDb(object):
+class MyakuCrawlDb(object):
     """Interface object for accessing the Myaku database.
 
     This database stores mappings from Japanese lexical items to native
@@ -595,7 +595,7 @@ class MyakuDb(object):
         """Closes the connection to the database."""
         self._mongo_client.close()
 
-    def __enter__(self) -> 'MyakuDb':
+    def __enter__(self) -> 'MyakuCrawlDb':
         """Initializes the connection to the database."""
         return self
 

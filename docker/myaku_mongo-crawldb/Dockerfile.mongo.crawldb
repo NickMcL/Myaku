@@ -1,0 +1,23 @@
+# Adds scrips for setting up the db for Myaku to the base mongo image.
+
+FROM mongo:4.0.10 AS base
+
+ENV RUN_FILES_DIR /run_files
+ENV MYAKU_MONGO_SEED_JS_PATH $RUN_FILES_DIR/myaku_mongo_seed.js
+
+
+FROM base AS dev
+
+# Volume for sharing in development mongo init files on host with container
+VOLUME ["/docker-entrypoint-initdb.d"]
+
+# Volume for sharing in development run files on host with container
+VOLUME ["$RUN_FILES_DIR"]
+
+
+FROM base AS prod
+
+COPY ./docker/myaku_mongo-crawldb/init.d/run_myaku_mongo_seed.sh \
+    /docker-entrypoint-initdb.d/
+COPY ./docker/myaku_mongo-crawldb/run_files/myaku_mongo_seed.js \
+    $MYAKU_MONGO_SEED_JS_PATH

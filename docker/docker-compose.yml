@@ -10,7 +10,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler.prod:1.0.2
+    image: friedrice2/myaku_crawler:1.0.0
     deploy:
       restart_policy:
         condition: any
@@ -32,18 +32,18 @@ services:
           size: 2000000000  # 2gb
     environment:
       CRAWL_CRON_SCHEDULE: "0 */3 * * *"
-      MYAKU_DB_HOST: db
-      MYAKU_DB_USERNAME_FILE: /run/secrets/db_crawler_username
-      MYAKU_DB_PASSWORD_FILE: /run/secrets/db_crawler_password
+      MYAKU_CRAWLDB_HOST: crawldb
+      MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
+      MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
       DEBUG_LOG_MAX_SIZE: 200000000  # 200mb
       INFO_LOG_MAX_SIZE: 20000000 # 20mb
     secrets:
-      - db_crawler_username
-      - db_crawler_password
+      - crawldb_crawler_username
+      - crawldb_crawler_password
     networks:
-      - crawler_net
+      - backend_net
   web:
-    image: friedrice2/myaku_web.prod:1.0.0
+    image: friedrice2/myaku_web:1.0.0
     deploy:
       restart_policy:
         condition: any
@@ -54,24 +54,22 @@ services:
         source: web_log
         target: /myakuweb/log
     environment:
-      UWSGI_PORT: 3031
-      MYAKU_DB_HOST: db
-      MYAKU_DB_USERNAME_FILE: /run/secrets/db_web_username
-      MYAKU_DB_PASSWORD_FILE: /run/secrets/db_web_password
+      MYAKU_CRAWLDB_HOST: crawldb
+      MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_web_username
+      MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_web_password
       DJANGO_SECRET_KEY_FILE: /run/secrets/web_django_secret_key
       DEBUG_LOG_MAX_SIZE: 200000000  # 200mb
       INFO_LOG_MAX_SIZE: 20000000 # 20mb
     configs:
       - myakuweb_allowed_hosts
     secrets:
-      - db_web_username
-      - db_web_password
+      - crawldb_web_username
+      - crawldb_web_password
       - web_django_secret_key
     networks:
-      - reverseproxy_net
-      - web_net
+      - frontend_net
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy.prod:1.0.0
+    image: friedrice2/myaku_nginx.reverseproxy:1.0.0
     deploy:
       restart_policy:
         condition: any
@@ -85,13 +83,12 @@ services:
       - "80:80"
     environment:
       MYAKUWEB_HOST: web
-      MYAKUWEB_UWSGI_PORT: 3031
     configs:
       - myakuweb_allowed_hosts
     networks:
-      - reverseproxy_net
-  db:
-    image: friedrice2/myaku_mongo.myakudb:1.1.0
+      - frontend_net
+  crawldb:
+    image: friedrice2/myaku_mongo.crawldb:1.0.0
     deploy:
       restart_policy:
         condition: any
@@ -99,38 +96,37 @@ services:
         window: 10s
     volumes:
       - type: volume
-        source: db_datadb
+        source: crawldb_datadb
         target: /data/db
 
       - type: volume
-        source: db_configdb
+        source: crawldb_configdb
         target: /data/configdb
     environment:
-      MYAKU_DB_NAME: myaku
+      MYAKU_CRAWL_DB_NAME: myaku
       MONGO_INITDB_DATABASE: myaku
-      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/db_root_username
-      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
-      MYAKU_DB_BACKUP_USERNAME_FILE: /run/secrets/db_backup_username
-      MYAKU_DB_BACKUP_PASSWORD_FILE: /run/secrets/db_backup_password
-      MYAKU_DB_CRAWLER_USERNAME_FILE: /run/secrets/db_crawler_username
-      MYAKU_DB_CRAWLER_PASSWORD_FILE: /run/secrets/db_crawler_password
-      MYAKU_DB_WEB_USERNAME_FILE: /run/secrets/db_web_username
-      MYAKU_DB_WEB_PASSWORD_FILE: /run/secrets/db_web_password
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/crawldb_root_username
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/crawldb_root_password
+      MYAKU_CRAWLDB_BACKUP_USERNAME_FILE: /run/secrets/crawldb_backup_username
+      MYAKU_CRAWLDB_BACKUP_PASSWORD_FILE: /run/secrets/crawldb_backup_password
+      MYAKU_CRAWLDB_CRAWLER_USERNAME_FILE: /run/secrets/crawldb_crawler_username
+      MYAKU_CRAWLDB_CRAWLER_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
+      MYAKU_CRAWLDB_WEB_USERNAME_FILE: /run/secrets/crawldb_web_username
+      MYAKU_CRAWLDB_WEB_PASSWORD_FILE: /run/secrets/crawldb_web_password
     secrets:
-      - db_root_username
-      - db_root_password
-      - db_backup_username
-      - db_backup_password
-      - db_crawler_username
-      - db_crawler_password
-      - db_web_username
-      - db_web_password
+      - crawldb_root_username
+      - crawldb_root_password
+      - crawldb_backup_username
+      - crawldb_backup_password
+      - crawldb_crawler_username
+      - crawldb_crawler_password
+      - crawldb_web_username
+      - crawldb_web_password
     networks:
-      - crawler_net
-      - web_net
-      - mongobackup_net
-  mongobackup:
-    image: friedrice2/mongobackup:1.0.0_4.0.10
+      - frontend_net
+      - backend_net
+  crawldb_backup:
+    image: friedrice2/mongobackup:1.0.1_4.0.10
     deploy:
       restart_policy:
         condition: any
@@ -138,55 +134,53 @@ services:
         window: 10s
     volumes:
       - type: volume
-        source: db_backups
+        source: crawldb_backups
         target: /backups
     environment:
-      DB_HOST: db
-      DB_USERNAME_FILE: /run/secrets/db_backup_username
-      DB_PASSWORD_FILE: /run/secrets/db_backup_password
+      DB_HOST: crawldb
+      DB_USERNAME_FILE: /run/secrets/crawldb_backup_username
+      DB_PASSWORD_FILE: /run/secrets/crawldb_backup_password
       DB_MAX_ALLOWED_BACKUPS: 20
       DB_BACKUP_CRON_SCHEDULE: "0 5,17 * * *"
     secrets:
-      - db_backup_username
-      - db_backup_password
+      - crawldb_backup_username
+      - crawldb_backup_password
     networks:
-      - mongobackup_net
+      - backend_net
 
 volumes:
   crawler_log:
   crawler_appdata:
   web_log:
   reverseproxy_log:
-  db_datadb:
-  db_configdb:
-  db_backups:
+  crawldb_datadb:
+  crawldb_configdb:
+  crawldb_backups:
 
 configs:
   myakuweb_allowed_hosts:
     file: ./myakuweb_allowed_hosts.txt
 
 secrets:
-  db_root_username:
+  crawldb_root_username:
     external: true
-  db_root_password:
+  crawldb_root_password:
     external: true
-  db_backup_username:
+  crawldb_backup_username:
     external: true
-  db_backup_password:
+  crawldb_backup_password:
     external: true
-  db_crawler_username:
+  crawldb_crawler_username:
     external: true
-  db_crawler_password:
+  crawldb_crawler_password:
     external: true
-  db_web_username:
+  crawldb_web_username:
     external: true
-  db_web_password:
+  crawldb_web_password:
     external: true
   web_django_secret_key:
     external: true
 
 networks:
-  crawler_net:
-  web_net:
-  reverseproxy_net:
-  mongobackup_net:
+  frontend_net:
+  backend_net:

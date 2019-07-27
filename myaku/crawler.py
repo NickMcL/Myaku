@@ -19,7 +19,7 @@ from selenium.webdriver.firefox.webelement import FirefoxWebElement
 
 import myaku
 import myaku.utils as utils
-from myaku.database import MyakuDb
+from myaku.database import MyakuCrawlDb
 from myaku.datatypes import JpnArticle, JpnArticleMetadata
 from myaku.errors import CannotAccessPageError, CannotParsePageError
 from myaku.htmlhelper import HtmlHelper
@@ -365,7 +365,7 @@ class NhkNewsWebCrawler(object):
         self, metadatas: List[JpnArticleMetadata]
     ) -> Generator[JpnArticle, None, None]:
         """Crawls all not yet crawled articles specified by the metadatas."""
-        with MyakuDb() as db:
+        with MyakuCrawlDb() as db:
             uncrawled_metadatas = db.filter_to_unstored_article_metadatas(
                 metadatas, self._ARTICLE_METADATA_CMP_FIELDS
             )
@@ -378,7 +378,7 @@ class NhkNewsWebCrawler(object):
 
         crawl_urls = [m.source_url for m in uncrawled_metadatas]
         crawl_urls = self._make_rel_urls_absolute(crawl_urls)
-        with MyakuDb() as db:
+        with MyakuCrawlDb() as db:
             for i, crawl_url in enumerate(crawl_urls):
                 sleep_time = (random() * 4) + 3
                 _log.debug(

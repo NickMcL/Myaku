@@ -1,7 +1,7 @@
 import time
 
 import myaku.utils as utils
-from myaku.database import MyakuDb
+from myaku.database import MyakuCrawlDb
 from myaku.japanese_analysis import JapaneseTextAnalyzer
 
 LOG_NAME = 'reparse'
@@ -12,7 +12,7 @@ def main() -> None:
 
     start_time = time.perf_counter()
     jta = JapaneseTextAnalyzer()
-    with MyakuDb() as db:
+    with MyakuCrawlDb() as db:
         articles = db.read_articles()
         print('{} articles read from database'.format(len(articles)))
 

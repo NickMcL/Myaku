@@ -6,7 +6,7 @@ from typing import List
 
 import myaku.utils as utils
 from myaku.crawler import NhkNewsWebCrawler
-from myaku.database import MyakuDb
+from myaku.database import MyakuCrawlDb
 from myaku.datatypes import JpnArticle, FoundJpnLexicalItem
 from myaku.japanese_analysis import JapaneseTextAnalyzer
 
@@ -106,7 +106,7 @@ def main() -> None:
 
     stats = CrawlStats()
     jta = JapaneseTextAnalyzer()
-    with MyakuDb() as db, NhkNewsWebCrawler() as crawler:
+    with MyakuCrawlDb() as db, NhkNewsWebCrawler() as crawler:
         crawls = crawler.get_main_crawls()
 
         for crawl in crawls:

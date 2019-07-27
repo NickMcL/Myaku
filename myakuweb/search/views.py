@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.http.request import HttpRequest
 from django.shortcuts import render
 
-from myaku.database import MyakuDb
+from myaku.database import MyakuCrawlDb
 from myaku.datatypes import (FoundJpnLexicalItem, JpnArticle,
                              LexicalItemTextPosition)
 
@@ -16,7 +16,7 @@ class QueryArticleResultSet(object):
     def __init__(self, query: str) -> None:
         """Queries the Myaku db to get the article result set for query."""
         if query:
-            with MyakuDb(read_only=True) as db:
+            with MyakuCrawlDb(read_only=True) as db:
                 self._result_flis = db.read_found_lexical_items(query, True)
         else:
             self._result_flis = []
