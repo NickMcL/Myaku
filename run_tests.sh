@@ -7,6 +7,30 @@ BLUE='\e[34m'
 NC='\e[0m'
 
 
+usage()
+{
+    test_status="N/A"
+    cat << EOF
+usage: run_tests.sh [-e|--use-existing-images] [-n|--no-cleanup] [-h|--help]
+
+Runs all tests in a deployed Myaku docker stack.
+
+By default, builds new prod images tagged as "test" for each service with the
+current code in the working directory to use for the tests.
+
+-e|--use-existing-images: Instead of building new prod images for the tests,
+use the existing images specified in the current prod docker compose file
+(./docker/docker-compose.yml).
+
+-n|--no-cleanup: By default, attempts to delete any docker objects from the
+    test run or previous test runs to clean up, but if this option is set, will
+    not attempt to delete any docker objects.
+
+-h|--help: Outputs this message and exits.
+EOF
+}
+
+
 cleanup()
 {
     if [ -n "$stack" ]; then
@@ -46,36 +70,18 @@ error_handler()
 trap 'error_handler ${LINENO}' ERR
 
 
-usage()
-{
-    test_status="N/A"
-    cat << EOF
-usage: run_tests.sh [<tag>] [-n|--no-cleanup] [-h|--help]
-
-Runs all tests in a deployed Myaku docker stack.
-
-By default, builds a new crawler.prod:test image with the current code in the
-working directory to use for the tests.
-
-If a tag is passed as a parameter, will use the existing crawler.prod:<tag>
-image for the tests instead.
-
--n|--no-cleanup: By default, attempts to delete any docker objects from the
-    test run or previous test runs to clean up, but if this option is set, will
-    not attempt to delete any docker objects.
-
--h|--help: Outputs this message and exits.
-EOF
-}
-
-
 test_status="NotStarted"
 no_cleanup=0
-image_tag=""
+use_existing_images_flag=""
 while [[ $# -gt 0 ]]
 do
     key="$1"
     case $key in 
+        -e|--use-existing-images)
+            use_existing_images_flag="-e"
+            shift
+            ;;
+
         -n|--no-cleanup)
             no_cleanup=1
             shift
@@ -87,13 +93,8 @@ do
             ;;
 
         *)
-            if [ -z "$image_tag" ]; then
-                image_tag="$1"
-                shift
-            else
-                usage
-                exit 1
-            fi
+            usage
+            exit 1
             ;;
     esac
 done
@@ -107,7 +108,7 @@ else
     echo "Skipped clean up of previous test docker objects"
 fi
 
-stack=$(./deploy_test_stack.sh "$image_tag")
+stack=$(./deploy_test_stack.sh $use_existing_images_flag)
 if [ $? -ne 0 ] || [ -z "$stack" ]; then
     error_handler ${LINENO} "${RED}Test stack deployment failed${NC}"
 fi

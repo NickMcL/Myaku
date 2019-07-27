@@ -6,22 +6,6 @@ BLUE='\e[34m'
 NC='\e[0m'
 
 
-error_handler()
-{
-    lineno="$1"
-    error_message="$2"
-    if [ -n "$error_message" ]; then
-        echo -e "${RED}teardown_test_stack: Error around $lineno:" \
-            "$error_message${NC}" >&2
-    else
-        echo -e "${RED}teardown_test_stack: Error around $lineno${NC}" >&2
-    fi
-    exit 1
-}
-trap 'error_handler ${LINENO}' ERR
-
-
-
 usage()
 {
     cat << EOF
@@ -39,6 +23,21 @@ If no arguments are given, tears down all stacks that have a name starting with
 -h|--help: Outputs this message and exits.
 EOF
 }
+
+
+error_handler()
+{
+    lineno="$1"
+    error_message="$2"
+    if [ -n "$error_message" ]; then
+        echo -e "${RED}teardown_test_stack: Error around $lineno:" \
+            "$error_message${NC}" >&2
+    else
+        echo -e "${RED}teardown_test_stack: Error around $lineno${NC}" >&2
+    fi
+    exit 1
+}
+trap 'error_handler ${LINENO}' ERR
 
 
 # $1 is one of stack, service, container, volume, network, or secret.

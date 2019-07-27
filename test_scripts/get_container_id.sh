@@ -5,6 +5,19 @@ RED='\e[31m'
 BLUE='\e[34m'
 NC='\e[0m'
 
+
+usage()
+{
+    cat << EOF
+usage: get_container_id.sh <service_name> [-h|--help]
+
+Prints the container ID for the given one-container service to stdout.
+
+-h|--help: Outputs this message and exits.
+EOF
+}
+
+
 error_handler()
 {
     lineno="$1"
@@ -16,18 +29,6 @@ error_handler()
         echo -e "${RED}get_container_id: Error around $lineno${NC}" >&2
     fi
     exit 1
-}
-
-
-usage()
-{
-    cat << EOF
-usage: get_container_id.sh <service_name> [-h|--help]
-
-Prints the container ID for the given one-container service to stdout.
-
--h|--help: Outputs this message and exits.
-EOF
 }
 
 

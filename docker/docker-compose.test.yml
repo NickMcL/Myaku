@@ -1,48 +1,60 @@
 # Test overrides for the Myaku stack.
-# Uses the crawler.prod:test image instead of the current production version.
+# 
+# By default, uses the images tagged "test" for each service. These images are
+# automatically built when running run_tests.sh, and they are functionally built
+# the exact same way as the prod images for each service.
 #
-# Run docker stack deploy pasing both the docker-compose.yml file and this file
-# as -f args to run the Myaku stack configured for running the test suite.
+# Run docker stack deploy passing both the docker-compose.yml file and this
+# file as -f args to run the Myaku stack configured for running the test suite.
 
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler.prod:test
+    image: friedrice2/myaku_crawler:test
     deploy:
       restart_policy:
         condition: none
   web:
-    image: friedrice2/myaku_crawler.prod:test
+    image: friedrice2/myaku_web:test
     deploy:
       restart_policy:
         condition: none
   reverseproxy:
+    image: friedrice2/myaku_nginx.reverseproxy:test
     deploy:
       restart_policy:
         condition: none
-  db:
+  crawldb:
+    image: friedrice2/myaku_mongo.crawldb:test
     deploy:
       restart_policy:
         condition: none
-  mongobackup:
+  crawldb_backup:
+    image: friedrice2/mongobackup:test
     deploy:
       restart_policy:
         condition: none
 
 configs:
   myakuweb_allowed_hosts:
-    file: ./test_configs/myakuweb_allowed_hosts_TESTUSEONLY.txt
+    file: ./dev_configs/myakuweb_allowed_hosts_DEVUSEONLY.txt
 
 secrets:
-  db_root_username:
-    file: ./test_secrets/db_root_username_TESTUSEONLY.txt
-  db_root_password:
-    file: ./test_secrets/db_root_password_TESTUSEONLY.txt
-  db_backup_username:
-    file: ./test_secrets/db_backup_username_TESTUSEONLY.txt
-  db_backup_password:
-    file: ./test_secrets/db_backup_password_TESTUSEONLY.txt
-  db_crawler_username:
-    file: ./test_secrets/db_crawler_username_TESTUSEONLY.txt
-  db_crawler_password:
-    file: ./test_secrets/db_crawler_password_TESTUSEONLY.txt
+  crawldb_root_username:
+    file: ./dev_secrets/crawldb_root_username_DEVUSEONLY.txt
+  crawldb_root_password:
+    file: ./dev_secrets/crawldb_root_password_DEVUSEONLY.txt
+  crawldb_backup_username:
+    file: ./dev_secrets/crawldb_backup_username_DEVUSEONLY.txt
+  crawldb_backup_password:
+    file: ./dev_secrets/crawldb_backup_password_DEVUSEONLY.txt
+  crawldb_crawler_username:
+    file: ./dev_secrets/crawldb_crawler_username_DEVUSEONLY.txt
+  crawldb_crawler_password:
+    file: ./dev_secrets/crawldb_crawler_password_DEVUSEONLY.txt
+  crawldb_web_username:
+    file: ./dev_secrets/crawldb_web_username_DEVUSEONLY.txt
+  crawldb_web_password:
+    file: ./dev_secrets/crawldb_web_password_DEVUSEONLY.txt
+  web_django_secret_key:
+    file: ./dev_secrets/web_django_secret_key_DEVUSEONLY.txt

@@ -4,6 +4,26 @@ RED='\e[31m'
 BLUE='\e[34m'
 NC='\e[0m'
 
+
+usage()
+{
+    cat << EOF
+usage: deloy_test_stack.sh [-e|--use-existing-images] [-h|--help]
+
+Deploys a Myaku docker stack for testing.
+
+By default, builds new prod images tagged as "test" for each service with the
+current code in the working directory to use for the tests.
+
+-e|--use-existing-images: Instead of building new prod images for the tests,
+use the existing images specified in the current prod docker compose file
+(./docker/docker-compose.yml).
+
+-h|--help: Outputs this message and exits.
+EOF
+}
+
+
 error_handler()
 {
     lineno="$1"
@@ -23,70 +43,73 @@ error_handler()
 trap "error_handler ${LINENO}" ERR
 
 
-usage()
-{
-    cat << EOF
-usage: deloy_test_stack.sh [<tag>] [-h|--help]
-
-Deploys a Myaku docker stack for testing.
-
-By default, builds a new crawler.prod:test image with the current code in the
-working directory to deploy with the stack.
-
-If a tag is passed as a parameter, will deploy the existing crawler.prod:<tag>
-image with the stack instead.
-
--h|--help: Outputs this message and exits.
-EOF
-}
-
-
-image_tag=""
+use_existing_images=0
 while [[ $# -gt 0 ]]
 do
     key="$1"
     case $key in 
+        -e|--use-existing-images)
+            use_existing_images=1
+            exit 1
+            ;;
+
         -h|--help)
             usage
             exit 1
             ;;
 
         *)
-            if [ -z "$image_tag" ]; then
-                image_tag="$1"
-                shift
-            else
-                usage
-                exit 1
-            fi
+            usage
+            exit 1
             ;;
     esac
 done
 
-if [ -z "$image_tag" ]; then
-    echo "Building and using friedrice2/myaku_crawler.prod:test image..." >&2
-    sudo docker build --target "prod" \
-        -f "../docker/dockerfiles/Dockerfile.crawler" \
-        -t "friedrice2/myaku_crawler.prod:test" .. > /dev/null
-
-    # Add a backslash before the forward slash so that the forward slash will
-    # be esacped in the sed find replace.
-    image_name="friedrice2\\/myaku_crawler.prod:test"
-else
-    echo "Using existing friedrice2/myaku_crawler.prod:$image_tag image" >&2
-    image_name="friedrice2\\/myaku_crawler.prod:$image_tag"
-fi
-
 test_run_id="$(hexdump -n 4 -e '"%08x"' /dev/urandom)"
 test_stack="myaku_test_$test_run_id"
 
-echo "Deploying Myaku test stack $test_stack" >&2
-cat "../docker/docker-compose.test.yml" | \
-    sed -e "s/friedrice2\/myaku_crawler.prod:test/$image_name/g" | \
-    sudo docker stack deploy \
-        -c "../docker/docker-compose.yml" -c - \
-        --resolve-image never $test_stack > /dev/null
-echo -e "${BLUE}Deployment of stack $test_stack created${NC}" >&2
+if [ "$use_existing_images" == "0" ]; then
+    echo "Building friedrice2/myaku_crawler:test image..." >&2
+    sudo docker build --target prod \
+        -f "../docker/myaku_crawler/Dockerfile.crawler" \
+        -t "friedrice2/myaku_crawler:test" .. > /dev/null
 
+    echo "Building friedrice2/myaku_web:test image..." >&2
+    sudo docker build --target prod \
+        -f "../docker/myaku_web/Dockerfile.myakuweb" \
+        -t "friedrice2/myaku_web:test" .. > /dev/null
+
+    echo "Building friedrice2/myaku_nginx.reverseproxy:test image..." >&2
+    sudo docker build --target prod \
+        -f "../docker/myaku_nginx-reverseproxy/Dockerfile.nginx.reverseproxy" \
+        -t "friedrice2/myaku_nginx.reverseproxy:test" .. > /dev/null
+
+    echo "Building friedrice2/myaku_mongo.crawldb:test image..." >&2
+    sudo docker build --target prod \
+        -f "../docker/myaku_mongo-crawldb/Dockerfile.mongo.crawldb" \
+        -t "friedrice2/myaku_mongo.crawldb:test" .. > /dev/null
+
+    echo "Building friedrice2/mongobackup:test image..." >&2
+    sudo docker build --target prod \
+        -f "../docker/mongobackup/Dockerfile.mongobackup" \
+        -t "friedrice2/mongobackup:test" .. > /dev/null
+
+    echo "Using newly built test images" >&2
+    echo "Deploying Myaku test stack $test_stack" >&2
+    sudo docker stack deploy \
+        -c "../docker/docker-compose.yml" \
+        -c "../docker/docker-compose.test.yml" \
+        --resolve-image never $test_stack > /dev/null
+else
+    echo "Using existing images specified in docker/docker-compose.yml" >&2
+
+    echo "Deploying Myaku test stack $test_stack" >&2
+    cat "../docker/docker-compose.test.yml" | sed -e "/image:/d" | \
+        sudo docker stack deploy \
+            -c "../docker/docker-compose.yml" -c - \
+            --resolve-image never $test_stack > /dev/null
+fi
+
+echo -e "${BLUE}Deployment of stack $test_stack created${NC}" >&2
 echo "$test_stack"
 exit 0
