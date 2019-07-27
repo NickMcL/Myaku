@@ -827,7 +827,7 @@ class JMdict(object):
         _log.debug(
             'Writing current JMdict maps to shelf at "%s"', shelf_path
         )
-        with shelve.open(shelf_path, 'c') as shelf:
+        with shelve.open(shelf_path, 'n') as shelf:
             shelf['_mecab_decomp_map_items'] = list(
                 self._mecab_decomp_map.items()
             )
