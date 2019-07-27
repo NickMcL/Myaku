@@ -23,8 +23,6 @@ ENTRYPOINT ["/bin/bash", "$NGINX_RUN_FILES/run_nginx.sh"]
 
 FROM base AS dev
 
-ENV NGINX_DEBUG_MODE 1
-
 # Volume for sharing in development run files on host with container
 VOLUME ["$NGINX_RUN_FILES_DIR"]
 
@@ -34,10 +32,9 @@ VOLUME ["$NGINX_STATIC_ALIAS"]
 
 FROM base AS prod
 
-ENV NGINX_DEBUG_MODE 0
 ENV MYAKUWEB_ALLOWED_HOSTS_FILE /myakuweb_allowed_hosts
 
 COPY ./myakuweb/static $NGINX_STATIC_ALIAS
-COPY ./docker/myaku_reverseproxy/run_nginx.sh $NGINX_RUN_FILES_DIR/
-COPY ./docker/myaku_reverseproxy/nginx_template.conf $NGINX_RUN_FILES_DIR/
-COPY ./docker/myaku_reverseproxy/uwsgi_params $MYAKUWEB_UWSGI_PARAMS_FILE
+COPY ./docker/myaku_nginx-reverseproxy/run_nginx.sh $NGINX_RUN_FILES_DIR/
+COPY ./docker/myaku_nginx-reverseproxy/nginx_template.conf $NGINX_RUN_FILES_DIR/
+COPY ./docker/myaku_nginx-reverseproxy/uwsgi_params $MYAKUWEB_UWSGI_PARAMS_FILE

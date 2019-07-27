@@ -91,24 +91,24 @@ volumes:
 
 configs:
   myakuweb_allowed_hosts:
-    file: ./test_configs/myakuweb_allowed_hosts_TESTUSEONLY.txt
+    file: ./dev_configs/myakuweb_allowed_hosts_DEVUSEONLY.txt
 
 secrets:
   crawldb_root_username:
-    file: ./test_secrets/crawldb_root_username_TESTUSEONLY.txt
+    file: ./dev_secrets/crawldb_root_username_DEVUSEONLY.txt
   crawldb_root_password:
-    file: ./test_secrets/crawldb_root_password_TESTUSEONLY.txt
+    file: ./dev_secrets/crawldb_root_password_DEVUSEONLY.txt
   crawldb_backup_username:
-    file: ./test_secrets/crawldb_backup_username_TESTUSEONLY.txt
+    file: ./dev_secrets/crawldb_backup_username_DEVUSEONLY.txt
   crawldb_backup_password:
-    file: ./test_secrets/crawldb_backup_password_TESTUSEONLY.txt
+    file: ./dev_secrets/crawldb_backup_password_DEVUSEONLY.txt
   crawldb_crawler_username:
-    file: ./test_secrets/crawldb_crawler_username_TESTUSEONLY.txt
+    file: ./dev_secrets/crawldb_crawler_username_DEVUSEONLY.txt
   crawldb_crawler_password:
-    file: ./test_secrets/crawldb_crawler_password_TESTUSEONLY.txt
+    file: ./dev_secrets/crawldb_crawler_password_DEVUSEONLY.txt
   crawldb_web_username:
-    file: ./test_secrets/crawldb_web_username_TESTUSEONLY.txt
+    file: ./dev_secrets/crawldb_web_username_DEVUSEONLY.txt
   crawldb_web_password:
-    file: ./test_secrets/crawldb_web_password_TESTUSEONLY.txt
+    file: ./dev_secrets/crawldb_web_password_DEVUSEONLY.txt
   web_django_secret_key:
-    file: ./test_secrets/web_django_secret_key_TESTUSEONLY.txt
+    file: ./dev_secrets/web_django_secret_key_DEVUSEONLY.txt

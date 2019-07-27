@@ -7,15 +7,10 @@ set -e
 # Myaku web container, so wait for uwsgi to be ready
 wait-for-it $MYAKUWEB_HOST:$MYAKUWEB_UWSGI_PORT -t 10
 
-if [ "$NGINX_DEBUG_MODE" == "1" ]; then
-    # Allow all hosts in debug mode
-    export ALLOWED_HOSTS="_"
-else
-    # Set allowed hosts from docker config file
-    export MYAKUWEB_ALLOWED_HOSTS="$(\
-        cat $MYAKUWEB_ALLOWED_HOSTS_FILE | tr '\n' ' ' | sed 's/ $//g' \
-    )"
-fi
+# Set allowed hosts from docker config file
+export MYAKUWEB_ALLOWED_HOSTS="$(\
+    cat $MYAKUWEB_ALLOWED_HOSTS_FILE | tr '\n' ' ' | sed 's/ $//g' \
+)"
 
 envsubst < $NGINX_DOCKER_FILES_DIR/nginx_template.conf > \
     /etc/nginx/conf.d/myaku_reverseproxy.conf
