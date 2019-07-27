@@ -41,7 +41,7 @@ services:
       - crawldb_crawler_username
       - crawldb_crawler_password
     networks:
-      - backend_net
+      - crawler_net
   web:
     image: friedrice2/myaku_web:1.0.0
     deploy:
@@ -68,7 +68,7 @@ services:
       - crawldb_web_password
       - web_django_secret_key
     networks:
-      - frontend_net
+      - web_net
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:1.0.0
     deploy:
@@ -88,7 +88,7 @@ services:
     configs:
       - myakuweb_allowed_hosts
     networks:
-      - frontend_net
+      - web_net
   crawldb:
     image: friedrice2/myaku_mongo.crawldb:1.0.0
     deploy:
@@ -125,8 +125,8 @@ services:
       - crawldb_web_username
       - crawldb_web_password
     networks:
-      - frontend_net
-      - backend_net
+      - web_net
+      - crawler_net
   crawldb_backup:
     image: friedrice2/mongobackup:1.0.1_4.0.10
     deploy:
@@ -148,7 +148,7 @@ services:
       - crawldb_backup_username
       - crawldb_backup_password
     networks:
-      - backend_net
+      - crawler_net
 
 volumes:
   crawler_log:
@@ -184,5 +184,5 @@ secrets:
     external: true
 
 networks:
-  frontend_net:
-  backend_net:
+  web_net:
+  crawler_net:
