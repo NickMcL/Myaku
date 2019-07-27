@@ -42,7 +42,6 @@ error_handler()
 }
 trap "error_handler ${LINENO}" ERR
 
-
 use_existing_images=0
 while [[ $# -gt 0 ]]
 do
@@ -50,7 +49,7 @@ do
     case $key in 
         -e|--use-existing-images)
             use_existing_images=1
-            exit 1
+            shift
             ;;
 
         -h|--help)
@@ -68,7 +67,7 @@ done
 test_run_id="$(hexdump -n 4 -e '"%08x"' /dev/urandom)"
 test_stack="myaku_test_$test_run_id"
 
-if [ "$use_existing_images" == "0" ]; then
+if [ $use_existing_images -eq 0 ]; then
     echo "Building friedrice2/myaku_crawler:test image..." >&2
     sudo docker build --target prod \
         -f "../docker/myaku_crawler/Dockerfile.crawler" \
