@@ -57,6 +57,7 @@ services:
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_web_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_web_password
+      MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts
       DJANGO_SECRET_KEY_FILE: /run/secrets/web_django_secret_key
       DEBUG_LOG_MAX_SIZE: 200000000  # 200mb
       INFO_LOG_MAX_SIZE: 20000000 # 20mb
@@ -78,11 +79,12 @@ services:
     volumes:
       - type: volume
         source: reverseproxy_log
-        target: /nginx_docker/log
+        target: /nginx_log
     ports:
       - "80:80"
     environment:
       MYAKUWEB_HOST: web
+      MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts
     configs:
       - myakuweb_allowed_hosts
     networks:
@@ -103,7 +105,7 @@ services:
         source: crawldb_configdb
         target: /data/configdb
     environment:
-      MYAKU_CRAWL_DB_NAME: myaku
+      MYAKU_CRAWLDB_NAME: myaku
       MONGO_INITDB_DATABASE: myaku
       MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/crawldb_root_username
       MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/crawldb_root_password

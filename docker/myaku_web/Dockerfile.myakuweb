@@ -36,15 +36,14 @@ ENV PYTHONUNBUFFERED 1
 ENV MYAKUWEB_STATIC_URL /static/
 
 ENV UWSGI_PORT 3031
-COPY ./docker/myaku_web/myakuweb_uwsgi_template.ini /
-COPY ./docker/myaku_web/run_uwsgi.sh /
-ENTRYPOINT ["/bin/bash", "/run_uwsgi.sh"]
+
+ENTRYPOINT ["/bin/bash", "-c", \
+    "$MYAKUWEB_SRC_DIR/docker/myaku_web/run_uwsgi.sh"]
 
 
 FROM base AS dev
 
 ENV DJANGO_DEBUG_MODE 1
-ENV UWSGI_PY_AUTORELOAD_INI_LINE py-autoreload = 1
 
 # Volume for sharing in development source on host with container
 VOLUME ["$MYAKUWEB_SRC_DIR"]
@@ -53,11 +52,8 @@ VOLUME ["$MYAKUWEB_SRC_DIR"]
 FROM base AS prod
 
 ENV DJANGO_DEBUG_MODE 0
-ENV MYAKUWEB_ALLOWED_HOSTS_FILE /myakuweb_allowed_hosts
-
-# Intentionally set to empty to remove py-autoreload line from uwsgi ini
-ENV UWSGI_PY_AUTORELOAD_INI_LINE=
 
 # Copy all source code into the container
 COPY . $MYAKUWEB_SRC_DIR
 
+RUN chmod +x $MYAKUWEB_SRC_DIR/docker/myaku_web/run_uwsgi.sh

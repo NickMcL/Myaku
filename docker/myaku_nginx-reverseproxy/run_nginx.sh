@@ -12,6 +12,6 @@ export MYAKUWEB_ALLOWED_HOSTS="$(\
     cat $MYAKUWEB_ALLOWED_HOSTS_FILE | tr '\n' ' ' | sed 's/ $//g' \
 )"
 
-envsubst < $NGINX_DOCKER_FILES_DIR/nginx_template.conf > \
+envsubst < $NGINX_RUN_FILES_DIR/nginx_template.conf > \
     /etc/nginx/conf.d/myaku_reverseproxy.conf
 exec nginx -g 'daemon off;'

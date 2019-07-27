@@ -50,6 +50,11 @@ services:
     environment:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
+
+    # Needed so that you can attach to pdb running in the container when
+    # debugging.
+    stdin_open: true
+    tty: true
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:dev
     deploy:
@@ -57,7 +62,7 @@ services:
         condition: none
     volumes:
       - type: bind
-        source: ../docker/myaku_nginx-reverseproxy
+        source: ./myaku_nginx-reverseproxy
         target: /run_files
       - type: bind
         source: ../myakuweb/static
@@ -71,19 +76,19 @@ services:
         condition: none
     volumes:
       - type: bind
-        source: ../docker/myaku_mongo-crawldb/initdb.d
-        target: /docker-entrypoint-init.d
+        source: ./myaku_mongo-crawldb/initdb.d
+        target: /docker-entrypoint-initdb.d
       - type: bind
-        source: ../docker/myaku_mongo-crawldb/run_files
+        source: ./myaku_mongo-crawldb/run_files
         target: /run_files
-  crawledb_backup:
+  crawldb_backup:
     image: friedrice2/mongobackup:dev
     deploy:
       restart_policy:
         condition: none
     volumes:
       - type: bind
-        source: ../docker/mongobackup
+        source: ./mongobackup
         target: /run_files
 
 volumes:
