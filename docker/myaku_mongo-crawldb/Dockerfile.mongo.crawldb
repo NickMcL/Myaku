@@ -17,7 +17,7 @@ VOLUME ["$RUN_FILES_DIR"]
 
 FROM base AS prod
 
-COPY ./docker/myaku_mongo-crawldb/init.d/run_myaku_mongo_seed.sh \
+COPY ./docker/myaku_mongo-crawldb/initdb.d/run_myaku_mongo_seed.sh \
     /docker-entrypoint-initdb.d/
 COPY ./docker/myaku_mongo-crawldb/run_files/myaku_mongo_seed.js \
     $MYAKU_MONGO_SEED_JS_PATH
