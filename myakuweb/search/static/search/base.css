@@ -1,0 +1,13 @@
+.inline {
+  display: inline;
+}
+
+.nav {
+  text-decoration: underline;
+}
+
+.form-control:focus{
+  border-color: #cccccc;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}

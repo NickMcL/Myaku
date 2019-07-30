@@ -4,44 +4,49 @@
 {% block title %}Myaku{% endblock %}
 
 {% block content %}
-<img src="{% static "images/logo_small.gif" %}" alt="脈"/>
-
-<form action="/" method="get">
-    <input id="query" type="text" name="q" required>
-    <input type="submit" value="Search">
-</form>
-
-{% if display_results %}
-    <p>
-        Found {{ query_result_set.instance_count }} instances of
-        「{{ request.GET.q }}」 across {{ query_result_set.article_count }}
-        articles.
-    </p>
-    {% for article_result in query_result_set.ranked_article_results %}
-        <br/>
-        <p>
-            {{ forloop.counter }}.
-            <a href="{{ article_result.source_url }}">
-                {{ article_result.title }}
-            </a> - 
-            {{ article_result.source_name }} -
-            {{ article_result.publication_datetime|date:"M jS, Y" }}
-        </p>
-        <p>Total characters: {{ article_result.alnum_count }}</p>
-        <p>Total instances: {{ article_result.total_instances }}</p>
-        <p>Tags: {{ article_result.tags|join:", " }}</p>
-
-        <ul style="list-style-type:none">
-        {% for instance_result in article_result.instance_results %}
-            <li>
-                {{ instance_result.pos_percent }}%:
-                {{ instance_result.sentence_start_text}}
-                <strong>{{ instance_result.instance_text }}</strong>
-                {{ instance_result.sentence_end_text }}
-            </li>
-        {% endfor %}
+<div class="container-fluid bg-white shadow-sm">
+  <div class="container">
+    <div class="row mb-3 pt-2">
+      <div class="col">
+        <img src="{% static "images/myaku_logo.png" %}"/>
+      </div>
+      <div class="col">
+        <ul class="nav justify-content-end">
+          <li class="nav-item">
+            <a class="nav-link" href="https://github.com/FriedRice/Myaku">Github</a>
+          </li>
         </ul>
-    {% endfor %}
-{% endif %}
+      </div>
+    </div>
+
+    <form class="pb-3 mb-2" action="/" method="get">
+      <div class="row">
+        <div class="col-9">
+          <div class="input-group">
+            <input class="form-control" id="query" type="text" name="q"
+                value="{{ request.GET.q }}"
+                placeholder="Japanese word, set phrase, idiom, etc.">
+            <div class="input-group-append">
+              <select class="form-control" name="match_type">
+                <option selected>Starts with</option>
+                <option>Exact match</option>
+                <option>Ends with</option>
+              </select>
+            </div>
+            <div class="input-group-append">
+              <button type="submit" class="btn btn-primary">
+                <i class="fa fa-search"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="container bg-light">
+  {% block search_results %}{% endblock %}
+</div>
 
 {% endblock %}

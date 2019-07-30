@@ -10,6 +10,13 @@ from myaku.datatypes import (FoundJpnLexicalItem, JpnArticle,
                              LexicalItemTextPosition)
 
 
+MATCH_TYPE_DESC_MAP = {
+    'Exact match': 'exactly matching',
+    'Starts with': 'starting with',
+    'Ends with': 'ending with',
+}
+
+
 class QueryArticleResultSet(object):
     """The set of article results of a query of the Myaku db."""
 
@@ -85,10 +92,15 @@ class QueryInstanceResult(object):
 def index(request: HttpRequest) -> HttpResponse:
     """Search index page handler."""
     if len(request.GET.get('q', '')) > 0:
+        match_type = request.GET.get('match_type', 'Starts with')
         query_result_set = QueryArticleResultSet(request.GET['q'])
         return render(
-            request, 'search/index.html',
-            {'display_results': True, 'query_result_set': query_result_set}
+            request, 'search/results.html',
+            {
+                'display_results': True,
+                'match_type_desc': MATCH_TYPE_DESC_MAP[match_type],
+                'query_result_set': query_result_set
+            }
         )
 
     return render(request, 'search/index.html', {'display_results': False})

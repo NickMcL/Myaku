@@ -1,0 +1,44 @@
+{% extends "search/index.html" %}
+
+{% block search_results %}
+<div>
+  <div class="row mb-3">
+    <div class="col-9 py-auto bg-white shadow-sm rounded">
+      <h3 class="inline">Articles</h3>
+      <div class="inline">— {{ query_result_set.article_count }} articles found with {{ query_result_set.instance_count }} instances in total</div>
+    </div>
+    <div class="col-3 ml-auto bg-white shadow-sm rounded">
+      <h3>Other References</h3>
+    </div>
+  </div>
+
+  {% for article_result in query_result_set.ranked_article_results %}
+    <div class="row mb-4">
+      <div class="col-9 pt-2 bg-white shadow-sm rounded">
+        <p>
+          <a href="{{ article_result.source_url }}">
+            {{ article_result.title }}
+          </a> - 
+          {{ article_result.source_name }} -
+          {{ article_result.publication_datetime|date:"M jS, Y" }}
+        </p>
+        <p>Total characters: {{ article_result.alnum_count }}</p>
+        <p>Total instances: {{ article_result.total_instances }}</p>
+        <p>Tags: {{ article_result.tags|join:", " }}</p>
+
+        <ul style="list-style-type:none">
+        {% for instance_result in article_result.instance_results %}
+          <li>
+            {{ instance_result.pos_percent }}%:
+            {{ instance_result.sentence_start_text}}
+            <strong>{{ instance_result.instance_text }}</strong>
+            {{ instance_result.sentence_end_text }}
+          </li>
+        {% endfor %}
+        </ul>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
