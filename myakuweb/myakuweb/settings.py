@@ -128,3 +128,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = get_value_from_environment_variable(
     'MYAKUWEB_STATIC_URL', 'Myakuweb static URL'
 )
+
+
+# Other misc settings
+
+APPEND_SLASH = False
