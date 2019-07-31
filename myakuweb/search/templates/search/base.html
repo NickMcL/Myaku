@@ -6,18 +6,90 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
+    <!-- Icon stuff -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#2b5797">
+    <meta name="theme-color" content="#ffffff">
+
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 
-    <link rel="stylesheet" href="{% static "fontawesome/all.min.css" %}">
+    <!-- Font Awesome CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous"> 
+
+    <!-- Fonts from Google Fonts API -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Sans+JP:400,500,700|Noto+Sans:400,700&display=swap&subset=japanese,latin-ext">
+
     <link rel="stylesheet" href="{% static "search/base.css" %}">
 
-    <script defer src="{% static "fontawesome/all.min.js" %}"></script>
-
-    <title>{% block title %}{% endblock %}</title>
+    <title>{% block title %}Myaku{% endblock %}</title>
   </head>
   <body class="bg-light">
-    {% block content %}{% endblock %}
+    <div class="container-fluid bg-white shadow-sm">
+      <div class="container search-top">
+        <nav class="navbar d-flex align-items-start">
+          <a class="navbar-brand" href="/">
+            <img class="img-fluid d-none d-md-block"
+                src="{% static "images/myaku_logo.png" %}"/>
+            <img class="img-fluid d-block d-md-none"
+                src="{% static "images/myaku_logo_small.png" %}"/>
+          </a>
+          <ul class="navbar-nav align-top">
+            <li class="nav-item">
+              <a class="nav-link" href="https://github.com/FriedRice/Myaku">Github</a>
+            </li>
+          </ul>
+        </nav>
+
+        <form class="pb-3 mb-2" action="/" method="get">
+          <div class="row">
+            <div class="col col-lg-9">
+              <div class="input-group">
+                <input class="form-control" id="query" type="text" name="q"
+                    value="{{ request.GET.q }}"
+                    placeholder="Japanese word, set phrase, idiom, etc.">
+                <div class="input-group-append">
+                  <select class="form-control" name="match_type">
+                    <option value="STARTS_WITH"
+                    {% if not request.GET.match_type or request.GET.match_type == "STARTS_WITH" %}
+                      selected
+                    {% endif %}
+                    >Starts with</option>
+
+                    <option value="EXACT_MATCH"
+                    {% if request.GET.match_type == "EXACT_MATCH" %}
+                      selected
+                    {% endif %}
+                    >Exact match</option>
+
+                    <option value="ENDS_WITH"
+                    {% if request.GET.match_type == "ENDS_WITH" %}
+                      selected
+                    {% endif %}
+                    >Ends with</option>
+                  </select>
+                </div>
+                <div class="input-group-append">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-search"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="container-fluid bg-light">
+      <div class="container">
+        {% block tile_content %}{% endblock %}
+      </div>
+    </div>
 
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>

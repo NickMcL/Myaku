@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y wait-for-it
 
 ENV NGINX_STATIC_URL /static/
 ENV NGINX_STATIC_ALIAS /www/static/
+ENV NGINX_ICON_ALIAS /www/static/icon/
 
 ENV NGINX_RUN_FILES_DIR /run_files
 
