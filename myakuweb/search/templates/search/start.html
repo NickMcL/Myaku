@@ -1,9 +1,35 @@
 {% extends "search/base.html" %}
 
 {% block tile_content %}
-<div class="row bg-white shadow-sm rounded">
-  <div class="col start-tile">
-    Myaku is a search engine
+<div class="row mb-3">
+  <div class="col col-lg-9 card pt-2 px-3 start-tile shadow-sm">
+    <h4 class="myaku-color">What is Myaku?</h4>
+    <p><span class="key-word">Myaku</span> is a tool for learning Japanese
+    from context.</p>
+
+    <p>It helps develop a natural feel for Japanese by showing in what
+    <span class="key-word">context</span> natives use it today.</p>
+
+    <p class="mb-1">It works like this:</p>
+    
+    <ol class="myaku-color-ol">
+      <li>Search for a Japanese term of interest</li>
+      <li>Get links to select recent Japanese articles showing real usage of the term</li>
+      <li>Gain a natural feel for how the term is used by checking out the articles</li>
+    </ol>
+  </div>
+</div>
+<div class="row">
+  <div class="col col-lg-9 card pt-2 px-3 start-tile shadow-sm">
+    <h4 class="myaku-color">Getting Started</h4>
+    <p class="mb-1">Here are some sample searches to get started:</p> 
+
+    <ul class="myaku-color-ul">
+      <li>A normal word - <a href="/?q=雨">雨</a></li>
+      <li>A set phrase - <a href="/?q=非常に激しい雨">非常に激しい雨</a></li>
+      <li>A saying - <a href="/?q=急がば回れ">急がば回れ</a></li>
+      <li>An idiom - <a href="/?q=サバを読む">サバを読む</a></li>
+    </ul>
   </div>
 </div>
 

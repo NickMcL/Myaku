@@ -4,8 +4,8 @@
 <div class="row mb-3">
   <div class="col-12 col-lg-9">
     <div class="mr-lg-3 h-100">
-      <div class="row h-100 my-auto py-2 bg-white shadow-sm rounded">
-        <div class="col">
+      <div class="row card h-100 my-auto py-2 shadow-sm">
+        <div class="col px-3">
           <h3 class="d-inline">
             Articles
             <small class="text-muted">
@@ -18,8 +18,8 @@
   </div>
   <div class="col-lg-3 d-none d-lg-block d-xl-block">
     <div class="h-100">
-      <div class="row h-100 bg-white shadow-sm rounded">
-        <div class="col my-auto py-2">
+      <div class="row card h-100 my-auto py-2 shadow-sm">
+        <div class="col resource-tile">
           <h4 class="d-inline">More Resources</h4>
         </div>
       </div>
@@ -31,44 +31,54 @@
   <div class="col col-lg-9">
     <div class="mr-lg-3">
       {% for article_result in query_result_set.ranked_article_results %}
-        <div class="row mb-3">
-          <div class="col pt-2 bg-white shadow-sm rounded">
+        <div class="row card shadow-sm">
+          <div class="col pt-3 px-3">
             <h5>
-              <a href="{{ article_result.source_url }}">{{ article_result.title }} </a>
+              <a class="article-title" href="{{ article_result.source_url }}">
+                {{ article_result.title }}
+              </a>
             </h5>
 
             <div>
-              <span class="text-muted">
+              <span class="">
                 {{ article_result.source_name }} -
-                {{ article_result.publication_datetime|date:"M jS, Y" }}
+                {{ article_result.publication_datetime|date:"M jS, Y" }} -
+                {{ article_result.instance_count }} instances
               </span>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-2">
               {% for tag in article_result.tags %}
                 <span class="badge badge-info tag-badge">{{ tag }}</span>
               {% endfor %}
             </div>
 
-            <div>Used {{ article_result.instance_results.0.pos_percent }}% into the article</div>
+            <hr>
             <div class="mb-3 article-sample-text">
               {{ article_result.instance_results.0.sentence_start_text}}
               <span class="article-sample-instance">
                 {{ article_result.instance_results.0.instance_text }}
               </span>
               {{ article_result.instance_results.0.sentence_end_text }}
+              <span class="text-muted article-pos-text">
+                (at {{ article_result.instance_results.0.pos_percent }}% into article)
+              </span>
             </div>
-            <ul class="list-unstyled">
-              {% for instance_result in article_result.instance_results %}
-                <li class="mb-2">
-                  {{ instance_result.pos_percent }}%:
-                  {{ instance_result.sentence_start_text}}
-                  <strong>{{ instance_result.instance_text }}</strong>
-                  {{ instance_result.sentence_end_text }}
-                </li>
-              {% endfor %}
-            </ul>
+            {% comment %}<ul class="list-unstyled">{% endcomment %}
+              {% comment %}{% for instance_result in article_result.instance_results %}{% endcomment %}
+                {% comment %}<li class="mb-2">{% endcomment %}
+                  {% comment %}{{ instance_result.pos_percent }}%:{% endcomment %}
+                  {% comment %}{{ instance_result.sentence_start_text}}{% endcomment %}
+                  {% comment %}<strong>{{ instance_result.instance_text }}</strong>{% endcomment %}
+                  {% comment %}{{ instance_result.sentence_end_text }}{% endcomment %}
+                {% comment %}</li>{% endcomment %}
+              {% comment %}{% endfor %}{% endcomment %}
+            {% comment %}</ul>{% endcomment %}
+            {% comment %}<div>Used {{ article_result.instance_results.0.pos_percent }}% into the article</div>{% endcomment %}
           </div>
+        </div>
+        <div class="row mb-3">
+          <div class="card-footer w-100">Test</div>
         </div>
       {% endfor %}
     </div>
@@ -78,11 +88,11 @@
     <div class="">
       {% for link_set in resource_links.resource_link_sets %}
         <div class="row mb-3">
-          <div class="col pt-2 bg-white shadow-sm rounded">
-            <h5>{{ link_set.set_name }}</h5>
+          <div class="col card resource-tile pt-2 shadow-sm">
+            <h5 class="light-header">{{ link_set.set_name }}</h5>
             <ul class="list-unstyled">
               {% for resource_link in link_set.resource_links %}
-                <li><a href="{{ resource_link.link }}">
+                <li><a class="resource-link" href="{{ resource_link.link }}">
                     Search {{ resource_link.resource_name }} for {{ query }}
                 </a></li>
               {% endfor %}

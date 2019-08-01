@@ -214,7 +214,7 @@ class QueryArticleResult(object):
         self.source_name = fli.article.metadata.source_name
         self.source_url = fli.article.metadata.source_url
         self.alnum_count = fli.article.alnum_count
-        self.total_instances = len(fli.found_positions)
+        self.instance_count = len(fli.found_positions)
         self.tags = self._get_tags(fli)
 
         self.instance_results = []
@@ -264,13 +264,8 @@ def index(request: HttpRequest) -> HttpResponse:
     query_result_set = QueryArticleResultSet(query, match_type)
     resource_links = QueryResourceLinks(query, match_type)
 
-    if query_result_set.article_count > 0:
-        template = 'search/results_found.html'
-    else:
-        template = 'search/results_not_found.html'
-
     return render(
-        request, template,
+        request, 'search/results.html',
         {
             'query': query,
             'query_result_set': query_result_set,
