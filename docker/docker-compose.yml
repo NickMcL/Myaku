@@ -10,7 +10,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.0.0
+    image: friedrice2/myaku_crawler:1.0.1
     deploy:
       restart_policy:
         condition: any
@@ -43,7 +43,7 @@ services:
     networks:
       - crawler_net
   web:
-    image: friedrice2/myaku_web:1.0.0
+    image: friedrice2/myaku_web:1.1.0
     deploy:
       restart_policy:
         condition: any
@@ -70,7 +70,7 @@ services:
     networks:
       - web_net
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy:1.0.0
+    image: friedrice2/myaku_nginx.reverseproxy:1.1.0
     deploy:
       restart_policy:
         condition: any
@@ -81,7 +81,10 @@ services:
         source: reverseproxy_log
         target: /nginx_log
     ports:
-      - "80:80"
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
     environment:
       MYAKUWEB_HOST: web
       MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts

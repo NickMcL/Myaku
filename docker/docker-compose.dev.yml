@@ -68,7 +68,10 @@ services:
         source: ../myakuweb/static
         target: /www/static
     ports:
-      - "8000:80"
+      - target: 80
+        published: 8000
+        protocol: tcp
+        mode: host
   crawldb:
     image: friedrice2/myaku_mongo.crawldb:dev
     deploy:
