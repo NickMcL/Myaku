@@ -45,50 +45,53 @@
           </ul>
         </nav>
 
-        <form class="pb-3 mb-3" action="/" method="get">
-          <div class="row">
-            <div class="col col-lg-9">
+        <div class="row pb-2 pb-md-3 mb-3">
+          <div class="col-12 col-md-9 col-lg-7">
+            <form class="" action="/" method="get">
               <div class="input-group">
                 <input class="form-control" id="query" type="text" name="q"
-                    value="{{ request.GET.q }}"
+                    value="{% firstof query request.GET.q "" %}"
                     placeholder="Japanese word, set phrase, idiom, etc.">
+                <!--
                 <div class="input-group-append">
                   <select class="form-control" name="match_type">
                     <option value="STARTS_WITH"
                     {% if not request.GET.match_type or request.GET.match_type == "STARTS_WITH" %}
                       selected
                     {% endif %}
-                    >Starts with</option>
+                    >Search options</option>
 
                     <option value="EXACT_MATCH"
                     {% if request.GET.match_type == "EXACT_MATCH" %}
                       selected
                     {% endif %}
-                    >Exact match</option>
+                    >Match form exactly</option>
 
                     <option value="ENDS_WITH"
                     {% if request.GET.match_type == "ENDS_WITH" %}
                       selected
                     {% endif %}
-                    >Ends with</option>
+                    >Include other forms (ambig)</option>
                   </select>
                 </div>
+                -->
                 <div class="input-group-append">
                   <button type="submit" class="btn search-button">
                     <i class="fa fa-search"></i>
                   </button>
                 </div>
               </div>
-            </div>
+            </form>
           </div>
-        </form>
+          <div class="col-12 col-md-3 col-lg-5">
+            <button class="btn btn-link px-0">Show search options</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="container-fluid bg-light">
-      <div class="container">
-        {% block tile_content %}{% endblock %}
-      </div>
+    <div class="container">
+      {% block tile_content %}{% endblock %}
     </div>
 
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>

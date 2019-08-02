@@ -11,6 +11,11 @@ from myaku.database import MyakuCrawlDb
 from myaku.datatypes import (FoundJpnLexicalItem, JpnArticle,
                              LexicalItemTextPosition)
 
+# If a found article for a query has many instances of the query in its text,
+# the max number of instance sentences to show on the results page for that
+# article.
+MAX_ARTICLE_INSTANCE_SAMPLES = 3
+
 ARTICLE_LEN_GROUP_NAME_MAP = {
     0: 'Short length',
     500: 'Medium length',
@@ -217,9 +222,14 @@ class QueryArticleResult(object):
         self.instance_count = len(fli.found_positions)
         self.tags = self._get_tags(fli)
 
-        self.instance_results = []
-        for pos in fli.found_positions:
-            self.instance_results.append(QueryInstanceResult(pos, fli.article))
+        self.main_instance_result = QueryInstanceResult(
+            fli.found_positions[0], fli.article
+        )
+        self.more_instance_results = []
+        for pos in fli.found_positions[1:MAX_ARTICLE_INSTANCE_SAMPLES]:
+            self.more_instance_results.append(
+                QueryInstanceResult(pos, fli.article)
+            )
 
     def _get_tags(self, fli: FoundJpnLexicalItem) -> List[str]:
         """Gets the tags applicable for the found lexical item."""

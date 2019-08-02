@@ -31,8 +31,8 @@
   <div class="col col-lg-9">
     <div class="mr-lg-3">
       {% for article_result in query_result_set.ranked_article_results %}
-        <div class="row card shadow-sm">
-          <div class="col pt-3 px-3">
+        <div class="row mb-3 card shadow-sm">
+          <div class="col-12 pt-3 px-3">
             <h5>
               <a class="article-title" href="{{ article_result.source_url }}">
                 {{ article_result.title }}
@@ -47,38 +47,58 @@
               </span>
             </div>
 
-            <div class="mb-2">
+            <div class="">
               {% for tag in article_result.tags %}
                 <span class="badge badge-info tag-badge">{{ tag }}</span>
               {% endfor %}
             </div>
 
             <hr>
-            <div class="mb-3 article-sample-text">
-              {{ article_result.instance_results.0.sentence_start_text}}
-              <span class="article-sample-instance">
-                {{ article_result.instance_results.0.instance_text }}
-              </span>
-              {{ article_result.instance_results.0.sentence_end_text }}
-              <span class="text-muted article-pos-text">
-                (at {{ article_result.instance_results.0.pos_percent }}% into article)
-              </span>
-            </div>
-            {% comment %}<ul class="list-unstyled">{% endcomment %}
-              {% comment %}{% for instance_result in article_result.instance_results %}{% endcomment %}
-                {% comment %}<li class="mb-2">{% endcomment %}
-                  {% comment %}{{ instance_result.pos_percent }}%:{% endcomment %}
-                  {% comment %}{{ instance_result.sentence_start_text}}{% endcomment %}
-                  {% comment %}<strong>{{ instance_result.instance_text }}</strong>{% endcomment %}
-                  {% comment %}{{ instance_result.sentence_end_text }}{% endcomment %}
-                {% comment %}</li>{% endcomment %}
-              {% comment %}{% endfor %}{% endcomment %}
-            {% comment %}</ul>{% endcomment %}
-            {% comment %}<div>Used {{ article_result.instance_results.0.pos_percent }}% into the article</div>{% endcomment %}
+            <blockquote class="mb-3 article-sample-text">
+              <p class="mb-0">
+                {{ article_result.main_instance_result.sentence_start_text}}
+                <span class="article-sample-instance">
+                  {{ article_result.main_instance_result.instance_text }}
+                </span>
+                {{ article_result.main_instance_result.sentence_end_text }}
+              </p>
+              <footer class="blockquote-footer">
+                  {{ article_result.main_instance_result.pos_percent }}% into article
+              </footer>
+            </blockquote>
+            {% if article_result.more_instance_results %}
+              <div id="more-samples-{{ forloop.counter }}" class="collapse">
+                <ul class="list-unstyled mb-3 article-sample-text">
+                {% for instance_result in article_result.more_instance_results %}
+                  <li>
+                    <blockquote>
+                      <p class="mb-0">
+                        {{ instance_result.sentence_start_text}}
+                        <span class="article-sample-instance">
+                          {{ instance_result.instance_text }}
+                        </span>
+                        {{ instance_result.sentence_end_text }}
+                      </p>
+                      <footer class="blockquote-footer">
+                        {{ instance_result.pos_percent }}% into article
+                      </footer>
+                    </blockquote>
+                  </li>
+                {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
           </div>
-        </div>
-        <div class="row mb-3">
-          <div class="card-footer w-100">Test</div>
+          {% if article_result.more_instance_results %}
+            <div class="col-12 px-0">
+              <div class="card-footer text-center py-0">
+                <button class="btn btn-link text-muted" type="button" data-toggle="collapse"
+                    data-target="#more-samples-{{ forloop.counter }}">
+                  Show more {{ query }} instances from this article
+                </button>
+              </div>
+            </div>
+          {% endif %}
         </div>
       {% endfor %}
     </div>
