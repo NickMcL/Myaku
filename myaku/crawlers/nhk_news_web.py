@@ -1,12 +1,12 @@
-"""Crawler classes for scraping text articles for the web."""
+"""Crawler for the NHK News Web website."""
 
 import functools
 import logging
-import time
 import os
+import time
 from datetime import datetime
 from random import random
-from typing import Generator, List, NamedTuple, Optional
+from typing import Generator, List, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -19,6 +19,7 @@ from selenium.webdriver.firefox.webelement import FirefoxWebElement
 
 import myaku
 import myaku.utils as utils
+from myaku.crawlers.abc import Crawl, CrawlerABC
 from myaku.database import MyakuCrawlDb
 from myaku.datatypes import JpnArticle, JpnArticleMetadata
 from myaku.errors import CannotAccessPageError, CannotParsePageError
@@ -27,24 +28,12 @@ from myaku.htmlhelper import HtmlHelper
 _log = logging.getLogger(__name__)
 
 
-class Crawl(NamedTuple):
-    """Data for a single crawl run for Japanese articles.
-
-    Attributes:
-        name: Name of the section being crawled
-        crawl_gen: Generator for progressing the crawl.
-    """
-    name: str
-    crawl_gen: Generator[JpnArticle, None, None]
-
-
 @utils.add_method_debug_logging
-class NhkNewsWebCrawler(object):
-    """Crawls and scrapes articles from the NHK News Web website."""
+class NhkNewsWebCrawler(CrawlerABC):
+    """Crawls articles from the NHK News Web website."""
     MAX_MOST_RECENT_SHOW_MORE_CLICKS = 9
     MAX_DOUGA_SHOW_MORE_CLICKS = 8
 
-    _SOURCE_NAME = 'NHK News Web'
     _SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
 
     # If these article metadata fields are equivalent between two NHK News Web
@@ -93,6 +82,11 @@ class NhkNewsWebCrawler(object):
         'news_add',
     ]
 
+    @property
+    def SOURCE_NAME(self) -> str:
+        """Human-readable name for the source crawled."""
+        return 'NHK News Web'
+
     def __init__(self, timeout: int = 10) -> None:
         """Initializes the resources used by the crawler."""
         self._web_driver = None
@@ -125,14 +119,6 @@ class NhkNewsWebCrawler(object):
             self._web_driver.close()
         if self._session:
             self._session.close()
-
-    def __enter__(self) -> 'NhkNewsWebCrawler':
-        """Returns an initialized instance of the crawler."""
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
-        """Closes the resources used by the crawler."""
-        self.close()
 
     @utils.skip_method_debug_logging
     def _parse_body_div(self, tag: Tag) -> Optional[str]:
@@ -228,7 +214,7 @@ class NhkNewsWebCrawler(object):
                 article_tag, 'span', self._ARTICLE_TITLE_CLASS
             ),
             source_url=url,
-            source_name=self._SOURCE_NAME,
+            source_name=self.SOURCE_NAME,
             scraped_datetime=datetime.utcnow(),
             publication_datetime=self._html_helper.parse_jst_time_desendant(
                 article_tag
@@ -309,7 +295,7 @@ class NhkNewsWebCrawler(object):
                     self._html_helper.parse_jst_time_desendant(tag)
                 ),
                 source_url=self._html_helper.parse_link_desendant(tag, True),
-                source_name=self._SOURCE_NAME,
+                source_name=self.SOURCE_NAME,
             ))
 
         return metadatas
@@ -608,10 +594,17 @@ class NhkNewsWebCrawler(object):
             self._TOKUSHU_PAGE_URL, show_more_clicks, True
         )
 
-    def get_main_crawls(self) -> List[Crawl]:
-        """Gets a list of Crawls for fully crawling the main site pages.
+    def get_crawls_for_most_recent(self) -> List[Crawl]:
+        """Gets a list of Crawls for the most recent NHK News Web articles.
 
-        The crawls include all recently posted articles on NHK News Web.
+        The crawls cover the latest 200 articles posted to the site. NHK News
+        Web typically posts that many articles in 36-48 hours.
+
+        Additionally, the latest 100 video articles, 20 News Up articles, and
+        20 Tokushu articles are also covered by the crawls.
+
+        An article will not be crawled again if it has been previously crawled
+        during any previous crawl recorded in the MyakuDb.
         """
         crawls = []
         crawls.append(Crawl(

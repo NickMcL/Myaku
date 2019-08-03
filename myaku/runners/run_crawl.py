@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import List
 
 import myaku.utils as utils
-from myaku.crawler import NhkNewsWebCrawler
+from myaku.crawlers import NhkNewsWebCrawler
 from myaku.database import MyakuCrawlDb
 from myaku.datatypes import JpnArticle, FoundJpnLexicalItem
 from myaku.japanese_analysis import JapaneseTextAnalyzer
@@ -107,7 +107,7 @@ def main() -> None:
     stats = CrawlStats()
     jta = JapaneseTextAnalyzer()
     with MyakuCrawlDb() as db, NhkNewsWebCrawler() as crawler:
-        crawls = crawler.get_main_crawls()
+        crawls = crawler.get_crawls_for_most_recent()
 
         for crawl in crawls:
             stats.add_crawl(crawl.name)
