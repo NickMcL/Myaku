@@ -20,12 +20,16 @@ class HtmlHelper(object):
     _RUBY_TAG_REGEX = re.compile(r'</?ruby.*?>')
     _RT_CONTENT_REGEX = re.compile(r'<rt.*?>.*?</rt>')
     _RP_CONTENT_REGEX = re.compile(r'<rp.*?>.*?</rp>')
-
     _ALLOWABLE_HTML_TAGS_IN_TEXT = {
         'a', 'b', 'blockquote', 'br', 'em', 'span', 'strong', 'sup'
     }
 
-    _TIME_TAG_DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
+    _TIME_TAG_DATETIME_FORMATS = [
+        '%Y-%m-%dT%H:%M:%SZ',
+        '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%dT%H:%MZ',
+        '%Y-%m-%dT%H:%M',
+    ]
 
     def __init__(self, error_handler=None):
         """Inits with the given error handling function.
@@ -71,17 +75,18 @@ class HtmlHelper(object):
         else:
             return None
 
-    def parse_text_from_desendant(
+    def parse_text_from_desendant_by_class(
         self, parent: Tag, tag_name: str, classes: Union[str, List[str]]
     ) -> Optional[str]:
-        """Parses the text from a tag_name descendant within parent.
+        """Parses the text from a tag_name descendant with classes.
 
         Considers it an error if more than one tag_name descendant with the
         specified classes exists within parent.
 
         Args:
             parent: The tag whose descendants to search.
-            tag_name: The type of tag to parse the text from (e.g. span).
+            tag_name: The type of tag to parse the text from (e.g. span). An
+                emptry string matches any tag.
             classes: A single or list of classes that the tag to parse text
                 from must have.
 
@@ -115,13 +120,50 @@ class HtmlHelper(object):
 
         return text
 
-    def parse_jst_time_desendant(self, parent: Tag) -> Optional[datetime]:
-        """Parses the datetime from a time tag descendant with a JST time.
+    def parse_text_from_desendant_by_id(
+        self, parent: Tag, tag_id: str
+    ) -> Optional[str]:
+        """Parses the text from a tag_name descendant with id.
+
+        Considers it an error if more than one tag_name descendant with the
+        specified id exists within parent.
+
+        Args:
+            parent: Tag whose descendants to search.
+            tag_id: Id that the tag to parse text from must have.
+
+        Returns:
+            The parsed text if the parse was successful, None otherwise.
+        """
+        found_tags = parent.find_all(id=tag_id)
+
+        if len(found_tags) != 1:
+            self._error_handler(
+                'Found {} tags with id "{}" instead of 1 in: "{}"'.format(
+                    len(found_tags), tag_id, parent
+                )
+            )
+            return None
+
+        text = self.parse_valid_child_text(found_tags[0])
+        if text is None:
+            self._error_handler(
+                'Unable to determine text from "{}" in: "{}"'.format(
+                    found_tags[0], parent
+                )
+            )
+            return None
+
+        return text
+
+    def parse_time_desendant(self, parent: Tag) -> Optional[datetime]:
+        """Parses the datetime from a time tag descendant.
 
         Considers it an error if more than one time descendant exists within
         parent.
 
-        JST is Japan Standard Time, the timezone used throughout Japan.
+        If no timezone is specified in the datetime attr of the time element,
+        assumes the time JST (Japan Standard Time) and coverts to UTC.
 
         Args:
             parent: The tag whose descendants to search for a time tag.
@@ -148,11 +190,16 @@ class HtmlHelper(object):
             )
             return None
 
-        try:
-            parsed_datetime = datetime.strptime(
-                time_tags[0]['datetime'], self._TIME_TAG_DATETIME_FORMAT
-            )
-        except ValueError:
+        parsed_datetime = None
+        for datetime_format in self._TIME_TAG_DATETIME_FORMATS:
+            try:
+                parsed_datetime = datetime.strptime(
+                    time_tags[0]['datetime'], datetime_format
+                )
+            except ValueError:
+                continue
+
+        if parsed_datetime is None:
             self._error_handler(
                 'Failed to parse datetime "{}" of "{}" in: "{}"'.format(
                     time_tags[0]["datetime"], time_tags[0], parent
@@ -160,7 +207,9 @@ class HtmlHelper(object):
             )
             return None
 
-        return utils.convert_jst_to_utc(parsed_datetime)
+        if time_tags[0]['datetime'][-1].upper() != 'Z':
+            return utils.convert_jst_to_utc(parsed_datetime)
+        return parsed_datetime
 
     def parse_link_desendant(
         self, parent: Tag, take_first: bool = False
@@ -211,12 +260,13 @@ class HtmlHelper(object):
     ) -> Optional[Union[Tag, List[Tag]]]:
         """Parses a tag_name descendant with classes within parent.
 
-        If allow_multiple != True, considers it an error if more than one
+        If allow_multiple is False, considers it an error if more than one
         tag_name descendant with the specified classes exists within parent.
 
         Args:
             parent: The tag whose descendants to search.
-            tag_name: The type of tag to search for (e.g. span).
+            tag_name: The type of tag to search for (e.g. span). An empty
+                string will match any tag.
             classes: A single or list of classes that the tag to parse must
                 have.
             allow_multiple: If True, it will not be an error if there are
@@ -239,16 +289,45 @@ class HtmlHelper(object):
                     len(tags), tag_name, classes, parent
                 )
             )
+            return None
+
         if len(tags) == 0:
             self._error_handler(
                 'Found 0 "{}" tags with class(es) "{}" in "{}"'.format(
                     tag_name, classes, parent
                 )
             )
+            return None
 
         if allow_multiple:
             return tags
         return tags[0]
+
+    def descendant_with_class_exists(
+        self, parent: Tag, tag_name: str, classes: Union[str, List[str]]
+    ) -> bool:
+        """Checks if a tag_name descendent exists with classes within parent.
+
+        Args:
+            parent: The tag whose descendants to search.
+            tag_name: The type of tag to search for (e.g. span). An empty
+                string will match any tag.
+            classes: A single or list of classes that the tag to parse must
+                have.
+
+        Returns:
+            True if a tag_name descendent exists with classes with parent,
+            False otherwise.
+        """
+        if isinstance(classes, list):
+            tags = parent.select('{}.{}'.format(tag_name, '.'.join(classes)))
+        else:
+            tag = parent.find(tag_name, class_=classes)
+            tags = [tag] if tag is not None else []
+
+        if len(tags) == 0:
+            return False
+        return True
 
     def strip_ruby_tags(self, tag: Tag) -> Tag:
         """Strips ruby tags from within the given tag.
@@ -261,5 +340,4 @@ class HtmlHelper(object):
         html_str = re.sub(self._RP_CONTENT_REGEX, '', html_str)
         html_str = re.sub(self._RUBY_TAG_REGEX, '', html_str)
 
-        soup = BeautifulSoup(html_str, 'html.parser')
-        return soup.contents[0]
+        return BeautifulSoup(html_str, 'html.parser')

@@ -1,29 +1,19 @@
 """Crawler for the NHK News Web website."""
 
-import functools
 import logging
-import os
 import time
 from datetime import datetime
-from random import random
-from typing import Generator, List, Optional
-from urllib.parse import urljoin, urlparse
+from typing import List, Optional
 
-import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver import firefox
 from selenium.webdriver.firefox.webelement import FirefoxWebElement
 
-import myaku
 import myaku.utils as utils
-from myaku.crawlers.abc import Crawl, CrawlerABC
-from myaku.database import MyakuCrawlDb
+from myaku.crawlers.abc import Crawl, CrawlerABC, CrawlGenerator
 from myaku.datatypes import JpnArticle, JpnArticleMetadata
-from myaku.errors import CannotAccessPageError, CannotParsePageError
-from myaku.htmlhelper import HtmlHelper
+from myaku.errors import CannotAccessPageError
 
 _log = logging.getLogger(__name__)
 
@@ -34,17 +24,17 @@ class NhkNewsWebCrawler(CrawlerABC):
     MAX_MOST_RECENT_SHOW_MORE_CLICKS = 9
     MAX_DOUGA_SHOW_MORE_CLICKS = 8
 
-    _SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
+    _SOURCE_NAME = 'NHK News Web'
+    __SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
 
     # If these article metadata fields are equivalent between two NHK News Web
     # article metadatas, the articles can be treated as equivalent
-    _ARTICLE_METADATA_CMP_FIELDS = [
+    __ARTICLE_METADATA_CMP_FIELDS = [
         'source_name',
         'title',
         'publication_datetime'
     ]
 
-    _WEB_DRIVER_LOG_FILENAME = 'webdriver.log'
     _PAGE_LOAD_WAIT_TIME = 6  # in seconds
 
     _MOST_RECENT_PAGE_URL = 'https://www3.nhk.or.jp/news/catnew.html'
@@ -85,40 +75,21 @@ class NhkNewsWebCrawler(CrawlerABC):
     @property
     def SOURCE_NAME(self) -> str:
         """Human-readable name for the source crawled."""
-        return 'NHK News Web'
+        return self._SOURCE_NAME
+
+    @property
+    def _SOURCE_BASE_URL(self) -> str:
+        """The base url for accessing the source."""
+        return self.__SOURCE_BASE_URL
+
+    @property
+    def _ARTICLE_METADATA_CMP_FIELDS(self) -> List[str]:
+        """The JpnArticleMetadata fields to use for equivalence comparisons."""
+        return self.__ARTICLE_METADATA_CMP_FIELDS
 
     def __init__(self, timeout: int = 10) -> None:
         """Initializes the resources used by the crawler."""
-        self._web_driver = None
-        self._session = requests.Session()
-        self._timeout = timeout
-
-        self._parsing_error_handler = functools.partial(
-            utils.log_and_raise, _log, CannotParsePageError
-        )
-        self._html_helper = HtmlHelper(self._parsing_error_handler)
-
-        self._init_web_driver()
-
-    def _init_web_driver(self) -> None:
-        """Inits the web driver used by the crawler."""
-        log_dir = utils.get_value_from_environment_variable(
-            myaku.LOG_DIR_ENV_VAR, 'Log directory'
-        )
-        log_path = os.path.join(log_dir, self._WEB_DRIVER_LOG_FILENAME)
-
-        options = firefox.options.Options()
-        options.headless = True
-        self._web_driver = webdriver.Firefox(
-            options=options, log_path=log_path
-        )
-
-    def close(self) -> None:
-        """Closes the resources used by the crawler."""
-        if self._web_driver:
-            self._web_driver.close()
-        if self._session:
-            self._session.close()
+        super().__init__(True, timeout)
 
     @utils.skip_method_debug_logging
     def _parse_body_div(self, tag: Tag) -> Optional[str]:
@@ -210,7 +181,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         """
         article_data = JpnArticle()
         article_data.metadata = JpnArticleMetadata(
-            title=self._html_helper.parse_text_from_desendant(
+            title=self._html_helper.parse_text_from_desendant_by_class(
                 article_tag, 'span', self._ARTICLE_TITLE_CLASS
             ),
             source_url=url,
@@ -288,7 +259,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         metadatas = []
         for tag in article_metadata_tags:
             metadatas.append(JpnArticleMetadata(
-                title=self._html_helper.parse_text_from_desendant(
+                title=self._html_helper.parse_text_from_desendant_by_class(
                     tag, 'em', self._TITLE_CLASS
                 ),
                 publication_datetime=(
@@ -299,15 +270,6 @@ class NhkNewsWebCrawler(CrawlerABC):
             ))
 
         return metadatas
-
-    def _make_rel_urls_absolute(self, urls: List[str]) -> List[str]:
-        """Makes metadata relative NHK News Web urls absolute urls."""
-        absolute_urls = []
-        for url in urls:
-            absolute_urls.append(urljoin(
-                self._SOURCE_BASE_URL, urlparse(url).path
-            ))
-        return absolute_urls
 
     def _filter_out_exclusions(self, tags: List[Tag]) -> List[Tag]:
         """Filters out tags that are known exclusions for parsing.
@@ -346,36 +308,6 @@ class NhkNewsWebCrawler(CrawlerABC):
             filtered_tags.append(tag)
 
         return filtered_tags
-
-    def _crawl_uncrawled_metadatas(
-        self, metadatas: List[JpnArticleMetadata]
-    ) -> Generator[JpnArticle, None, None]:
-        """Crawls all not yet crawled articles specified by the metadatas."""
-        with MyakuCrawlDb() as db:
-            uncrawled_metadatas = db.filter_to_unstored_article_metadatas(
-                metadatas, self._ARTICLE_METADATA_CMP_FIELDS
-            )
-        _log.debug(
-            '%s found metadatas have not been crawled',
-            len(uncrawled_metadatas)
-        )
-        if len(uncrawled_metadatas) == 0:
-            return
-
-        crawl_urls = [m.source_url for m in uncrawled_metadatas]
-        crawl_urls = self._make_rel_urls_absolute(crawl_urls)
-        with MyakuCrawlDb() as db:
-            for i, crawl_url in enumerate(crawl_urls):
-                sleep_time = (random() * 4) + 3
-                _log.debug(
-                    'Sleeping for %s seconds, then scrape %s / %s',
-                    sleep_time, i + 1, len(crawl_urls))
-                time.sleep(sleep_time)
-
-                article = self.scrape_article(crawl_url)
-                db.write_crawled([article.metadata])
-
-                yield article
 
     def _get_show_more_button(self) -> FirefoxWebElement:
         """Gets the show more button element from the page.
@@ -471,7 +403,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     def _crawl_summary_page(
         self, page_url: str, show_more_clicks: int,
         has_header_sections: bool = False
-    ) -> Generator[JpnArticle, None, None]:
+    ) -> CrawlGenerator:
         """Gets all not yet crawled articles from given summary page.
 
         Args:
@@ -500,9 +432,7 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         yield from self._crawl_uncrawled_metadatas(metadatas)
 
-    def crawl_most_recent(
-        self, show_more_clicks: int = 0
-    ) -> Generator[JpnArticle, None, None]:
+    def crawl_most_recent(self, show_more_clicks: int = 0) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'Most Recent' page.
 
         Args:
@@ -531,9 +461,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             self._MOST_RECENT_PAGE_URL, show_more_clicks
         )
 
-    def crawl_douga(
-        self, show_more_clicks: int = 0
-    ) -> Generator[JpnArticle, None, None]:
+    def crawl_douga(self, show_more_clicks: int = 0) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'Douga' page.
 
         Args:
@@ -560,9 +488,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             self._DOUGA_PAGE_URL, show_more_clicks
         )
 
-    def crawl_news_up(
-        self, show_more_clicks: int = 0
-    ) -> Generator[JpnArticle, None, None]:
+    def crawl_news_up(self, show_more_clicks: int = 0) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'News Up' page.
 
         Args:
@@ -577,9 +503,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             self._NEWS_UP_PAGE_URL, show_more_clicks, True
         )
 
-    def crawl_tokushu(
-        self, show_more_clicks: int = 0
-    ) -> Generator[JpnArticle, None, None]:
+    def crawl_tokushu(self, show_more_clicks: int = 0) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'Tokushu' page.
 
         Args:
@@ -628,7 +552,7 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         return crawls
 
-    def scrape_article(self, url: str) -> JpnArticle:
+    def crawl_article(self, url: str) -> JpnArticle:
         """Scrapes and parses an NHK News Web article.
 
         Args:
@@ -641,12 +565,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             HTTPError: An error occurred making a GET request to url.
             CannotParsePageError: An error occurred while parsing the article.
         """
-        _log.debug('Making GET request to url "%s"', url)
-        response = self._session.get(url, timeout=self._timeout)
-        _log.debug('Reponse received with code %s', response.status_code)
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = self._get_url_html_soup(url)
         article_tags = soup.find_all(
             'section', class_=self._ARTICLE_TAG_CLASS
         )

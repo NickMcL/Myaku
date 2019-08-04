@@ -1,18 +1,15 @@
 """Crawler for the Kakuyomu website."""
 
 import enum
-import functools
 import logging
-from typing import Generator, List
+from typing import List
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-import requests
 
-import myaku.utils as utils
-from myaku.crawlers.abc import Crawl, CrawlABC
-from myaku.datatypes import JpnArticle
-from myaku.errors import CannotParsePageError
-from myaku.htmlhelper import HtmlHelper
+# import myaku.utils as utils
+from myaku.crawlers.abc import Crawl, CrawlABC, CrawlGenerator
+from myaku.datatypes import JpnArticle, JpnArticleBlog, JpnArticleMetadata
 
 _log = logging.getLogger(__name__)
 
@@ -54,35 +51,38 @@ class KakuyomuCrawler(CrawlABC):
     Only crawls for articles in the non-fiction and essay sections of Kakuyomu.
     """
 
-    _SOURCE_BASE_URL = 'https://kakuyomu.jp'
+    _SOURCE_NAME = 'Kakuyomu'
+    __SOURCE_BASE_URL = 'https://kakuyomu.jp'
+
+    __ARTICLE_METADATA_CMP_FIELDS = []
+
     _SEARCH_PAGE_URL_TEMPLATE = (
-        _SOURCE_BASE_URL +
+        __SOURCE_BASE_URL +
         'search?genre_name={genre}&order={sort_order}&page={page_num}'
     )
 
-    _EMPTY_SEARCH_RESULTS_TAG_CLASS = 'widget-emptyMessage'
+    _EMPTY_SEARCH_RESULTS_CLASS = 'widget-emptyMessage'
+
+    _SERIES_TITLE_LINK_CLASS = 'widget-workCard-titleLabel'
 
     @property
     def SOURCE_NAME(self) -> str:
         """Human-readable name for the source crawled."""
-        return "Kakuyomu"
+        return self._SOURCE_NAME
+
+    @property
+    def _SOURCE_BASE_URL(self) -> str:
+        """The base url for accessing the source."""
+        return self.__SOURCE_BASE_URL
+
+    @property
+    def _ARTICLE_METADATA_CMP_FIELDS(self) -> List[str]:
+        """The JpnArticleMetadata fields to use for equivalence comparisons."""
+        return self.__ARTICLE_METADATA_CMP_FIELDS
 
     def __init__(self, timeout: int = 10) -> None:
         """Initializes the resources used by the crawler."""
-        self._session = requests.Session()
-        self._timeout = timeout
-
-        self._parsing_error_handler = functools.partial(
-            utils.log_and_raise, _log, CannotParsePageError
-        )
-        self._html_helper = HtmlHelper(self._parsing_error_handler)
-
-        self._init_web_driver()
-
-    def close(self) -> None:
-        """Closes the resources used by the crawler."""
-        if self._session:
-            self._session.close()
+        super().__init__(False, timeout)
 
     def _create_search_url(
         self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
@@ -91,7 +91,7 @@ class KakuyomuCrawler(CrawlABC):
         """Creates a URL for making a search on the search page.
 
         Args:
-            genre: Genere to search for.
+            genre: Series genre to search for.
             sort_order: Sort order to use for the search results.
             page_num: Page of the search results.
         """
@@ -103,48 +103,139 @@ class KakuyomuCrawler(CrawlABC):
 
     def _is_empty_search_results_page(self, page_soup: BeautifulSoup) -> bool:
         """Returns True if the page is the empty search results page."""
-        empty_search_results_tag = page_soup.find(
-            class_=self._EMPTY_SEARCH_RESULTS_TAG_CLASS
+        return self._html_helper.descendant_with_class_exists(
+            page_soup, '', self._EMPTY_SEARCH_RESULTS_CLASS
         )
-        if empty_search_results_tag is None:
-            return False
-        return True
 
-    def crawl_search_page(
-        self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
-        pages_to_crawl: int = 1
-    ) -> Generator[JpnArticle, None, None]:
-        """Makes a search on the search page and then crawls the results.
+    def _parse_search_results_page(
+        self, page_soup: BeautifulSoup
+    ) -> List[str]:
+        """Parses the series links from a search results page soup.
 
         Args:
-            genre: Genere to search for.
+            page_soup: A BeautifulSoup initialized with the content from a
+                search page.
+        Returns:
+            A list of the absolute urls for all of the series listed in the
+            search results page.
+        """
+        series_link_tags = self._html_helper.parse_descendant_by_class(
+            page_soup, '', self._SERIES_TITLE_LINK_CLASS, True
+        )
+        return [
+            urljoin(self._SOURCE_BASE_URL, t['href']) for t in series_link_tags
+        ]
+
+    def _parse_series_blog_info(
+        self, series_page_soup: BeautifulSoup, series_page_url: str
+    ) -> JpnArticleBlog:
+        """Parse the blog info for a series from its homepage.
+
+        Args:
+            series_page_soup: A BeautifulSoup initialized with the content from
+                a series homepage.
+            series_page_url: Url for the series page to parse.
+
+        Returns:
+            A JpnArticleBlog with the info from the given series homepage.
+        """
+        series_blog = JpnArticleBlog(
+            title=self._html_helper.parse_text_from_desendant_by_id(
+                series_page_soup, self._SERIES_TITLE_TAG_ID
+            ),
+            author=self._html_helper.parse_text_from_desendant_by_id(
+                series_page_soup, self._SERIES_AUTHOR_TAG_ID
+            ),
+            source_name=self.SOURCE_NAME,
+            source_url=series_page_url,
+        )
+
+        return series_blog
+
+    def _parse_series_episode_metadatas(
+        self, series_page_soup: BeautifulSoup, series_page_url: str
+    ) -> List[JpnArticleMetadata]:
+        """Parse the episode metadatas for a series from its homepage.
+
+        Args:
+            series_page_soup: A BeautifulSoup initialized with the content from
+                a series homepage.
+            series_page_url: Url for the series page to parse.
+
+        Returns:
+            A list of the metadatas for all episodes listed on the series
+            homepage.
+        """
+        series_blog = self._parse_series_blog_info(
+            series_page_soup, series_page_url
+        )
+        return series_blog
+
+    def _crawl_series_page(self, page_url: str) -> CrawlGenerator:
+        """Crawls a series homepage.
+
+        Args:
+            page_url: Url of the series homepage.
+
+        Returns:
+            A generator that will yield a JpnArticle for an episode of the
+            series each call.
+        """
+        page_soup = self._get_url_html_soup(page_url)
+        metadatas = self._parse_series_episode_metadatas(page_soup)
+        yield from self._crawl_uncrawled_metadatas(metadatas)
+
+    def _crawl_search_results_page(
+        self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
+        page_num: int = 1
+    ) -> CrawlGenerator:
+        """Crawls a single page of series search results.
+
+        Args:
+            genre: Series genre to search for.
+            sort_order: Sort order to use for the search results.
+            page_num: Page of the search results to crawl.
+        Returns:
+            A generator that will yield a JpnArticle for an episode of a series
+            from the page of search results each call.
+        """
+        search_url = self._create_search_url(genre, sort_order, page_num)
+
+        page_soup = self._get_url_html_soup(search_url)
+        if self._is_empty_search_results_page(page_soup):
+            _log.debug('No search results found for url "%s"', search_url)
+            return
+
+        series_links = self._parse_search_resuls_page(page_soup)
+        for series_link in series_links:
+            yield from self._crawl_series_page(series_link)
+
+    def crawl_search_results(
+        self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
+        pages_to_crawl: int = 1, start_page: int = 1
+    ) -> CrawlGenerator:
+        """Makes a series search on Kakuyomu and then crawls the results.
+
+        Args:
+            genre: Series genre to search for.
             sort_order: Sort order to use for the search results.
             pages_to_crawl: How many pages of the search results to crawl. Each
                 page has 20 results.
 
-                Will automatically stop the crawl if all search results have
-                been crawled before crawling the specified number of pages.
+                Will automatically stop the crawl if a page with no search
+                results is reached before crawling the specified number of
+                pages.
+            start_page: What page of the search results to start the crawl on.
+        Returns:
+            A generator that will yield a JpnArticle for an episode of a series
+            from the search results each call.
         """
-        for i in range(1, pages_to_crawl + 1):
+        for i in range(start_page, start_page + pages_to_crawl):
             _log.debug(
-                'Crawling page %s of search results of genere %s with sort '
+                'Crawling page %s of search results of genre %s with sort '
                 'order %s', i, genre.name, sort_order.name
             )
-            search_url = self._create_search_url(genre, sort_order, i)
-
-            _log.debug('Making GET request to url "%s"', search_url)
-            response = self._session.get(search_url, timeout=self._timeout)
-            _log.debug('Reponse received with code %s', response.status_code)
-            response.raise_for_status()
-
-            page_soup = BeautifulSoup(response.content, 'html.parser')
-            if self._is_empty_search_results_page(page_soup):
-                _log.debug('No search results found for url "%s"', search_url)
-                return 'All search results crawled'
-
-            series_links = self._parse_search_resuls(page_soup)
-            for series_link in series_links:
-                yield self._crawl_series_page(series_link)
+            yield from self._crawl_search_results_page(genre, sort_order, i)
 
     def get_crawls_for_most_recent(self) -> List[Crawl]:
         """Gets a list of Crawls for the most recent Kakuyomu articles.
@@ -153,3 +244,18 @@ class KakuyomuCrawler(CrawlABC):
         Kakuyomu.
         """
         return []
+
+    def crawl_article(self, article_url: str) -> JpnArticle:
+        """Scrapes and parses an NHK News Web article.
+
+        Args:
+            url: url to a page containing an NHK News Web article.
+
+        Returns:
+            Article object with the parsed data from the article.
+
+        Raises:
+            HTTPError: An error occurred making a GET request to url.
+            CannotParsePageError: An error occurred while parsing the article.
+        """
+        pass

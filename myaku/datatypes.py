@@ -40,26 +40,85 @@ class InterpSource(enum.Enum):
 
 
 @dataclass
+class JpnArticleBlog(object):
+    """Info for a blog of Japanese text articles.
+
+    Attributes:
+        title: Title of the blog.
+        author: Name of the author of the blog.
+        source_name: Human-readable name of the source website of the blog.
+        source_url: Url of the blog homepage.
+        start_datetime: Initial start time of the blog.
+        last_updated_time: Last time the blog was updated.
+        rating: Rating score of the blog (scale depends on source).
+        rating_count: Number of users that have rated the blog.
+        tags: Tags specified for the blog.
+        catchphrase: Catchphrase of the blog.
+        introduction: Introduction text for the blog.
+        article_count: Number of articles published on the blog.
+        total_char_count: Total number of characters across all articles of the
+            blog.
+        comment_count: Number of user comments on the blog.
+        follower_count: Number of users following the blog.
+        in_serialization: Whether the blog is still in serialization or not.
+            True means more articles are expected to be published to the blog,
+            and False means no more articles are expected to be published to
+            the blog.
+        last_scraped_datetime: Last time that info was scraped for the blog.
+    """
+    title: str = None
+    author: str = None
+    source_name: str = None
+    source_url: str = None
+    start_datetime: datetime = None
+    last_updated_datetime: datetime = None
+    rating: float = None
+    rating_count: int = None
+    tags: List[str] = None
+    catchphrase: str = None
+    introduction: str = None
+    article_count: int = None
+    total_char_count: int = None
+    comment_count: int = None
+    follower_count: int = None
+    in_serialization: bool = None
+    last_scraped_datetime: datetime = None
+
+
+@dataclass
 class JpnArticleMetadata(object):
     """The metadata for a Japanese text article.
 
     Attributes:
-        title: The title of the article.
-        source_url: The fully qualified URL where the article was found.
-        source_name: The human-readable name of the source of the article.
+        title: Title of the article.
+        source_url: Fully-qualified URL where the article was found.
+        source_name: Human-readable name of the source of the article.
+        blog: Blog the article was posted to. If None, the article was not
+            posted as part of a blog.
+        blog_order_num: Overall number of this article in the ordering of the
+            articles on the blog this article was posted on.
+        blog_section_name: Name of the section of the blog this article was
+            posted in.
+        blog_section_order_num: Number of this article in the ordering of the
+            articles in the section of the blog this article was posted in.
         publication_datetime: The UTC datetime the article was published.
         scraped_datetime: The UTC datetime the article was scraped.
     """
     title: str = None
     source_url: str = None
     source_name: str = None
+    blog: JpnArticleBlog = None
+    blog_order_num: str = None
+    blog_section_name: str = None
+    blog_section_order_num: str = None
     publication_datetime: datetime = None
     scraped_datetime: datetime = None
 
     def __str__(self) -> str:
         """Returns the title and publication time in string format."""
-        return '{}--{}'.format(
+        return '{}--{}--{}'.format(
             self.title,
+            self.blog,
             self.publication_datetime.isoformat()
         )
 
