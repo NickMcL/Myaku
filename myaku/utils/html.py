@@ -23,20 +23,15 @@ _ALLOWABLE_HTML_TAGS_IN_TEXT = {
     'a', 'b', 'blockquote', 'br', 'em', 'span', 'strong', 'sup'
 }
 
-_TIME_TAG_DATETIME_FORMATS = [
-    '%Y-%m-%dT%H:%M:%SZ',
-    '%Y-%m-%dT%H:%M:%S',
-    '%Y-%m-%dT%H:%MZ',
-    '%Y-%m-%dT%H:%M',
-]
-
 
 def _raise_parsing_error(error_msg: str) -> None:
     """Handler for errors encountered during HTML parsing."""
     utils.log_and_raise(_log, HtmlParsingError, error_msg)
 
 
-def parse_valid_child_text(tag: Tag) -> Optional[str]:
+def parse_valid_child_text(
+    parent: Tag, raise_on_no_text: bool = True
+) -> Optional[str]:
     """Parses the child text within an HTML tag if valid.
 
     The child text of an HTML tag is considered invalid and will not be
@@ -47,25 +42,39 @@ def parse_valid_child_text(tag: Tag) -> Optional[str]:
     descendants for a tag with valid child text under this definition.
 
     Args:
-        tag: HTML tag whose child text to attempt to parse.
+        parent: HTML tag whose child text to attempt to parse.
+        raise_on_no_text: If True, will raise an HtmlParsingError if no valid
+            child text could be parsed from the parent. If False, will return
+            None in that case instead of raising an error.
 
     Returns:
-        The child text of tag, or None if the tag contained no text
-        elements OR if the child text was considered invalid for parsing.
+        The valid child text of tag, or None if the tag contained no valid
+        child text could be parsed from the parent.
+
+    Raises:
+        HtmlParsingError: raise_on_no_text is True and no valid child text
+            could be parsed from the parent.
     """
-    contains_text = False
-    for descendant in tag.descendants:
+    for descendant in parent.descendants:
         if (descendant.name is not None and
                 descendant.name not in _ALLOWABLE_HTML_TAGS_IN_TEXT):
+            if raise_on_no_text:
+                _raise_parsing_error(
+                    'Structural tag "{}" found while parsing child text in: '
+                    '"{}"'.format(descendant, parent)
+                )
+            else:
+                return None
+
+    if not any(isinstance(d, NavigableString) for d in parent.descendants):
+        if raise_on_no_text:
+            _raise_parsing_error(
+                'No child text found in: "{}"'.format(descendant, parent)
+            )
+        else:
             return None
 
-        if isinstance(descendant, NavigableString):
-            contains_text = True
-
-    if contains_text:
-        return re.sub(_HTML_TAG_REGEX, '', str(tag))
-    else:
-        return None
+    return re.sub(_HTML_TAG_REGEX, '', str(parent))
 
 
 def parse_text_from_desendant_by_class(
@@ -111,7 +120,7 @@ def parse_text_from_desendant_by_class(
             )
         )
 
-    text = parse_valid_child_text(found_tags[tag_index])
+    text = parse_valid_child_text(found_tags[tag_index], False)
     if text is None:
         _raise_parsing_error(
             'Unable to determine text from "{}" tag "{}" in: "{}"'.format(
@@ -145,7 +154,7 @@ def parse_text_from_desendant_by_id(parent: Tag, tag_id: str) -> str:
             )
         )
 
-    text = parse_valid_child_text(found_tags[0])
+    text = parse_valid_child_text(found_tags[0], False)
     if text is None:
         _raise_parsing_error(
             'Unable to determine text from "{}" in: "{}"'.format(
@@ -298,7 +307,7 @@ def parse_desc_list_data_text(desc_list: Tag, term_text: str) -> str:
             )
         )
 
-    dd_text = parse_valid_child_text(dd_tag)
+    dd_text = parse_valid_child_text(dd_tag, False)
     if dd_text is None:
         _raise_parsing_error(
             '<dd> tag does not contain valid child text: "{}"'.format(dd_tag)
@@ -350,7 +359,7 @@ def select_desendants_by_class(
 
     Args:
         parent: Tag whose descendants to search.
-        classes: A single or list of classes that the tag to parse must have.
+        classes: A single or list of classes that the tag to select must have.
         tag_name: Type of tag to search for (e.g. span). An empty
             string will match any tag.
         expected_tag_count: Expected number of selected tags. If the total
@@ -363,8 +372,8 @@ def select_desendants_by_class(
         The found tag_name descendant tag(s).
 
     Raises:
-        HtmlParsingError: There was an issue parsing text from a tag_name
-            descendant with classes from the given parent.
+        HtmlParsingError: There was an issue parsing the html for the given
+            parent.
     """
     if not isinstance(classes, list):
         classes = [classes]
@@ -372,7 +381,7 @@ def select_desendants_by_class(
     tags = parent.select('{}.{}'.format(tag_name, '.'.join(classes)))
     if expected_tag_count is not None and len(tags) != expected_tag_count:
         _raise_parsing_error(
-            'Found {} "{}" tags with class(es) "{}" instead of {} in '
+            'Found {} "{}" tags with class(es) "{}" instead of {} in: '
             '"{}"'.format(
                 len(tags), tag_name, classes, expected_tag_count, parent
             )
@@ -380,12 +389,73 @@ def select_desendants_by_class(
 
     if len(tags) == 0:
         _raise_parsing_error(
-            'Found 0 "{}" tags with class(es) "{}" in "{}"'.format(
+            'Found 0 "{}" tags with class(es) "{}" in: "{}"'.format(
                 tag_name, classes, parent
             )
         )
 
     return tags
+
+
+def select_desendants_by_tag(
+    parent: Tag, tag_name: str, expected_tag_count: int = None
+) -> List[Tag]:
+    """Selects tag_name descendant(s) within parent.
+
+    Args:
+        parent: Tag whose descendants to search.
+        tag_name: Type of tag to search for (e.g. span). An empty
+            string will match any tag.
+        expected_tag_count: Expected number of selected tags. If the total
+            selected tags is not equal to this amount, an HtmlParsingError
+            will be raised.
+
+            If None, no error will be raised if at least one tag is selected.
+
+    Returns:
+        The found tag_name descendant tag(s).
+
+    Raises:
+        HtmlParsingError: There was an issue parsing the html for the given
+            parent.
+    """
+    tags = parent.select(tag_name)
+    if expected_tag_count is not None and len(tags) != expected_tag_count:
+        _raise_parsing_error(
+            'Found {} "{}" tags instead of {} in: "{}"'.format(
+                len(tags), tag_name, expected_tag_count, parent
+            )
+        )
+
+    if len(tags) == 0:
+        _raise_parsing_error(
+            'Found 0 "{}" tags in: "{}"'.format(tag_name, parent)
+        )
+
+    return tags
+
+
+def select_desendant_by_id(parent: Tag, id_: str) -> Tag:
+    """Selects the descendant with the given id within parent.
+
+    Args:
+        parent: Tag whose descendants to search.
+        id_: Id that the tag to select must have.
+
+    Returns:
+        The found descendant tag with the given id.
+
+    Raises:
+        HtmlParsingError: There was an issue parsing the html for the given
+            parent.
+    """
+    tag = parent.find(id=id_)
+    if tag is None:
+        _raise_parsing_error(
+            'Found no tag with id "{}" in: "{}"'.format(id_, parent)
+        )
+
+    return tag
 
 
 def descendant_with_class_exists(

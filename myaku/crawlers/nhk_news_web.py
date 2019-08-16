@@ -107,7 +107,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             CannotParsePageError: There was an error parsing the body text from
                 tag.
         """
-        section_text = utils.html.parse_valid_child_text(tag)
+        section_text = utils.html.parse_valid_child_text(tag, False)
         if section_text is not None:
             return section_text
 
@@ -117,7 +117,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             if child.name is None:
                 continue
 
-            child_text = utils.html.parse_valid_child_text(child)
+            child_text = utils.html.parse_valid_child_text(child, False)
             if child_text is None:
                 continue
 
@@ -252,16 +252,18 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         metadatas = []
         for tag in list_article_tags:
-            metadatas.append(JpnArticleMetadata(
-                title=utils.html.parse_text_from_desendant_by_class(
-                    tag, self._TITLE_CLASS, 'em'
-                ),
-                publication_datetime=utils.html.parse_time_desendant(
-                    tag, self._TIME_TAG_DATETIME_FORMAT, True
-                ),
-                source_url=utils.html.parse_link_desendant(tag),
-                source_name=self.SOURCE_NAME,
-            ))
+            metadatas.append(
+                JpnArticleMetadata(
+                    title=utils.html.parse_text_from_desendant_by_class(
+                        tag, self._TITLE_CLASS, 'em'
+                    ),
+                    publication_datetime=utils.html.parse_time_desendant(
+                        tag, self._TIME_TAG_DATETIME_FORMAT, True
+                    ),
+                    source_url=utils.html.parse_link_desendant(tag),
+                    source_name=self.SOURCE_NAME,
+                )
+            )
 
         return metadatas
 
@@ -289,16 +291,18 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         metadatas = []
         for tag in header_article_tags:
-            metadatas.append(JpnArticleMetadata(
-                title=utils.html.parse_text_from_desendant_by_class(
-                    tag, self._TITLE_CLASS, 'em'
-                ),
-                publication_datetime=utils.html.parse_time_desendant(
-                    tag, self._TIME_TAG_DATETIME_FORMAT, True
-                ),
-                source_url=utils.html.parse_link_desendant(tag, 0, 2),
-                source_name=self.SOURCE_NAME,
-            ))
+            metadatas.append(
+                JpnArticleMetadata(
+                    title=utils.html.parse_text_from_desendant_by_class(
+                        tag, self._TITLE_CLASS, 'em'
+                    ),
+                    publication_datetime=utils.html.parse_time_desendant(
+                        tag, self._TIME_TAG_DATETIME_FORMAT, True
+                    ),
+                    source_url=utils.html.parse_link_desendant(tag, 0, 2),
+                    source_name=self.SOURCE_NAME,
+                )
+            )
 
         return metadatas
 
@@ -589,24 +593,32 @@ class NhkNewsWebCrawler(CrawlerABC):
         during any previous crawl recorded in the MyakuDb.
         """
         crawls = []
-        crawls.append(Crawl(
-            name='Most Recent',
-            crawl_gen=self.crawl_most_recent(
-                self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
+        crawls.append(
+            Crawl(
+                name='Most Recent',
+                crawl_gen=self.crawl_most_recent(
+                    self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
+                )
             )
-        ))
-        crawls.append(Crawl(
-            name='Douga',
-            crawl_gen=self.crawl_douga(4)
-        ))
-        crawls.append(Crawl(
-            name='News Up',
-            crawl_gen=self.crawl_news_up()
-        ))
-        crawls.append(Crawl(
-            name='Tokushu',
-            crawl_gen=self.crawl_tokushu()
-        ))
+        )
+        crawls.append(
+            Crawl(
+                name='Douga',
+                crawl_gen=self.crawl_douga(4)
+            )
+        )
+        crawls.append(
+            Crawl(
+                name='News Up',
+                crawl_gen=self.crawl_news_up()
+            )
+        )
+        crawls.append(
+            Crawl(
+                name='Tokushu',
+                crawl_gen=self.crawl_tokushu()
+            )
+        )
 
         return crawls
 

@@ -202,9 +202,11 @@ class KakuyomuCrawler(CrawlerABC):
             series_blog: The blog object to store the parsed data in.
         """
         series_blog.tags = []
-        series_blog.tags.append(html.parse_text_from_desendant_by_id(
-            series_page_soup, self._SERIES_GENRE_TAG_ID
-        ).strip())
+        series_blog.tags.append(
+            html.parse_text_from_desendant_by_id(
+                series_page_soup, self._SERIES_GENRE_TAG_ID
+            ).strip()
+        )
 
         # If a series has no tags set for it, the tag div won't exist on the
         # series page.
@@ -215,17 +217,11 @@ class KakuyomuCrawler(CrawlerABC):
         tag_lists = tag_div.find_all('ul')
         for tag_list in tag_lists:
             for tag_element in tag_list.find_all('li'):
-                series_blog.tags.append(html.parse_valid_child_text(
-                    tag_element
-                ))
+                series_blog.tags.append(
+                    html.parse_valid_child_text(tag_element).strip()
+                )
 
-        if None in series_blog.tags:
-            utils.log_and_raise(
-                _log, HtmlParsingError,
-                'Failed to parse tags in: "{}"'.format(tag_div)
-            )
-
-        series_blog.tags = [t.strip() for t in series_blog.tags]
+        return series_blog.tags
 
     def _parse_series_intro(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
@@ -387,14 +383,9 @@ class KakuyomuCrawler(CrawlerABC):
         table_of_contents_tag = html.select_desendants_by_class(
             series_page_soup, self._SERIES_EPISODE_TOC_LIST_CLASS, 'ol', 1
         )[0]
-        table_of_contents_items = table_of_contents_tag.find_all('li')
-
-        if len(table_of_contents_items) == 0:
-            utils.log_and_raise(
-                _log, HtmlParsingError,
-                'Found 0 items in table of contents: "{}"',
-                table_of_contents_tag
-            )
+        table_of_contents_items = html.select_desendants_by_tag(
+            table_of_contents_tag, 'li'
+        )
 
         return table_of_contents_items
 
@@ -470,10 +461,12 @@ class KakuyomuCrawler(CrawlerABC):
                 section_ep_order_num = 1
                 section_name = html.parse_valid_child_text(item).strip()
             elif self._is_episode_li(item):
-                metadatas.append(self._parse_table_of_contents_episode(
-                    item, series_blog, ep_order_num, section_name,
-                    section_order_num, section_ep_order_num
-                ))
+                metadatas.append(
+                    self._parse_table_of_contents_episode(
+                        item, series_blog, ep_order_num, section_name,
+                        section_order_num, section_ep_order_num
+                    )
+                )
                 ep_order_num += 1
                 section_ep_order_num += 1
             else:
@@ -576,25 +569,20 @@ class KakuyomuCrawler(CrawlerABC):
             The full text for the episode.
         """
         body_text_list = []
-        body_text_list.append(html.parse_text_from_desendant_by_class(
-            episode_page_soup, self._EPISODE_TITLE_CLASS, 'p'
-        ).strip())
+        body_text_list.append(
+            html.parse_text_from_desendant_by_class(
+                episode_page_soup, self._EPISODE_TITLE_CLASS, 'p'
+            ).strip()
+        )
         body_text_list.append('')  # Add extra new line after title
 
         body_text_div = html.select_desendants_by_class(
             episode_page_soup, self._EPISODE_TEXT_DIV_CLASS, 'div', 1
         )[0]
-        body_text_paras = body_text_div.select('p')
-        if len(body_text_paras) == 0:
-            utils.log_and_raise(
-                _log, HtmlParsingError,
-                'No paragraphs found in epsiode text: "{}"'.format(
-                    body_text_div
-                )
-            )
+        body_text_paras = html.select_desendants_by_tag(body_text_div, 'p')
 
         for body_text_para in body_text_paras:
-            para_text = html.parse_valid_child_text(body_text_para)
+            para_text = html.parse_valid_child_text(body_text_para, False)
             if para_text is None:
                 body_text_list.append('')
             else:
@@ -614,16 +602,9 @@ class KakuyomuCrawler(CrawlerABC):
         Returns:
             The last update UTC datetime for the episode.
         """
-        episode_info_list = episode_page_soup.find(
-            id=self._EPISODE_INFO_LIST_ID
+        episode_info_list = html.select_desendant_by_id(
+            episode_page_soup, self._EPISODE_INFO_LIST_ID
         )
-        if episode_info_list is None:
-            utils.log_and_raise(
-                _log, HtmlParsingError,
-                'No episode info list found: "{}"'.format(
-                    episode_page_soup
-                )
-            )
 
         last_updated_datetime_dd = html.select_desc_list_data(
             episode_info_list, self._LAST_UPDATED_DATETIME_TERM
@@ -635,11 +616,15 @@ class KakuyomuCrawler(CrawlerABC):
     def _create_episode_sidebar_url(self, episode_url: str) -> str:
         """Creates the url for the sidebar for the given episode."""
         url_split = urlsplit(episode_url)
-        return urlunsplit((
-            url_split.scheme, url_split.netloc,
-            posixpath.join(url_split.path, self._EPISODE_SIDEBAR_URL_SUFFIX),
-            url_split.query, url_split.fragment
-        ))
+        return urlunsplit(
+            (
+                url_split.scheme, url_split.netloc,
+                posixpath.join(
+                    url_split.path, self._EPISODE_SIDEBAR_URL_SUFFIX
+                ),
+                url_split.query, url_split.fragment
+            )
+        )
 
     def crawl_article(
         self, article_url: str, article_metadata: JpnArticleMetadata
