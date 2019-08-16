@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import List
 
 import myaku.utils as utils
-from myaku.crawlers import NhkNewsWebCrawler
+from myaku.crawlers import KakuyomuCrawler
 from myaku.database import MyakuCrawlDb
 from myaku.datatypes import JpnArticle, FoundJpnLexicalItem
 from myaku.japanese_analysis import JapaneseTextAnalyzer
@@ -106,11 +106,11 @@ def main() -> None:
 
     stats = CrawlStats()
     jta = JapaneseTextAnalyzer()
-    with MyakuCrawlDb() as db, NhkNewsWebCrawler() as crawler:
+    with MyakuCrawlDb() as db, KakuyomuCrawler() as crawler:
         crawls = crawler.get_crawls_for_most_recent()
 
         for crawl in crawls:
-            stats.add_crawl(crawl.name)
+            stats.add_crawl(crawl.crawl_name)
 
             for article in crawl.crawl_gen:
                 if db.is_article_stored(article):
@@ -119,9 +119,9 @@ def main() -> None:
 
                 flis = jta.find_article_lexical_items(article)
                 db.write_found_lexical_items(flis)
-                stats.update_crawl(crawl.name, article, flis)
+                stats.update_crawl(crawl.crawl_name, article, flis)
 
-            stats.finish_crawl(crawl.name)
+            stats.finish_crawl(crawl.crawl_name)
         stats.finish_stat_tracking()
 
 

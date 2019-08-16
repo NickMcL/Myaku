@@ -13,7 +13,7 @@ def main() -> None:
     start_time = time.perf_counter()
     jta = JapaneseTextAnalyzer()
     with MyakuCrawlDb() as db:
-        articles = db.read_articles()
+        articles = db.read_all_articles()
         print('{} articles read from database'.format(len(articles)))
 
         for i, article in enumerate(articles):

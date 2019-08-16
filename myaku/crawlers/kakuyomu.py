@@ -4,10 +4,9 @@ import enum
 import logging
 import posixpath
 import re
-import time
 from datetime import datetime
 from typing import List
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit
 
 import pytz
 from bs4 import BeautifulSoup
@@ -53,6 +52,7 @@ class KakuyomuSortOrder(enum.Enum):
     LAST_EPISODE_PUBLISHED_AT = 3
 
 
+@utils.add_method_debug_logging
 class KakuyomuCrawler(CrawlerABC):
     """Crawls articles from the Kakuyomu website.
 
@@ -62,20 +62,22 @@ class KakuyomuCrawler(CrawlerABC):
     _SOURCE_NAME = 'Kakuyomu'
     __SOURCE_BASE_URL = 'https://kakuyomu.jp'
 
-    __ARTICLE_METADATA_CMP_FIELDS = []
-
     _SEARCH_PAGE_URL_TEMPLATE = (
         __SOURCE_BASE_URL +
-        'search?genre_name={genre}&order={sort_order}&page={page_num}'
+        '/search?genre_name={genre}&order={sort_order}&page={page_num}'
     )
 
     _EPISODE_SIDEBAR_URL_SUFFIX = 'episode_sidebar'
     _EPISODE_SIDEBAR_LOAD_WAIT_TIME = 2  # In seconds
 
     _TIME_TAG_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+    _SEARCH_RESULT_DATETIME_FORMAT = '%Y年%m月%d日 %H:%M 更新'
 
     _EMPTY_SEARCH_RESULTS_CLASS = 'widget-emptyMessage'
-    _SERIES_TITLE_LINK_CLASS = 'widget-workCard-titleLabel'
+    _SEARCH_RESULT_TILE_CLASS = 'widget-work'
+    _SEARCH_RESULT_TITLE_CLASS = 'widget-workCard-titleLabel'
+    _SEARCH_RESULT_AUTHOR_CLASS = 'widget-workCard-authorLabel'
+    _SEARCH_RESULT_LAST_UPDATED_CLASS = 'widget-workCard-dateUpdated'
 
     _SERIES_TITLE_TAG_ID = 'workTitle'
     _SERIES_AUTHOR_TAG_ID = 'workAuthor-activityName'
@@ -120,11 +122,6 @@ class KakuyomuCrawler(CrawlerABC):
         """The base url for accessing the source."""
         return self.__SOURCE_BASE_URL
 
-    @property
-    def _ARTICLE_METADATA_CMP_FIELDS(self) -> List[str]:
-        """The JpnArticleMetadata fields to use for equivalence comparisons."""
-        return self.__ARTICLE_METADATA_CMP_FIELDS
-
     def __init__(self, timeout: int = 10) -> None:
         """Initializes the resources used by the crawler."""
         super().__init__(False, timeout)
@@ -152,24 +149,71 @@ class KakuyomuCrawler(CrawlerABC):
             page_soup, self._EMPTY_SEARCH_RESULTS_CLASS
         )
 
+    def _parse_search_result_datetime(self, datetime_str: str) -> datetime:
+        """Parses a datetime string from the search results page.
+
+        Raises:
+            HtmlParsingError: The datetime string could not be parsed.
+        """
+        try:
+            dt = datetime.strptime(
+                datetime_str, self._SEARCH_RESULT_DATETIME_FORMAT
+            )
+        except ValueError:
+            utils.log_and_raise(
+                _log, HtmlParsingError,
+                'Failed to parse search result datetime string "{}" using '
+                'format "{}"'.format(
+                    datetime_str, self._SEARCH_RESULT_DATETIME_FORMAT
+                )
+            )
+
+        # Search result datetime strings do not include seconds, so explicitly
+        # set seconds to 0.
+        return utils.convert_jst_to_utc(dt.replace(second=0))
+
     def _parse_search_results_page(
         self, page_soup: BeautifulSoup
-    ) -> List[str]:
-        """Parses the series links from a search results page soup.
+    ) -> List[JpnArticleBlog]:
+        """Parses the series blog info from a search results page.
 
         Args:
             page_soup: A BeautifulSoup initialized with the content from a
                 search page.
+
         Returns:
-            A list of the absolute urls for all of the series listed in the
+            A list of the series blog info for all of the series listed in the
             search results page.
         """
-        series_link_tags = html.select_desendants_by_class(
-            page_soup, self._SERIES_TITLE_LINK_CLASS, 'a'
+        series_blogs = []
+        series_tiles = html.select_desendants_by_class(
+            page_soup, self._SEARCH_RESULT_TILE_CLASS, 'div'
         )
-        return [
-            urljoin(self._SOURCE_BASE_URL, t['href']) for t in series_link_tags
-        ]
+        _log.debug('Found %s series on search results page', len(series_tiles))
+
+        for series_tile in series_tiles:
+            series_blog = JpnArticleBlog(source_name=self.SOURCE_NAME)
+
+            title_link_tag = html.select_desendants_by_class(
+                series_tile, self._SEARCH_RESULT_TITLE_CLASS, 'a', 1
+            )[0]
+            series_blog.title = html.parse_valid_child_text(title_link_tag)
+            series_blog.source_url = title_link_tag['href']
+
+            series_blog.author = html.parse_text_from_desendant_by_class(
+                series_tile, self._SEARCH_RESULT_AUTHOR_CLASS, 'a'
+            )
+
+            last_updated_str = html.parse_text_from_desendant_by_class(
+                series_tile, self._SEARCH_RESULT_LAST_UPDATED_CLASS, 'span'
+            )
+            series_blog.last_updated_datetime = (
+                self._parse_search_result_datetime(last_updated_str)
+            )
+
+            series_blogs.append(series_blog)
+
+        return series_blogs
 
     def _parse_series_rating_info(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
@@ -202,11 +246,10 @@ class KakuyomuCrawler(CrawlerABC):
             series_blog: The blog object to store the parsed data in.
         """
         series_blog.tags = []
-        series_blog.tags.append(
-            html.parse_text_from_desendant_by_id(
-                series_page_soup, self._SERIES_GENRE_TAG_ID
-            ).strip()
+        genre = html.parse_text_from_desendant_by_id(
+            series_page_soup, self._SERIES_GENRE_TAG_ID
         )
+        series_blog.tags.append(genre.strip())
 
         # If a series has no tags set for it, the tag div won't exist on the
         # series page.
@@ -389,12 +432,14 @@ class KakuyomuCrawler(CrawlerABC):
 
         return table_of_contents_items
 
+    @utils.skip_method_debug_logging
     def _is_section_li(self, li_tag: Tag) -> bool:
         """Returns True if the tag is a table of contents section name."""
         if 'class' not in li_tag.attrs or not li_tag.attrs['class']:
             return False
         return self._SECTION_LI_CLASS in li_tag.attrs['class']
 
+    @utils.skip_method_debug_logging
     def _is_episode_li(self, li_tag: Tag) -> bool:
         """Returns True if the tag is a table of contents episode name."""
         if 'class' not in li_tag.attrs or not li_tag.attrs['class']:
@@ -419,9 +464,11 @@ class KakuyomuCrawler(CrawlerABC):
             title=html.parse_text_from_desendant_by_class(
                 episode_li_tag, self._EPISODE_TOC_TITLE_CLASS, 'span'
             ).strip(),
+            author=series_blog.author,
             source_url=html.parse_link_desendant(episode_li_tag),
             source_name=self.SOURCE_NAME,
             blog=series_blog,
+            blog_id=series_blog.get_id(),
             blog_article_order_num=ep_order_num,
             blog_section_name=section_name,
             blog_section_order_num=section_order_num,
@@ -461,12 +508,11 @@ class KakuyomuCrawler(CrawlerABC):
                 section_ep_order_num = 1
                 section_name = html.parse_valid_child_text(item).strip()
             elif self._is_episode_li(item):
-                metadatas.append(
-                    self._parse_table_of_contents_episode(
-                        item, series_blog, ep_order_num, section_name,
-                        section_order_num, section_ep_order_num
-                    )
+                metadata = self._parse_table_of_contents_episode(
+                    item, series_blog, ep_order_num, section_name,
+                    section_order_num, section_ep_order_num
                 )
+                metadatas.append(metadata)
                 ep_order_num += 1
                 section_ep_order_num += 1
             else:
@@ -478,7 +524,7 @@ class KakuyomuCrawler(CrawlerABC):
 
         return metadatas
 
-    def _crawl_series_page(self, page_url: str) -> CrawlGenerator:
+    def crawl_blog(self, page_url: str) -> CrawlGenerator:
         """Crawls a series homepage.
 
         Args:
@@ -494,7 +540,7 @@ class KakuyomuCrawler(CrawlerABC):
             page_soup, series_blog
         )
 
-        yield from self._crawl_uncrawled_metadatas(metadatas)
+        yield from self._crawl_uncrawled_articles(metadatas)
 
     def _crawl_search_results_page(
         self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
@@ -518,9 +564,8 @@ class KakuyomuCrawler(CrawlerABC):
             _log.debug('No search results found for url "%s"', search_url)
             return
 
-        series_links = self._parse_search_resuls_page(page_soup)
-        for series_link in series_links:
-            yield from self._crawl_series_page(series_link)
+        series_blogs = self._parse_search_results_page(page_soup)
+        yield from self._crawl_updated_blogs(series_blogs)
 
     def crawl_search_results(
         self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
@@ -556,7 +601,13 @@ class KakuyomuCrawler(CrawlerABC):
         Only crawls for articles in the non-fiction and essay sections of
         Kakuyomu.
         """
-        return []
+        popular_crawl = Crawl(
+            crawl_name='Popular',
+            crawl_gen=self.crawl_search_results(
+                KakuyomuGenre.NONFICTION, KakuyomuSortOrder.POPULAR
+            )
+        )
+        return [popular_crawl]
 
     def _parse_episode_text(self, episode_page_soup: BeautifulSoup) -> str:
         """Parses the full text for an episode.
@@ -569,11 +620,10 @@ class KakuyomuCrawler(CrawlerABC):
             The full text for the episode.
         """
         body_text_list = []
-        body_text_list.append(
-            html.parse_text_from_desendant_by_class(
-                episode_page_soup, self._EPISODE_TITLE_CLASS, 'p'
-            ).strip()
+        title = html.parse_text_from_desendant_by_class(
+            episode_page_soup, self._EPISODE_TITLE_CLASS, 'p'
         )
+        body_text_list.append(title.strip())
         body_text_list.append('')  # Add extra new line after title
 
         body_text_div = html.select_desendants_by_class(
@@ -590,7 +640,7 @@ class KakuyomuCrawler(CrawlerABC):
 
         return '\n'.join(body_text_list)
 
-    def _parse_episode_last_update_datetime(
+    def _parse_episode_last_updated_datetime(
         self, episode_page_soup: BeautifulSoup
     ) -> datetime:
         """Parses the last update time for an episode.
@@ -650,15 +700,10 @@ class KakuyomuCrawler(CrawlerABC):
         article.full_text = self._parse_episode_text(episode_page_soup)
         article.alnum_count = utils.get_alnum_count(article.full_text)
 
-        _log.debug(
-            'Sleeping for %s seconds before loading episode sidebar',
-            self._EPISODE_SIDEBAR_LOAD_WAIT_TIME
-        )
-        time.sleep(self._EPISODE_SIDEBAR_LOAD_WAIT_TIME)
         sidebar_url = self._create_episode_sidebar_url(article_url)
         episode_sidebar_soup = self._get_url_html_soup(sidebar_url)
-        article.metadata.last_update_datetime = (
-            self._parse_episode_last_update_datetime(episode_sidebar_soup)
+        article.metadata.last_updated_datetime = (
+            self._parse_episode_last_updated_datetime(episode_sidebar_soup)
         )
 
         return article

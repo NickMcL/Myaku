@@ -84,9 +84,24 @@ class JpnArticleBlog(object):
     in_serialization: bool = None
     last_scraped_datetime: datetime = None
 
+    ID_FIELDS: Tuple[str, ...] = field(
+        default=(
+            'source_name',
+            'title',
+            'author',
+            'start_datetime',
+        ),
+        init=False,
+        repr=False
+    )
+
     def __str__(self) -> str:
         """Returns the title and author in string format."""
         return '{}--{}'.format(self.title, self.author)
+
+    def get_id(self) -> str:
+        """Returns the unique id for this blog."""
+        return '-'.join(str(getattr(self, f)) for f in self.ID_FIELDS)
 
 
 @dataclass
@@ -99,6 +114,7 @@ class JpnArticleMetadata(object):
         source_name: Human-readable name of the source of the article.
         blog: Blog the article was posted to. If None, the article was not
             posted as part of a blog.
+        blog_id: A unique id for the blog the article was posted to.
         blog_article_order_num: Overall number of this article in the ordering
             of the articles on the blog this article was posted on.
         blog_section_name: Name of the section of the blog this article was
@@ -108,26 +124,41 @@ class JpnArticleMetadata(object):
         blog_section_article_order_num: Number of this article in the ordering
             of the articles in the section of the blog this article was posted
             in.
-        publication_datetime: The UTC datetime the article was published.
-        scraped_datetime: The UTC datetime the article was scraped.
+        publication_datetime: UTC datetime the article was published.
+        last_updated_datetime: UTC datetime of the last update to the article.
+        scraped_datetime: UTC datetime the article was scraped.
     """
     title: str = None
+    author: str = None
     source_url: str = None
     source_name: str = None
     blog: JpnArticleBlog = None
+    blog_id: str = None
     blog_article_order_num: int = None
     blog_section_name: str = None
     blog_section_order_num: int = None
     blog_section_article_order_num: int = None
     publication_datetime: datetime = None
-    last_update_datetime: datetime = None
+    last_updated_datetime: datetime = None
     scraped_datetime: datetime = None
+
+    ID_FIELDS: Tuple[str, ...] = field(
+        default=(
+            'source_name',
+            'blog_id',
+            'title',
+            'author',
+            'publication_datetime',
+        ),
+        init=False,
+        repr=False
+    )
 
     def __str__(self) -> str:
         """Returns the title and publication time in string format."""
         return '{}--{}--{}'.format(
             self.title,
-            self.blog,
+            self.blog_id,
             self.publication_datetime.isoformat()
         )
 

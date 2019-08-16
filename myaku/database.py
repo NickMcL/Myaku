@@ -9,21 +9,21 @@ import functools
 import logging
 import re
 from collections import defaultdict
-from datetime import datetime
 from operator import methodcaller
 from typing import Any, Callable, Dict, List, Tuple, TypeVar, Union
 
-import pytz
+import pymongo
 from bson.objectid import ObjectId
 from pymongo import MongoClient
-from pymongo.collection import Collection
+from pymongo.collection import Collection, ReturnDocument
 from pymongo.results import InsertManyResult
 
 import myaku
 import myaku.utils as utils
 from myaku.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
-                             JpnArticleMetadata, JpnLexicalItemInterp,
-                             LexicalItemTextPosition, MecabLexicalItemInterp)
+                             JpnArticleBlog, JpnArticleMetadata,
+                             JpnLexicalItemInterp, LexicalItemTextPosition,
+                             MecabLexicalItemInterp)
 from myaku.errors import NoDbWritePermissionError
 
 _log = logging.getLogger(__name__)
@@ -74,6 +74,7 @@ class MyakuCrawlDb(object):
     """
     _DB_NAME = 'myaku'
     _ARTICLE_COLL_NAME = 'articles'
+    _BLOG_COLL_NAME = 'blogs'
     _FOUND_LEXICAL_ITEM_COLL_NAME = 'found_lexical_items'
 
     # Stores only metadata for previous crawled articles. Used to keep track of
@@ -97,6 +98,7 @@ class MyakuCrawlDb(object):
 
         self._db = self._mongo_client[self._DB_NAME]
         self._article_collection = self._db[self._ARTICLE_COLL_NAME]
+        self._blog_collection = self._db[self._BLOG_COLL_NAME]
         self._crawled_collection = self._db[self._CRAWLED_COLL_NAME]
         self._found_lexical_item_collection = (
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
@@ -164,11 +166,19 @@ class MyakuCrawlDb(object):
     def _create_indexes(self) -> None:
         """Creates the necessary indexes for the db if they don't exist."""
         self._article_collection.create_index('text_hash')
-        self._crawled_collection.create_index('title')
-        self._crawled_collection.create_index('source_name')
-        self._crawled_collection.create_index('publication_datetime')
+        self._article_collection.create_index('blog_oid')
         self._found_lexical_item_collection.create_index('base_form')
         self._found_lexical_item_collection.create_index('article_oid')
+
+        crawled_id_index = []
+        for field in JpnArticleMetadata.ID_FIELDS:
+            crawled_id_index.append((field, pymongo.ASCENDING))
+        self._crawled_collection.create_index(crawled_id_index)
+
+        blog_id_index = []
+        for field in JpnArticleBlog.ID_FIELDS:
+            blog_id_index.append((field, pymongo.ASCENDING))
+        self._blog_collection.create_index(blog_id_index)
 
     def is_article_stored(self, article: JpnArticle) -> bool:
         """Returns True if article is stored in the db, False otherwise."""
@@ -207,110 +217,116 @@ class MyakuCrawlDb(object):
         )
         return unstored_articles
 
-    def filter_to_unstored_article_metadatas(
-        self, metadatas: List[JpnArticleMetadata], eq_attrs: List[str]
-    ) -> List[JpnArticleMetadata]:
-        """Returns new list with the metadatas not currently stored in the db.
-
-        Uses a comparison on the attributes specified in eq_attrs to determine
-        if two article metadatas are equal.
-
-        Does not modify the given article metadatas list.
+    @utils.skip_method_debug_logging
+    def _create_id_query(self, obj: Any) -> _Document:
+        """Creates docs to query for obj and project its id fields.
 
         Args:
-            metadatas: A list of article metadatas to check for in the
-                database.
-            eq_attrs: A list of attributes names whose values to compare to
-                determine if two article metadatas are equivalent.
+            obj: Object being queried for. It must define an ID_FIELDS list
+                with the field names that can be used to uniquely identify an
+                object of its type.
 
         Returns:
-            The article metadatas from the given list that are not currently
-            stored in the database based on a comparison using eq_attrs.
-            Preserves ordering used in the given list.
+            (query doc, projection doc)
         """
-        match_docs = [dict() for _ in metadatas]
-        for i, metadata in enumerate(metadatas):
-            for field in eq_attrs:
-                match_docs[i][field] = getattr(metadata, field)
+        query_doc = {}
+        proj_doc = {'_id': 0}
+        for field in obj.ID_FIELDS:
+            query_doc[field] = getattr(obj, field)
+            proj_doc[field] = 1
+        return (query_doc, proj_doc)
 
-        if len(match_docs) == 1:
-            query = match_docs[0]
-        else:
-            query = {'$or': match_docs}
-
-        projection = {field: 1 for field in eq_attrs}
-        projection['_id'] = 0
+    def filter_to_unstored_article_metadatas(
+        self, metadatas: List[JpnArticleMetadata]
+    ) -> List[JpnArticleMetadata]:
+        """Returns new list with the metadatas not stored in the db."""
+        unstored_metadatas = []
+        for metadata in metadatas:
+            query, proj = self._create_id_query(metadata)
+            if self._crawled_collection.find_one(query, proj) is None:
+                unstored_metadatas.append(metadata)
 
         _log.debug(
-            'Will query %s with %s metadatas using %s fields',
-            self._crawled_collection.full_name, len(match_docs), eq_attrs
-        )
-        cursor = self._crawled_collection.find(query, projection)
-        stored_docs = list(cursor)
-        _log.debug(
-            'Retrieved %s documents from %s',
-            len(stored_docs), self._crawled_collection.full_name
-        )
-
-        unstored_metadatas = self._filter_to_unstored(
-            metadatas, stored_docs, eq_attrs
+            'Filtered to %s unstored article metadatas',
+            len(unstored_metadatas)
         )
         return unstored_metadatas
 
-    def _filter_to_unstored(
-        self, objs: List[T], stored_docs: List[_Document], eq_attrs: List[str]
-    ) -> List[T]:
-        """Filters the objects to only those without an equal stored document.
+    def filter_to_updated_blogs(
+        self, blogs: List[JpnArticleBlog]
+    ) -> List[JpnArticleBlog]:
+        """Returns new list with the blogs updated since last stored in the db.
 
-        Uses a comparison on the attributes specified in eq_attrs to determine
-        if an object is equivalent to a document.
-
-        Runs in O(o*e + d*e) where o is the number of objects, d is the number
-        of stored docs, and e is the number of eq attributes.
-
-        Does not modify the given object or document lists.
-
-        Args:
-            objs: Object list to filter to remove stored objects.
-            stored_docs: Stored documents to compare to the given objects to
-                determine if an object is stored or not.
-            eq_attrs: The attributes of the objects to compare to fields in the
-                documents to determine if an object is equal to a document. All
-                attributes in this list must be equal for an object and
-                document to be considered equal.
-
-        Returns:
-            A new list containing only the objects from the given object list
-            that do not have an equivalent document in the given document list
-            based on a comparison of the attributes in eq_attrs.
-            Preserves ordering used in the given objects list.
+        The new list includes blogs that have never been stored in the db as
+        well.
         """
-        sorted_eq_attrs = sorted(eq_attrs)
+        updated_blogs = []
+        unstored_count = 0
+        updated_count = 0
+        for blog in blogs:
+            query, proj = self._create_id_query(blog)
+            proj['last_scraped_datetime'] = 1
+            doc = self._crawled_collection.find_one(query, proj)
 
-        docs_key_vals = set()
-        for doc in stored_docs:
-            key_vals = []
-            for attr in sorted_eq_attrs:
-                if isinstance(doc[attr], datetime):
-                    key_vals.append((attr, doc[attr].replace(tzinfo=pytz.utc)))
-                else:
-                    key_vals.append((attr, doc[attr]))
-            docs_key_vals.add(tuple(key_vals))
+            if doc is None:
+                unstored_count += 1
+                updated_blogs.append(blog)
+                continue
 
-        unstored_objs = []
-        for obj in objs:
-            key_vals = []
-            for attr in sorted_eq_attrs:
-                value = getattr(obj, attr)
-                if isinstance(value, datetime):
-                    key_vals.append((attr, value.replace(tzinfo=pytz.utc)))
-                else:
-                    key_vals.append((attr, value))
+            if (doc['last_scraped_datetime'] is None or
+                    blog.last_updated_datetime > doc['last_scraped_datetime']):
+                updated_count += 1
+                updated_blogs.append(blog)
 
-            if tuple(key_vals) not in docs_key_vals:
-                unstored_objs.append(obj)
+        _log.debug(
+            'Filtered to %s unstored blogs and %s updated blogs',
+            unstored_count, updated_count
+        )
+        return updated_blogs
 
-        return unstored_objs
+    def update_blog_last_scraped(self, blog: JpnArticleBlog) -> None:
+        """Updates the last scraped datetime of the blog in the db."""
+        query, proj = self._create_id_query(blog)
+
+        _log.debug(
+            'Updating the last scraped datetime in collection "%s" for blog '
+            '"%s"', self._blog_collection.full_name, blog
+        )
+        result = self._blog_collection.update_one(
+            query,
+            {
+                '$set': {
+                    'last_scraped_datetime': blog.last_scraped_datetime
+                }
+            }
+        )
+        _log.debug('Update result: %s', result.raw_result)
+
+    def _get_fli_articles(
+            self, flis: List[FoundJpnLexicalItem]
+    ) -> List[JpnArticle]:
+        """Gets the unique articles referenced by the found lexical items."""
+        # Many found lexical items can point to the same article object in
+        # memory, so dedupe using id() to get each article object only once.
+        article_id_map = {
+            id(item.article): item.article for item in flis
+        }
+        return list(article_id_map.values())
+
+    def _get_article_blogs(
+            self, articles: List[JpnArticle]
+    ) -> List[JpnArticleBlog]:
+        """Gets the unique blogs referenced by the articles."""
+        articles_with_blog = [
+            a for a in articles if a.metadata and a.metadata.blog
+        ]
+
+        # Many found lexical items can point to the same blog object in
+        # memory, so dedupe using id() to get each blog object only once.
+        blog_id_map = {
+            id(a.metadata.blog): a.metadata.blog for a in articles_with_blog
+        }
+        return list(blog_id_map.values())
 
     @_require_write_permission
     def write_found_lexical_items(
@@ -327,32 +343,11 @@ class MyakuCrawlDb(object):
                 False, will assume the articles referenced by the the given
                 found lexical items are already in the database.
         """
-        # Many found lexical items can point to the same article object in
-        # memory, so dedupe using id() to get each article object only once
-        article_id_map = {
-            id(item.article): item.article for item in found_lexical_items
-        }
-        articles = list(article_id_map.values())
-
+        articles = self._get_fli_articles(found_lexical_items)
         if write_articles:
-            article_docs = self._convert_articles_to_docs(articles)
-            result = self._write_with_log(
-                article_docs, self._article_collection
-            )
-            article_oid_map = {
-                id(a): oid for a, oid in zip(articles, result.inserted_ids)
-            }
-
+            article_oid_map = self._write_articles(articles)
         else:
-            text_hashes = [a.text_hash for a in articles]
-            docs = self._read_with_log(
-                'text_hash', text_hashes, self._article_collection,
-                {'text_hash': 1}
-            )
-            hash_oid_map = {d['text_hash']: d['_id'] for d in docs}
-            article_oid_map = {
-                id(a): hash_oid_map[a.text_hash] for a in articles
-            }
+            article_oid_map = self._read_article_oids(articles)
 
         found_lexical_item_docs = self._convert_found_lexical_items_to_docs(
             found_lexical_items, article_oid_map
@@ -388,21 +383,116 @@ class MyakuCrawlDb(object):
         found_lexical_item_docs = self._read_with_log(
             'base_form', base_forms, self._found_lexical_item_collection
         )
-
         article_oids = list(
             set(doc['article_oid'] for doc in found_lexical_item_docs)
         )
-        article_docs = self._read_with_log(
-            '_id', article_oids, self._article_collection
-        )
-        oid_article_map = self._convert_docs_to_articles(article_docs)
+        oid_article_map = self._read_articles(article_oids)
 
         found_lexical_items = self._convert_docs_to_found_lexical_items(
             found_lexical_item_docs, oid_article_map
         )
         return found_lexical_items
 
-    def read_articles(self) -> List[JpnArticle]:
+    def _write_blogs(
+        self, blogs: JpnArticleBlog
+    ) -> Dict[int, ObjectId]:
+        """Writes the blogs to the database.
+
+        Args:
+            blogs: Blogs to write to the database.
+
+        Returns:
+            A mapping from the id() for each given blog to the ObjectId that
+            blog was written with.
+        """
+        blog_docs = self._convert_blogs_to_docs(blogs)
+        object_ids = self._replace_write_with_log(
+            blog_docs, self._blog_collection, JpnArticleBlog.ID_FIELDS
+        )
+        blog_oid_map = {
+            id(b): oid for b, oid in zip(blogs, object_ids)
+        }
+
+        return blog_oid_map
+
+    def _write_articles(
+        self, articles: JpnArticle
+    ) -> Dict[int, ObjectId]:
+        """Writes the articles to the database.
+
+        Args:
+            articles: Articles to write to the database.
+
+        Returns:
+            A mapping from the id() for each given article to the ObjectId that
+            article was written with.
+        """
+        blogs = self._get_article_blogs(articles)
+        blog_oid_map = self._write_blogs(blogs)
+
+        article_docs = self._convert_articles_to_docs(articles, blog_oid_map)
+        result = self._write_with_log(
+            article_docs, self._article_collection
+        )
+        article_oid_map = {
+            id(a): oid for a, oid in zip(articles, result.inserted_ids)
+        }
+        return article_oid_map
+
+    def _read_article_oids(
+        self, articles: List[JpnArticle]
+    ) -> Dict[int, ObjectId]:
+        """Reads the ObjectIds for the articles from the database.
+
+        Args:
+            articles: Articles to read from the database.
+
+        Returns:
+            A mapping from the id() for each given article to the
+            ObjectId that article is stored with.
+        """
+        text_hashes = [a.text_hash for a in articles]
+        docs = self._read_with_log(
+            'text_hash', text_hashes, self._article_collection,
+            {'text_hash': 1}
+        )
+        hash_oid_map = {d['text_hash']: d['_id'] for d in docs}
+        article_oid_map = {
+            id(a): hash_oid_map[a.text_hash] for a in articles
+        }
+
+        return article_oid_map
+
+    def _read_articles(
+        self, object_ids: List[ObjectId]
+    ) -> Dict[ObjectId, JpnArticle]:
+        """Reads the articles for the given ObjectIds from the database.
+
+        Args:
+            object_ids: ObjectIds for articles to read from the database.
+
+        Returns:
+            A mapping from the given ObjectIds to the article stored in the
+            database for that ObjectId.
+        """
+        article_docs = self._read_with_log(
+            '_id', object_ids, self._article_collection
+        )
+        blog_oids = list(
+            set(doc['blog_oid'] for doc in article_docs)
+        )
+        blog_docs = self._read_with_log(
+            '_id', blog_oids, self._blog_collection
+        )
+
+        oid_blog_map = self._convert_docs_to_blogs(blog_docs)
+        oid_article_map = self._convert_docs_to_articles(
+            article_docs, oid_blog_map
+        )
+
+        return oid_article_map
+
+    def read_all_articles(self) -> List[JpnArticle]:
         """Reads all articles from the database."""
         _log.debug(
             'Will query %s for all documents',
@@ -423,22 +513,6 @@ class MyakuCrawlDb(object):
         """Writes the article metadata to the crawled database."""
         metadata_docs = self._convert_article_metadata_to_docs(metadatas)
         self._write_with_log(metadata_docs, self._crawled_collection)
-
-    def read_crawled(self, source_name: str) -> List[JpnArticleMetadata]:
-        """Reads article metadata for given source from the crawled database.
-
-        Args:
-            source_name: Either one or a list of source names to get the
-                previously crawled article metadata for from the database.
-
-        Returns:
-            A list of article metadatas.
-        """
-        metadata_docs = self._read_with_log(
-            'source_name', source_name, self._crawled_collection
-        )
-        metadatas = self._convert_docs_to_article_metadata(metadata_docs)
-        return metadatas
 
     @_require_write_permission
     def delete_article_found_lexical_items(self, article: JpnArticle) -> None:
@@ -642,7 +716,7 @@ class MyakuCrawlDb(object):
     def _write_with_log(
         self, docs: List[_Document], collection: Collection
     ) -> InsertManyResult:
-        """Writes docs to collection with before and after logging."""
+        """Writes docs to collection with logging."""
         _log.debug(
             'Will write %s documents to "%s" collection',
             len(docs), collection.full_name
@@ -655,6 +729,49 @@ class MyakuCrawlDb(object):
 
         return result
 
+    def _replace_write_with_log(
+        self, docs: List[_Document], collection: Collection,
+        id_fields: List[str]
+    ) -> List[ObjectId]:
+        """Writes or replaces with docs with logging.
+
+        If a doc exists in the collection, replaces it with the given doc, and
+        if a doc does not exists in the collection, writes it to the
+        collection.
+
+        Args:
+            docs: Documents to write or replace with.
+            collection: Collection to perform writes and replaces on.
+            id_fields: List of fields from the docs that can be used together
+                to uniquely id a doc in the collection.
+
+        Returns:
+            The list of the ObjectIds stored for the given docs. The ObjectId
+            list is in the order of the given docs list.
+        """
+        _log.debug(
+            'Will write replace %s documents to "%s" collection',
+            len(docs), collection.full_name
+        )
+
+        object_ids = []
+        for doc in docs:
+            filter_doc = {}
+            for field in id_fields:
+                filter_doc[field] = doc[field]
+
+            replacement_doc = collection.find_one_and_replace(
+                filter_doc, doc, upsert=True,
+                return_document=ReturnDocument.AFTER
+            )
+            object_ids.append(replacement_doc['_id'])
+
+        _log.debug(
+            'Wrote replaced %s documents to "%s" collection',
+            len(object_ids), collection.full_name
+        )
+        return object_ids
+
     def _convert_article_metadata_to_docs(
         self, metadatas: List[JpnArticleMetadata]
     ) -> List[_Document]:
@@ -663,17 +780,52 @@ class MyakuCrawlDb(object):
         for metadata in metadatas:
             docs.append({
                 'title': metadata.title,
+                'author': metadata.author,
                 'source_url': metadata.source_url,
                 'source_name': metadata.source_name,
+                'blog_id': metadata.blog_id,
+                'blog_article_order_num': metadata.blog_article_order_num,
+                'blog_section_name': metadata.blog_section_name,
+                'blog_section_order_num': metadata.blog_section_order_num,
+                'blog_section_article_order_num':
+                    metadata.blog_section_article_order_num,
                 'publication_datetime': metadata.publication_datetime,
+                'last_updated_datetime': metadata.last_updated_datetime,
                 'scraped_datetime': metadata.scraped_datetime,
                 'myaku_version_info': self._version_doc,
             })
 
         return docs
 
+    def _convert_blogs_to_docs(
+        self, blogs: List[JpnArticleBlog]
+    ) -> List[_Document]:
+        """Converts blogs to dicts for inserting into MongoDB."""
+        docs = []
+        for blog in blogs:
+            docs.append({
+                'title': blog.title,
+                'author': blog.author,
+                'source_name': blog.source_name,
+                'source_url': blog.source_url,
+                'start_datetime': blog.start_datetime,
+                'rating': blog.rating,
+                'rating_count': blog.rating_count,
+                'tags': blog.tags,
+                'catchphrase': blog.catchphrase,
+                'introduction': blog.introduction,
+                'article_count': blog.article_count,
+                'total_char_count': blog.total_char_count,
+                'comment_count': blog.comment_count,
+                'follower_count': blog.follower_count,
+                'in_serialization': blog.in_serialization,
+                'myaku_version_info': self._version_doc,
+            })
+
+        return docs
+
     def _convert_articles_to_docs(
-        self, articles: List[JpnArticle]
+        self, articles: List[JpnArticle], blog_oid_map: Dict[int, ObjectId]
     ) -> List[_Document]:
         """Converts articles to dicts for inserting into MongoDB."""
         docs = []
@@ -681,9 +833,20 @@ class MyakuCrawlDb(object):
             docs.append({
                 'full_text': article.full_text,
                 'title': article.metadata.title,
+                'author': article.metadata.author,
                 'source_url': article.metadata.source_url,
                 'source_name': article.metadata.source_name,
+                'blog_oid': blog_oid_map.get(id(article.metadata.blog)),
+                'blog_article_order_num':
+                    article.metadata.blog_article_order_num,
+                'blog_section_name': article.metadata.blog_section_name,
+                'blog_section_order_num':
+                    article.metadata.blog_section_order_num,
+                'blog_section_article_order_num':
+                    article.metadata.blog_section_article_order_num,
                 'publication_datetime': article.metadata.publication_datetime,
+                'last_updated_datetime':
+                    article.metadata.last_updated_datetime,
                 'scraped_datetime': article.metadata.scraped_datetime,
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
@@ -745,7 +908,7 @@ class MyakuCrawlDb(object):
 
     def _convert_found_lexical_items_to_docs(
         self, found_lexical_items: List[FoundJpnLexicalItem],
-        article_oid_map: Dict[JpnArticle, ObjectId]
+        article_oid_map: Dict[int, ObjectId]
     ) -> List[_Document]:
         """Converts found lexical items to dicts for inserting into MongoDB.
 
@@ -785,25 +948,42 @@ class MyakuCrawlDb(object):
 
         return docs
 
-    @utils.skip_method_debug_logging
-    def _convert_docs_to_article_metadata(
+    def _convert_docs_to_blogs(
         self, docs: List[_Document]
-    ) -> List[JpnArticle]:
-        """Converts MongoDB docs to article metadata."""
-        metadatas = []
-        for doc in docs:
-            metadatas.append(JpnArticleMetadata(
-                title=doc['title'],
-                source_url=doc['source_url'],
-                source_name=doc['source_name'],
-                publication_datetime=doc['publication_datetime'],
-                scraped_datetime=doc['scraped_datetime'],
-            ))
+    ) -> Dict[ObjectId, JpnArticleBlog]:
+        """Converts MongoDB docs to blog objects.
 
-        return metadatas
+        Returns:
+            A mapping from each blog document's ObjectId to the created
+            blog object for that blog document.
+        """
+        oid_blog_map = {}
+        for doc in docs:
+            oid_blog_map[doc['_id']] = JpnArticleBlog(
+                title=doc['title'],
+                author=doc['author'],
+                source_name=doc['source_name'],
+                source_url=doc['source_url'],
+                start_datetime=doc['start_datetime'],
+                last_updated_datetime=doc['last_updated_datetime'],
+                rating=doc['rating'],
+                rating_count=doc['rating_count'],
+                tags=doc['tags'],
+                catchphrase=doc.get('catchphrase'),
+                introduction=doc.get('introduction'),
+                article_count=doc['article_count'],
+                total_char_count=doc['total_char_count'],
+                comment_count=doc['comment_count'],
+                follower_count=doc['follower_count'],
+                in_serialization=doc['in_serialization'],
+                last_scraped_datetime=doc.get('last_scraped_datetime'),
+            )
+
+        return oid_blog_map
 
     def _convert_docs_to_articles(
-        self, docs: List[_Document]
+        self, docs: List[_Document],
+        oid_blog_map: Dict[ObjectId, JpnArticleBlog]
     ) -> Dict[ObjectId, JpnArticle]:
         """Converts MongoDB docs to article objects.
 
@@ -820,9 +1000,18 @@ class MyakuCrawlDb(object):
                 database_id=str(doc['_id']),
                 metadata=JpnArticleMetadata(
                     title=doc['title'],
+                    author=doc.get('author'),
                     source_url=doc['source_url'],
                     source_name=doc['source_name'],
+                    blog=oid_blog_map.get(doc.get('blog_oid')),
+                    blog_article_order_num=doc.get('blog_article_order_num'),
+                    blog_section_name=doc.get('blog_section_name'),
+                    blog_section_order_num=doc.get('blog_section_order_num'),
+                    blog_section_article_order_num=doc.get(
+                        'blog_section_article_order_num'
+                    ),
                     publication_datetime=doc['publication_datetime'],
+                    last_updated_datetime=doc.get('last_updated_datetime'),
                     scraped_datetime=doc['scraped_datetime'],
                 ),
             )

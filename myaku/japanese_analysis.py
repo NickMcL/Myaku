@@ -342,7 +342,7 @@ class JapaneseTextAnalyzer(object):
             if entry in base_entries:
                 sources.append(InterpSource.JMDICT_BASE_FORM)
 
-            lexical_items.append(FoundJpnLexicalItem(
+            lexical_item = FoundJpnLexicalItem(
                 base_form=entry.text_form,
                 found_positions=[LexicalItemTextPosition(
                     base_decomp[0].found_positions[0].index, len(surface_form)
@@ -353,7 +353,8 @@ class JapaneseTextAnalyzer(object):
                         interp_sources=tuple(sources)
                     )
                 ]
-            ))
+            )
+            lexical_items.append(lexical_item)
 
         return lexical_items
 

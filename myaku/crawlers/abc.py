@@ -16,7 +16,7 @@ from selenium.webdriver import firefox
 import myaku
 import myaku.utils as utils
 from myaku.database import MyakuCrawlDb
-from myaku.datatypes import JpnArticle, JpnArticleMetadata
+from myaku.datatypes import JpnArticle, JpnArticleBlog, JpnArticleMetadata
 
 _log = logging.getLogger(__name__)
 
@@ -42,6 +42,8 @@ class CrawlerABC(ABC):
     A child class should handle the crawling for a single article source.
     """
 
+    _MIN_REQUEST_WAIT_TIME = 2
+    _MAX_REQUSET_WAIT_TIME = 5
     _WEB_DRIVER_LOG_FILENAME = 'webdriver.log'
 
     @property
@@ -54,12 +56,6 @@ class CrawlerABC(ABC):
     @abstractmethod
     def _SOURCE_BASE_URL(self) -> List[str]:
         """The base url for accessing the source."""
-        return []
-
-    @property
-    @abstractmethod
-    def _ARTICLE_METADATA_CMP_FIELDS(self) -> List[str]:
-        """The JpnArticleMetadata fields to use for equivalence comparisons."""
         return []
 
     @abstractmethod
@@ -105,6 +101,8 @@ class CrawlerABC(ABC):
         """
         self._timeout = timeout
         self._session = requests.Session()
+
+        self._next_request_wait_time = time.monotonic()
 
         self._web_driver = None
         if init_web_driver:
@@ -156,29 +154,46 @@ class CrawlerABC(ABC):
         Raises:
             HTTPError: The response for the GET request had a code >= 400.
         """
+        current_time = time.monotonic()
+        if current_time < self._next_request_wait_time:
+            _log.debug(
+                'Sleeping for %s seconds before making next request',
+                self._next_request_wait_time - current_time
+            )
+            time.sleep(self._next_request_wait_time - current_time)
+
         _log.debug('Making GET request to url "%s"', url)
         response = self._session.get(url, timeout=self._timeout)
         _log.debug('Response received with code %s', response.status_code)
         response.raise_for_status()
 
+        wait_time = (
+            self._MIN_REQUEST_WAIT_TIME + (
+                random() *
+                (self._MAX_REQUSET_WAIT_TIME - self._MIN_REQUEST_WAIT_TIME)
+            )
+        )
+        self._next_request_wait_time = time.monotonic() + wait_time
+
         return BeautifulSoup(response.content, 'html.parser')
 
     @utils.add_debug_logging
-    def _crawl_uncrawled_metadatas(
+    def _crawl_uncrawled_articles(
         self, metadatas: List[JpnArticleMetadata]
     ) -> CrawlGenerator:
-        """Crawls all not yet crawled articles specified by the metadatas.
+        """Crawls not yet crawled articles specified by the metadatas.
 
         Args:
             metadatas: List of metadatas whose articles to crawl if not
                 previous crawled.
+
         Returns:
             A generator that will yield a previously uncrawled JpnArticle from
             the given metadatas each call.
         """
         with MyakuCrawlDb() as db:
             uncrawled_metadatas = db.filter_to_unstored_article_metadatas(
-                metadatas, self._ARTICLE_METADATA_CMP_FIELDS
+                metadatas
             )
 
         _log.debug(
@@ -195,13 +210,49 @@ class CrawlerABC(ABC):
 
         with MyakuCrawlDb() as db:
             for i, metadata in enumerate(uncrawled_metadatas):
-                sleep_time = (random() * 4) + 3
                 _log.debug(
-                    'Sleeping for %s seconds, then scrape %s / %s',
-                    sleep_time, i + 1, len(uncrawled_metadatas))
-                time.sleep(sleep_time)
-
+                    'Crawling uncrawled artcile %s / %s',
+                    i + 1, len(uncrawled_metadatas)
+                )
                 article = self.crawl_article(metadata.source_url, metadata)
                 db.write_crawled([article.metadata])
 
                 yield article
+
+    @utils.add_debug_logging
+    def _crawl_updated_blogs(
+        self, blogs: List[JpnArticleBlog]
+    ) -> CrawlGenerator:
+        """Crawls the blogs that have been updated since last crawled.
+
+        Args:
+            blogs: List of blogs to check. The blogs that have been updated
+                since last crawled will be crawled.
+
+        Returns:
+            A generator that will yield a previously uncrawled JpnArticle from
+            one of the updated blogs each call.
+        """
+        with MyakuCrawlDb() as db:
+            updated_blogs = db.filter_to_updated_blogs(blogs)
+
+        _log.debug(
+            '%s found blogs have been updated since last crawled',
+            len(updated_blogs)
+        )
+        if len(updated_blogs) == 0:
+            return
+
+        for blog in updated_blogs:
+            blog.source_url = (
+                urljoin(self._SOURCE_BASE_URL, blog.source_url)
+            )
+
+        with MyakuCrawlDb() as db:
+            for i, blog in enumerate(updated_blogs):
+                _log.debug(
+                    'Crawling updated blog %s / %s',
+                    i + 1, len(updated_blogs)
+                )
+                yield from self.crawl_blog(blog.source_url)
+                db.update_blog_last_updated(blog)

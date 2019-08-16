@@ -27,14 +27,6 @@ class NhkNewsWebCrawler(CrawlerABC):
     _SOURCE_NAME = 'NHK News Web'
     __SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
 
-    # If these article metadata fields are equivalent between two NHK News Web
-    # article metadatas, the articles can be treated as equivalent
-    __ARTICLE_METADATA_CMP_FIELDS = [
-        'source_name',
-        'title',
-        'publication_datetime'
-    ]
-
     _PAGE_LOAD_WAIT_TIME = 6  # in seconds
 
     _MOST_RECENT_PAGE_URL = 'https://www3.nhk.or.jp/news/catnew.html'
@@ -83,11 +75,6 @@ class NhkNewsWebCrawler(CrawlerABC):
     def _SOURCE_BASE_URL(self) -> str:
         """The base url for accessing the source."""
         return self.__SOURCE_BASE_URL
-
-    @property
-    def _ARTICLE_METADATA_CMP_FIELDS(self) -> List[str]:
-        """The JpnArticleMetadata fields to use for equivalence comparisons."""
-        return self.__ARTICLE_METADATA_CMP_FIELDS
 
     def __init__(self, timeout: int = 10) -> None:
         """Initializes the resources used by the crawler."""
@@ -252,18 +239,17 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         metadatas = []
         for tag in list_article_tags:
-            metadatas.append(
-                JpnArticleMetadata(
-                    title=utils.html.parse_text_from_desendant_by_class(
-                        tag, self._TITLE_CLASS, 'em'
-                    ),
-                    publication_datetime=utils.html.parse_time_desendant(
-                        tag, self._TIME_TAG_DATETIME_FORMAT, True
-                    ),
-                    source_url=utils.html.parse_link_desendant(tag),
-                    source_name=self.SOURCE_NAME,
-                )
+            metadata = JpnArticleMetadata(
+                title=utils.html.parse_text_from_desendant_by_class(
+                    tag, self._TITLE_CLASS, 'em'
+                ),
+                publication_datetime=utils.html.parse_time_desendant(
+                    tag, self._TIME_TAG_DATETIME_FORMAT, True
+                ),
+                source_url=utils.html.parse_link_desendant(tag),
+                source_name=self.SOURCE_NAME,
             )
+            metadatas.append(metadata)
 
         return metadatas
 
@@ -291,18 +277,17 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         metadatas = []
         for tag in header_article_tags:
-            metadatas.append(
-                JpnArticleMetadata(
-                    title=utils.html.parse_text_from_desendant_by_class(
-                        tag, self._TITLE_CLASS, 'em'
-                    ),
-                    publication_datetime=utils.html.parse_time_desendant(
-                        tag, self._TIME_TAG_DATETIME_FORMAT, True
-                    ),
-                    source_url=utils.html.parse_link_desendant(tag, 0, 2),
-                    source_name=self.SOURCE_NAME,
-                )
+            metadata = JpnArticleMetadata(
+                title=utils.html.parse_text_from_desendant_by_class(
+                    tag, self._TITLE_CLASS, 'em'
+                ),
+                publication_datetime=utils.html.parse_time_desendant(
+                    tag, self._TIME_TAG_DATETIME_FORMAT, True
+                ),
+                source_url=utils.html.parse_link_desendant(tag, 0, 2),
+                source_name=self.SOURCE_NAME,
             )
+            metadatas.append(metadata)
 
         return metadatas
 
@@ -593,32 +578,22 @@ class NhkNewsWebCrawler(CrawlerABC):
         during any previous crawl recorded in the MyakuDb.
         """
         crawls = []
-        crawls.append(
-            Crawl(
-                name='Most Recent',
-                crawl_gen=self.crawl_most_recent(
-                    self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
-                )
+        most_recent_crawl = Crawl(
+            name='Most Recent',
+            crawl_gen=self.crawl_most_recent(
+                self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
             )
         )
-        crawls.append(
-            Crawl(
-                name='Douga',
-                crawl_gen=self.crawl_douga(4)
-            )
-        )
-        crawls.append(
-            Crawl(
-                name='News Up',
-                crawl_gen=self.crawl_news_up()
-            )
-        )
-        crawls.append(
-            Crawl(
-                name='Tokushu',
-                crawl_gen=self.crawl_tokushu()
-            )
-        )
+        crawls.append(most_recent_crawl)
+
+        douga_crawl = Crawl(name='Douga', crawl_gen=self.crawl_douga(4))
+        crawls.append(douga_crawl)
+
+        news_up_crawl = Crawl(name='News Up', crawl_gen=self.crawl_news_up())
+        crawls.append(news_up_crawl)
+
+        tokushu_crawl = Crawl(name='Tokushu', crawl_gen=self.crawl_tokushu())
+        crawls.append(tokushu_crawl)
 
         return crawls
 
