@@ -10,13 +10,13 @@ class CannotAccessPageError(Exception):
     pass
 
 
-class CannotParsePageError(Exception):
-    """A crawler was unable to parse an article from a page."""
+class EnvironmentNotSetError(Exception):
+    """A needed parameter from the environment was not set."""
     pass
 
 
-class EnvironmentNotSetError(Exception):
-    """A needed parameter from the environment was not set."""
+class HtmlParsingError(Exception):
+    """Parsing for a segement of HTML failed."""
     pass
 
 

@@ -13,7 +13,7 @@ from selenium.webdriver.firefox.webelement import FirefoxWebElement
 import myaku.utils as utils
 from myaku.crawlers.abc import Crawl, CrawlerABC, CrawlGenerator
 from myaku.datatypes import JpnArticle, JpnArticleMetadata
-from myaku.errors import CannotAccessPageError
+from myaku.errors import CannotAccessPageError, HtmlParsingError
 
 _log = logging.getLogger(__name__)
 
@@ -47,6 +47,8 @@ class NhkNewsWebCrawler(CrawlerABC):
         _TOKUSHU_PAGE_URL: '特集一覧｜NHK NEWS WEB',
         _NEWS_UP_PAGE_URL: 'News Up一覧｜NHK NEWS WEB',
     }
+
+    _TIME_TAG_DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
 
     _MAIN_ID = 'main'
     _TITLE_CLASS = 'title'
@@ -105,7 +107,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             CannotParsePageError: There was an error parsing the body text from
                 tag.
         """
-        section_text = self._html_helper.parse_valid_child_text(tag)
+        section_text = utils.html.parse_valid_child_text(tag)
         if section_text is not None:
             return section_text
 
@@ -115,7 +117,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             if child.name is None:
                 continue
 
-            child_text = self._html_helper.parse_valid_child_text(child)
+            child_text = utils.html.parse_valid_child_text(child)
             if child_text is None:
                 continue
 
@@ -154,7 +156,8 @@ class NhkNewsWebCrawler(CrawlerABC):
                 body_text_sections.append(text)
 
         if len(body_text_sections) == 0:
-            self._parsing_error_handler(
+            utils.log_and_raise(
+                _log, HtmlParsingError,
                 'No body text sections in: "{}"'.format(article_tag)
             )
 
@@ -168,27 +171,28 @@ class NhkNewsWebCrawler(CrawlerABC):
         return True
 
     def _parse_article(
-        self, article_tag: Tag, url: str
+        self, article_tag: Tag, article_metadata: JpnArticleMetadata
     ) -> JpnArticle:
         """Parses data from NHK article HTML.
 
         Args:
             article_tag: Tag containing NHK article HTML.
-            url: url where article_tag was found.
+            article_metadata: Metadata for the article listed on the top level
+                summary pages.
 
         Returns:
             Article object containing the parsed data from article_tag.
         """
         article_data = JpnArticle()
         article_data.metadata = JpnArticleMetadata(
-            title=self._html_helper.parse_text_from_desendant_by_class(
-                article_tag, 'span', self._ARTICLE_TITLE_CLASS
+            title=utils.html.parse_text_from_desendant_by_class(
+                article_tag, self._ARTICLE_TITLE_CLASS, 'span'
             ),
-            source_url=url,
+            source_url=article_metadata.source_url,
             source_name=self.SOURCE_NAME,
             scraped_datetime=datetime.utcnow(),
-            publication_datetime=self._html_helper.parse_jst_time_desendant(
-                article_tag
+            publication_datetime=utils.html.parse_time_desendant(
+                article_tag, self._TIME_TAG_DATETIME_FORMAT, True
             ),
         )
 
@@ -203,22 +207,100 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         return article_data
 
-    def _parse_main(self, soup: BeautifulSoup) -> Optional[Tag]:
-        """Parses the main tag from the given BeautifulSoup html.
+    def _select_main(self, soup: BeautifulSoup) -> Tag:
+        """Selects the main tag from the given BeautifulSoup html.
 
         Args:
             soup: BeautifulSoup object with parsed html.
 
         Returns:
-            main tag if successfully parsed, None if otherwise.
+            The selected main tag.
         """
         main = soup.find(id=self._MAIN_ID)
         if main is None:
-            self._parsing_error_handler(
+            utils.log_and_raise(
+                _log, HtmlParsingError,
                 'Could not find "main" tag in page "{}"'.format(soup)
             )
 
         return main
+
+    def _scrape_summary_page_list_articles(
+        self, page_soup: BeautifulSoup
+    ) -> List[JpnArticleMetadata]:
+        """Scrapes metadata from the article list of a summary page soup.
+
+        Does not scrape the metadata from articles in header sections at the
+        top of the summary page.
+
+        Args:
+            page_soup: BeautifulSoup for the summary page.
+
+        Returns:
+            A list of the article metadatas for the articles linked to in the
+            article list on the summary page.
+        """
+        list_article_tags = []
+        main = self._select_main(page_soup)
+        article_uls = utils.html.select_desendants_by_class(
+            main, self._SUMMARY_ARTICLE_LIST_CLASS, 'ul'
+        )
+        article_uls = self._filter_out_exclusions(article_uls)
+        for ul in article_uls:
+            list_article_tags.extend(ul.contents)
+        _log.debug('Found %s list article tags', len(list_article_tags))
+
+        metadatas = []
+        for tag in list_article_tags:
+            metadatas.append(JpnArticleMetadata(
+                title=utils.html.parse_text_from_desendant_by_class(
+                    tag, self._TITLE_CLASS, 'em'
+                ),
+                publication_datetime=utils.html.parse_time_desendant(
+                    tag, self._TIME_TAG_DATETIME_FORMAT, True
+                ),
+                source_url=utils.html.parse_link_desendant(tag),
+                source_name=self.SOURCE_NAME,
+            ))
+
+        return metadatas
+
+    def _scrape_summary_page_header_articles(
+        self, page_soup: BeautifulSoup
+    ) -> List[JpnArticleMetadata]:
+        """Scrapes metadata from the header articles of a summary page soup.
+
+        Does not scrape the metadata from articles outside of the header
+        sections of the summary page.
+
+        Args:
+            page_soup: BeautifulSoup for the summary page.
+
+        Returns:
+            A list of the article metadatas for the articles linked to in the
+            header sections of the summary page.
+        """
+        main = self._select_main(page_soup)
+        header_article_tags = utils.html.parse_descendant_by_class(
+            main, self._SUMMARY_HEADER_DIV_CLASS, 'div', True
+        )
+        header_article_tags = self._filter_out_exclusions(header_article_tags)
+        _log.debug('Found %s header article divs', len(header_article_tags))
+
+        metadatas = []
+        for tag in header_article_tags:
+            metadatas.append(JpnArticleMetadata(
+                title=utils.html.parse_text_from_desendant_by_class(
+                    tag, self._TITLE_CLASS, 'em'
+                ),
+                publication_datetime=utils.html.parse_time_desendant(
+                    tag, self._TIME_TAG_DATETIME_FORMAT, True
+                ),
+                source_url=utils.html.parse_link_desendant(tag, 0, 2),
+                source_name=self.SOURCE_NAME,
+            ))
+
+        return metadatas
 
     def _scrape_summary_page_article_metadatas(
         self, page_soup: BeautifulSoup, has_header_sections: bool = False
@@ -236,38 +318,11 @@ class NhkNewsWebCrawler(CrawlerABC):
             A list of the metadatas for the articles linked to on the summary
             page.
         """
-        article_metadata_tags = []
-        main = self._parse_main(page_soup)
-        article_uls = self._html_helper.parse_descendant_by_class(
-            main, 'ul', self._SUMMARY_ARTICLE_LIST_CLASS, True
-        )
-        article_uls = self._filter_out_exclusions(article_uls)
-        for ul in article_uls:
-            article_metadata_tags.extend(ul.contents)
-        _log.debug(
-            'Found %s article metadata tags', len(article_metadata_tags)
-        )
-
+        metadatas = self._scrape_summary_page_list_articles(page_soup)
         if has_header_sections:
-            header_divs = self._html_helper.parse_descendant_by_class(
-                main, 'div', self._SUMMARY_HEADER_DIV_CLASS, True
+            metadatas.extend(
+                self._scrape_summary_page_header_articles(page_soup)
             )
-            header_divs = self._filter_out_exclusions(header_divs)
-            _log.debug('Found %s header divs', len(header_divs))
-            article_metadata_tags.extend(header_divs)
-
-        metadatas = []
-        for tag in article_metadata_tags:
-            metadatas.append(JpnArticleMetadata(
-                title=self._html_helper.parse_text_from_desendant_by_class(
-                    tag, 'em', self._TITLE_CLASS
-                ),
-                publication_datetime=(
-                    self._html_helper.parse_jst_time_desendant(tag)
-                ),
-                source_url=self._html_helper.parse_link_desendant(tag, True),
-                source_name=self.SOURCE_NAME,
-            ))
 
         return metadatas
 
@@ -320,7 +375,8 @@ class NhkNewsWebCrawler(CrawlerABC):
             self._SHOW_MORE_BUTTON_FOOTER_CLASS
         )
         if len(footers) != 1:
-            self._parsing_error_handler(
+            utils.log_and_raise(
+                _log, HtmlParsingError,
                 'Found {} "footer" tags with class "{}" instead of 1 at page '
                 '"{}"'.format(
                     len(footers), self._SHOW_MORE_BUTTON_FOOTER_CLASS,
@@ -332,7 +388,8 @@ class NhkNewsWebCrawler(CrawlerABC):
             self._SHOW_MORE_BUTTON_CLASS
         )
         if len(buttons) != 1:
-            self._parsing_error_handler(
+            utils.log_and_raise(
+                _log, HtmlParsingError,
                 'Found {} "button" tags with class "{}" instead of 1 at page '
                 '{}'.format(
                     len(footers), self._SHOW_MORE_BUTTON_CLASS,
@@ -380,7 +437,8 @@ class NhkNewsWebCrawler(CrawlerABC):
             wait_max -= 1
 
         if wait_max == 0:
-            self._parsing_error_handler(
+            utils.log_and_raise(
+                _log, HtmlParsingError,
                 'Elements still loading at page "{}" after timeout'.format(
                     self._web_driver.current_url
                 )
@@ -552,31 +610,37 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         return crawls
 
-    def crawl_article(self, url: str) -> JpnArticle:
-        """Scrapes and parses an NHK News Web article.
+    def crawl_article(
+        self, article_url: str, article_metadata: JpnArticleMetadata
+    ) -> JpnArticle:
+        """Crawls an NHK News Web article.
 
         Args:
-            url: url to a page containing an NHK News Web article.
+            article_url: Url to a page containing an NHK News Web article.
+            article_metadata: Metadata for the article listed on the top level
+                summary pages.
 
         Returns:
-            Article object with the parsed data from the article.
+            Article object with the parsed data from the article + the given
+            metadata.
 
         Raises:
             HTTPError: An error occurred making a GET request to url.
-            CannotParsePageError: An error occurred while parsing the article.
+            HtmlParsingError: An error occurred while parsing the article.
         """
-        soup = self._get_url_html_soup(url)
+        soup = self._get_url_html_soup(article_url)
         article_tags = soup.find_all(
             'section', class_=self._ARTICLE_TAG_CLASS
         )
         if len(article_tags) != 1:
-            self._parsing_error_handler(
+            utils.log_and_raise(
+                _log, HtmlParsingError,
                 'Found %s article sections instead of 1 for url "%s"',
-                len(article_tags), url
+                len(article_tags), article_url
             )
 
         # Ruby tags tend to mess up Japanese processing, so strip all of them
         # from the HTML document right away.
-        article_tag = self._html_helper.strip_ruby_tags(article_tags[0])
+        article_tag = utils.html.strip_ruby_tags(article_tags[0])
 
-        return self._parse_article(article_tag, url)
+        return self._parse_article(article_tag, article_metadata)

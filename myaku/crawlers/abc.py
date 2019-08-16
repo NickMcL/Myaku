@@ -1,6 +1,5 @@
 """Crawler abstract base class and its supporting classes."""
 
-import functools
 import logging
 import os
 import time
@@ -18,8 +17,6 @@ import myaku
 import myaku.utils as utils
 from myaku.database import MyakuCrawlDb
 from myaku.datatypes import JpnArticle, JpnArticleMetadata
-from myaku.errors import CannotParsePageError
-from myaku.htmlhelper import HtmlHelper
 
 _log = logging.getLogger(__name__)
 
@@ -75,14 +72,19 @@ class CrawlerABC(ABC):
         return []
 
     @abstractmethod
-    def crawl_article(self, article_url: str) -> JpnArticle:
+    def crawl_article(
+        self, article_url: str, article_metadata: JpnArticleMetadata
+    ) -> JpnArticle:
         """Crawls a single article from the source.
 
         Args:
             article_url: Url for the article.
+            article_metadata: Metadata for the article from outside the article
+                page.
 
         Returns:
-            A JpnArticle with the data from the crawled article.
+            A JpnArticle with the data from the crawled article + the given
+            metadata.
         """
         return JpnArticle()
 
@@ -101,13 +103,8 @@ class CrawlerABC(ABC):
                 as self._web_driver.
             timeout: The timeout to use on all web requests.
         """
-        self._session = requests.Session()
         self._timeout = timeout
-
-        self._parsing_error_handler = functools.partial(
-            utils.log_and_raise, _log, CannotParsePageError
-        )
-        self._html_helper = HtmlHelper(self._parsing_error_handler)
+        self._session = requests.Session()
 
         self._web_driver = None
         if init_web_driver:
@@ -191,21 +188,20 @@ class CrawlerABC(ABC):
         if len(uncrawled_metadatas) == 0:
             return
 
-        crawl_urls = []
         for metadata in uncrawled_metadatas:
-            crawl_urls.append(
+            metadata.source_url = (
                 urljoin(self._SOURCE_BASE_URL, metadata.source_url)
             )
 
         with MyakuCrawlDb() as db:
-            for i, crawl_url in enumerate(crawl_urls):
+            for i, metadata in enumerate(uncrawled_metadatas):
                 sleep_time = (random() * 4) + 3
                 _log.debug(
                     'Sleeping for %s seconds, then scrape %s / %s',
-                    sleep_time, i + 1, len(crawl_urls))
+                    sleep_time, i + 1, len(uncrawled_metadatas))
                 time.sleep(sleep_time)
 
-                article = self.scrape_article(crawl_url)
+                article = self.crawl_article(metadata.source_url, metadata)
                 db.write_crawled([article.metadata])
 
                 yield article

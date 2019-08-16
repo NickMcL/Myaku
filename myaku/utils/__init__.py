@@ -1,4 +1,4 @@
-"""Generic utility variables and functions."""
+"""Package for generic utility functions."""
 
 import dataclasses
 import functools
