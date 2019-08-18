@@ -9,6 +9,7 @@ import functools
 import logging
 import re
 from collections import defaultdict
+from contextlib import closing
 from operator import methodcaller
 from typing import Any, Callable, Dict, List, TypeVar, Union
 
@@ -16,6 +17,7 @@ import pymongo
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.collection import Collection, ReturnDocument
+from pymongo.errors import DuplicateKeyError
 from pymongo.results import InsertManyResult
 
 import myaku
@@ -36,6 +38,102 @@ _DB_PORT = 27017
 
 _DB_USERNAME_FILE_ENV_VAR = 'MYAKU_CRAWLDB_USERNAME_FILE'
 _DB_PASSWORD_FILE_ENV_VAR = 'MYAKU_CRAWLDB_PASSWORD_FILE'
+
+
+def copy_db_data(
+    src_host: str, src_username: str, src_password: str,
+    dest_host: str, dest_username: str, dest_password: str
+) -> None:
+    """Copies all Myaku data from one MyakuCrawlDb to another.
+
+    The source database data must not change during the duration of the copy.
+
+    The given username and password should be for the root user for each
+    database.
+    """
+    src_client = MongoClient(
+        host=src_host, port=_DB_PORT, username=src_username,
+        password=src_password
+    )
+    dest_client = MongoClient(
+        host=dest_host, port=_DB_PORT, username=dest_username,
+        password=dest_password
+    )
+
+    with closing(src_client) as src, closing(dest_client) as dest:
+        blog_new_id_map = _copy_db_collection_data(
+            src, dest, MyakuCrawlDb._BLOG_COLL_NAME
+        )
+        article_new_id_map = _copy_db_collection_data(
+            src, dest, MyakuCrawlDb._ARTICLE_COLL_NAME,
+            {'blog_oid': blog_new_id_map}
+        )
+        _copy_db_collection_data(
+            src, dest, MyakuCrawlDb._FOUND_LEXICAL_ITEM_COLL_NAME,
+            {'article_oid': article_new_id_map}
+        )
+        _copy_db_collection_data(
+            src, dest, MyakuCrawlDb._CRAWLED_COLL_NAME
+        )
+
+
+def _copy_db_collection_data(
+    src_client: MongoClient, dest_client: MongoClient, collection_name: str,
+    new_foreign_key_maps: Dict[str, Dict[ObjectId, ObjectId]] = None
+) -> Dict[ObjectId, ObjectId]:
+    """Copies all docs in a collection in one MyakuCrawlDb instance to another.
+
+    Args:
+        src_client: MongoClient connected to the source db.
+        dest_client: MongoClient connected to the destination db.
+        collection_name: Name of the collection whose docs should be copied
+            from the source db to the destination db.
+        new_foreign_key_maps: Dictionary mapping foreign key field names to a
+            dictionary that maps a value of that field in the source collection
+            to the replacement value that should be used instead of that value
+            in the destination collection.
+
+            These replacement values are used to avoid _id collisions in the
+            destination collection.
+
+    Returns:
+        A dictionary mapping any _id changes that had to be made when a doc was
+        copied from the source db to the destination db in order to avoid
+        collisions in the destination collection.
+    """
+    _log.info(
+        'Copying "%s" collection documents from "%s" to "%s"',
+        collection_name, src_client.address[0], dest_client.address[0]
+    )
+    if new_foreign_key_maps is None:
+        new_foreign_key_maps = {}
+
+    new_id_map = {}
+    skipped = 0
+    src_coll = src_client[MyakuCrawlDb._DB_NAME][collection_name]
+    dest_coll = dest_client[MyakuCrawlDb._DB_NAME][collection_name]
+    for i, doc in enumerate(src_coll.find({})):
+        if i % 1000 == 0:
+            _log.info('Skipped %s, copied %s documents', skipped, i - skipped)
+
+        for (field, new_foreign_key_map) in new_foreign_key_maps.items():
+            if doc[field] in new_foreign_key_map:
+                doc[field] = new_foreign_key_map[doc[field]]
+
+        # Don't copy documents that are already in the destination.
+        if dest_coll.find_one(doc) is not None:
+            skipped += 1
+            continue
+
+        try:
+            dest_coll.insert_one(doc)
+        except DuplicateKeyError:
+            old_id = doc.pop('_id')
+            result = dest_coll.insert_one(doc)
+            new_id_map[old_id] = result.inserted_id
+            _log.info('_id collision: %s -> %s', old_id, result.inserted_id)
+
+    return new_id_map
 
 
 def _require_write_permission(func: Callable) -> Callable:
