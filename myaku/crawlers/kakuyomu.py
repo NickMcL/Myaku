@@ -5,7 +5,7 @@ import logging
 import posixpath
 import re
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
@@ -92,15 +92,21 @@ class KakuyomuCrawler(CrawlerABC):
     _INTRO_EXPAND_BUTTON_CLASS = 'ui-truncateTextButton-expandButton'
 
     _SERIES_INFO_LIST_CLASS = 'widget-credit'
+    _INFO_LIST_HIDDEN_DATA_STRING = '作者の設定により非表示'
+
     _START_DATETIME_TERM = '公開日'
     _LAST_UPDATED_DATETIME_TERM = '最終更新日'
     _ARTICLE_COUNT_TERM = 'エピソード'
+    _ARTICLE_COUNT_REGEX = re.compile(r'^([0-9,]+)話$')
     _TOTAL_CHAR_COUNT_TERM = '総文字数'
+    _TOTAL_CHAR_COUNT_REGEX = re.compile(r'^([0-9,]+)文字$')
     _SERIALIZATION_STATUS_TERM = '執筆状況'
     _IN_SERIALIZATION_STATUS = '連載中'
 
     _COMMENT_COUNT_TERM = '応援コメント'
+    _COMMENT_COUNT_REGEX = re.compile(r'^([0-9,]+)人$')
     _FOLLOWER_COUNT_TERM = '小説フォロー数'
+    _FOLLOWER_COUNT_REGEX = re.compile(r'^([0-9,]+)人$')
 
     _SERIES_EPISODE_TOC_LIST_CLASS = 'widget-toc-items'
     _EPISODE_TOC_TITLE_CLASS = 'widget-toc-episode-titleLabel'
@@ -213,6 +219,46 @@ class KakuyomuCrawler(CrawlerABC):
             series_blogs.append(series_blog)
 
         return series_blogs
+
+    @utils.skip_method_debug_logging
+    def _parse_count_string(
+        self, count_str: str, count_regex: re.Pattern
+    ) -> Optional[int]:
+        """Parses a data count string for a series into an int.
+
+        Also checks if the count string indicates that the count is hidden by
+        preference of the author of the series.
+
+        Args:
+            count_str: String containing a count of some data from a Kakuyomu
+                series page.
+            count_regex: Pattern that the count string should match to be
+                valid. The pattern must contain one group that captures the
+                count number portion of the count string.
+
+        Returns:
+            The parsed count value as an int. If the count string indicates
+            that the count is hidden by author preference, returns None
+            instead.
+
+        Raises:
+            HtmlParsingError: The count string did not match the given pattern
+                and was not the string indicating the count is hidden by author
+                preference.
+        """
+        if count_str == self._INFO_LIST_HIDDEN_DATA_STRING:
+            return None
+
+        match = re.match(count_regex, count_str)
+        if match is None:
+            utils.log_and_raise(
+                _log, HtmlParsingError,
+                'Count string "{}" does not match pattern {}'.format(
+                    count_str, count_regex
+                )
+            )
+
+        return int(match.group(1).replace(',', ''))
 
     def _parse_series_rating_info(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
@@ -329,15 +375,15 @@ class KakuyomuCrawler(CrawlerABC):
         article_count_str = html.parse_desc_list_data_text(
             meta_info_list, self._ARTICLE_COUNT_TERM
         )
-        series_blog.article_count = int(
-            re.sub('[^0-9]', '', article_count_str)
+        series_blog.article_count = self._parse_count_string(
+            article_count_str, self._ARTICLE_COUNT_REGEX
         )
 
         total_char_count_str = html.parse_desc_list_data_text(
             meta_info_list, self._TOTAL_CHAR_COUNT_TERM
         )
-        series_blog.total_char_count = int(
-            re.sub('[^0-9]', '', total_char_count_str)
+        series_blog.total_char_count = self._parse_count_string(
+            total_char_count_str, self._TOTAL_CHAR_COUNT_REGEX
         )
 
         serialization_status_str = html.parse_desc_list_data_text(
@@ -365,15 +411,15 @@ class KakuyomuCrawler(CrawlerABC):
         comment_count_str = html.parse_desc_list_data_text(
             review_info_list, self._COMMENT_COUNT_TERM
         )
-        series_blog.comment_count = int(
-            re.sub('[^0-9]', '', comment_count_str)
+        series_blog.comment_count = self._parse_count_string(
+            comment_count_str, self._COMMENT_COUNT_REGEX
         )
 
         follower_count_str = html.parse_desc_list_data_text(
             review_info_list, self._FOLLOWER_COUNT_TERM
         )
-        series_blog.follower_count = int(
-            re.sub('[^0-9]', '', follower_count_str)
+        series_blog.follower_count = self._parse_count_string(
+            follower_count_str, self._FOLLOWER_COUNT_REGEX
         )
 
     def _parse_series_blog_info(
