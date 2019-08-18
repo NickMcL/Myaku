@@ -48,8 +48,8 @@ class JpnArticleBlog(object):
         author: Name of the author of the blog.
         source_name: Human-readable name of the source website of the blog.
         source_url: Url of the blog homepage.
-        start_datetime: Initial start time of the blog.
-        last_updated_time: Last time the blog was updated.
+        start_datetime: UTC datetime when the blog was started.
+        last_updated_time: UTC datetime when the blog was last updated.
         rating: Rating score of the blog (scale depends on source).
         rating_count: Number of users that have rated the blog.
         tags: Tags specified for the blog.
@@ -64,7 +64,7 @@ class JpnArticleBlog(object):
             True means more articles are expected to be published to the blog,
             and False means no more articles are expected to be published to
             the blog.
-        last_scraped_datetime: Last time that info was scraped for the blog.
+        last_crawled_datetime: UTC datetime that the blog was last crawled.
     """
     title: str = None
     author: str = None
@@ -82,14 +82,13 @@ class JpnArticleBlog(object):
     comment_count: int = None
     follower_count: int = None
     in_serialization: bool = None
-    last_scraped_datetime: datetime = None
+    last_crawled_datetime: datetime = None
 
     ID_FIELDS: Tuple[str, ...] = field(
         default=(
             'source_name',
             'title',
             'author',
-            'start_datetime',
         ),
         init=False,
         repr=False
@@ -101,7 +100,17 @@ class JpnArticleBlog(object):
 
     def get_id(self) -> str:
         """Returns the unique id for this blog."""
-        return '-'.join(str(getattr(self, f)) for f in self.ID_FIELDS)
+        id_strs = []
+        for id_field in self.ID_FIELDS:
+            value = getattr(self, id_field)
+            if value is None:
+                id_strs.append('')
+            elif isinstance(value, datetime):
+                id_strs.append(value.timestamp())
+            else:
+                id_strs.append(str(value))
+
+        return '-'.join(id_strs)
 
 
 @dataclass
@@ -126,7 +135,7 @@ class JpnArticleMetadata(object):
             in.
         publication_datetime: UTC datetime the article was published.
         last_updated_datetime: UTC datetime of the last update to the article.
-        scraped_datetime: UTC datetime the article was scraped.
+        last_crawled_datetime: UTC datetime the article was last crawled.
     """
     title: str = None
     author: str = None
@@ -140,7 +149,7 @@ class JpnArticleMetadata(object):
     blog_section_article_order_num: int = None
     publication_datetime: datetime = None
     last_updated_datetime: datetime = None
-    scraped_datetime: datetime = None
+    last_crawled_datetime: datetime = None
 
     ID_FIELDS: Tuple[str, ...] = field(
         default=(
@@ -158,7 +167,7 @@ class JpnArticleMetadata(object):
         """Returns the title and publication time in string format."""
         return '{}--{}--{}'.format(
             self.title,
-            self.blog_id,
+            self.blog,
             self.publication_datetime.isoformat()
         )
 

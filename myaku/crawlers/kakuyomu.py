@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import List
 from urllib.parse import urlsplit, urlunsplit
 
-import pytz
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
@@ -399,7 +398,6 @@ class KakuyomuCrawler(CrawlerABC):
             ),
             source_name=self.SOURCE_NAME,
             source_url=series_page_url,
-            last_scraped_datetime=datetime.utcnow().replace(tzinfo=pytz.UTC),
         )
 
         self._parse_series_rating_info(series_page_soup, series_blog)
@@ -476,7 +474,7 @@ class KakuyomuCrawler(CrawlerABC):
             publication_datetime=html.parse_time_desendant(
                 episode_li_tag, self._TIME_TAG_DATETIME_FORMAT
             ),
-            scraped_datetime=datetime.utcnow().replace(tzinfo=pytz.UTC),
+            last_crawled_datetime=datetime.utcnow(),
         )
 
     def _parse_series_episode_metadatas(
@@ -604,7 +602,7 @@ class KakuyomuCrawler(CrawlerABC):
         popular_crawl = Crawl(
             crawl_name='Popular',
             crawl_gen=self.crawl_search_results(
-                KakuyomuGenre.NONFICTION, KakuyomuSortOrder.POPULAR
+                KakuyomuGenre.NONFICTION, KakuyomuSortOrder.POPULAR, 100, 1
             )
         )
         return [popular_crawl]

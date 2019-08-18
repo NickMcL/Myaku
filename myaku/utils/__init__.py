@@ -292,7 +292,8 @@ def convert_jst_to_utc(dt: datetime) -> datetime:
         New datetime with dt converted to UTC.
     """
     local_dt = _JAPAN_TIMEZONE.localize(dt, is_dst=None)
-    return local_dt.astimezone(pytz.utc)
+    utc_dt = local_dt.astimezone(pytz.utc)
+    return utc_dt.replace(tzinfo=None)
 
 
 def get_alnum_count(string: str) -> int:

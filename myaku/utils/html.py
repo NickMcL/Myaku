@@ -5,7 +5,6 @@ import re
 from datetime import datetime
 from typing import List, Optional, Union
 
-import pytz
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, Tag
 
@@ -229,7 +228,7 @@ def parse_time_desendant(
 
     if convert_from_jst:
         return utils.convert_jst_to_utc(parsed_datetime)
-    return parsed_datetime.replace(tzinfo=pytz.UTC)
+    return parsed_datetime
 
 
 def parse_link_desendant(

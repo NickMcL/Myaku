@@ -177,7 +177,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             ),
             source_url=article_metadata.source_url,
             source_name=self.SOURCE_NAME,
-            scraped_datetime=datetime.utcnow(),
+            last_crawled_datetime=datetime.utcnow(),
             publication_datetime=utils.html.parse_time_desendant(
                 article_tag, self._TIME_TAG_DATETIME_FORMAT, True
             ),

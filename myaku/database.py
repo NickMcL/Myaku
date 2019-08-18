@@ -10,7 +10,7 @@ import logging
 import re
 from collections import defaultdict
 from operator import methodcaller
-from typing import Any, Callable, Dict, List, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, List, TypeVar, Union
 
 import pymongo
 from bson.objectid import ObjectId
@@ -140,29 +140,6 @@ class MyakuCrawlDb(object):
 
         return mongo_client
 
-    def _get_user_creds_from_environment(self) -> Tuple[str, str]:
-        """Gets username and password to use for db access from environment.
-
-        The username and password to use should be set in the files specified
-        by the environment variables _DB_USERNAME_FILE_ENV_VAR and
-        _DB_PASSWORD_FILE_ENV_VAR.
-
-        Returns:
-            (username, password) tuple.
-
-        Raises:
-            EnvironmentNotSetError: If the username or password could not be
-                obtained from the environment.
-        """
-        username = utils.get_value_from_environment_file(
-            _DB_USERNAME_FILE_ENV_VAR, 'Database username'
-        )
-        password = utils.get_value_from_environment_file(
-            _DB_PASSWORD_FILE_ENV_VAR, 'Database password'
-        )
-
-        return (username, password)
-
     def _create_indexes(self) -> None:
         """Creates the necessary indexes for the db if they don't exist."""
         self._article_collection.create_index('text_hash')
@@ -236,10 +213,10 @@ class MyakuCrawlDb(object):
             proj_doc[field] = 1
         return (query_doc, proj_doc)
 
-    def filter_to_unstored_article_metadatas(
+    def filter_to_uncrawled_article_metadatas(
         self, metadatas: List[JpnArticleMetadata]
     ) -> List[JpnArticleMetadata]:
-        """Returns new list with the metadatas not stored in the db."""
+        """Returns new list with the metadatas for the uncrawled articles."""
         unstored_metadatas = []
         for metadata in metadatas:
             query, proj = self._create_id_query(metadata)
@@ -255,48 +232,48 @@ class MyakuCrawlDb(object):
     def filter_to_updated_blogs(
         self, blogs: List[JpnArticleBlog]
     ) -> List[JpnArticleBlog]:
-        """Returns new list with the blogs updated since last stored in the db.
+        """Returns new list with the blogs updated since last crawled.
 
-        The new list includes blogs that have never been stored in the db as
-        well.
+        The new list includes blogs that have never been crawled as well.
         """
         updated_blogs = []
         unstored_count = 0
+        partial_stored_count = 0
         updated_count = 0
         for blog in blogs:
             query, proj = self._create_id_query(blog)
-            proj['last_scraped_datetime'] = 1
-            doc = self._crawled_collection.find_one(query, proj)
+            proj['last_crawled_datetime'] = 1
+            doc = self._blog_collection.find_one(query, proj)
 
             if doc is None:
                 unstored_count += 1
                 updated_blogs.append(blog)
-                continue
-
-            if (doc['last_scraped_datetime'] is None or
-                    blog.last_updated_datetime > doc['last_scraped_datetime']):
+            elif doc['last_crawled_datetime'] is None:
+                partial_stored_count += 1
+                updated_blogs.append(blog)
+            elif blog.last_updated_datetime > doc['last_crawled_datetime']:
                 updated_count += 1
                 updated_blogs.append(blog)
 
         _log.debug(
-            'Filtered to %s unstored blogs and %s updated blogs',
-            unstored_count, updated_count
+            'Filtered to %s unstored, %s partially stored, and %s updated '
+            'blogs', unstored_count, partial_stored_count, updated_count
         )
         return updated_blogs
 
-    def update_blog_last_scraped(self, blog: JpnArticleBlog) -> None:
-        """Updates the last scraped datetime of the blog in the db."""
+    def update_blog_last_crawled(self, blog: JpnArticleBlog) -> None:
+        """Updates the last crawled datetime of the blog in the db."""
         query, proj = self._create_id_query(blog)
 
         _log.debug(
-            'Updating the last scraped datetime in collection "%s" for blog '
+            'Updating the last crawled datetime in collection "%s" for blog '
             '"%s"', self._blog_collection.full_name, blog
         )
         result = self._blog_collection.update_one(
             query,
             {
                 '$set': {
-                    'last_scraped_datetime': blog.last_scraped_datetime
+                    'last_crawled_datetime': blog.last_crawled_datetime
                 }
             }
         )
@@ -791,7 +768,7 @@ class MyakuCrawlDb(object):
                     metadata.blog_section_article_order_num,
                 'publication_datetime': metadata.publication_datetime,
                 'last_updated_datetime': metadata.last_updated_datetime,
-                'scraped_datetime': metadata.scraped_datetime,
+                'last_crawled_datetime': metadata.last_crawled_datetime,
                 'myaku_version_info': self._version_doc,
             })
 
@@ -809,6 +786,7 @@ class MyakuCrawlDb(object):
                 'source_name': blog.source_name,
                 'source_url': blog.source_url,
                 'start_datetime': blog.start_datetime,
+                'last_updated_datetime': blog.last_updated_datetime,
                 'rating': blog.rating,
                 'rating_count': blog.rating_count,
                 'tags': blog.tags,
@@ -819,6 +797,7 @@ class MyakuCrawlDb(object):
                 'comment_count': blog.comment_count,
                 'follower_count': blog.follower_count,
                 'in_serialization': blog.in_serialization,
+                'last_crawled_datetime': blog.last_crawled_datetime,
                 'myaku_version_info': self._version_doc,
             })
 
@@ -847,11 +826,12 @@ class MyakuCrawlDb(object):
                 'publication_datetime': article.metadata.publication_datetime,
                 'last_updated_datetime':
                     article.metadata.last_updated_datetime,
-                'scraped_datetime': article.metadata.scraped_datetime,
+                'last_crawled_datetime':
+                    article.metadata.last_crawled_datetime,
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
-                'myaku_version_info': self._version_doc,
                 'has_video': article.has_video,
+                'myaku_version_info': self._version_doc,
             })
 
         return docs
@@ -976,7 +956,7 @@ class MyakuCrawlDb(object):
                 comment_count=doc['comment_count'],
                 follower_count=doc['follower_count'],
                 in_serialization=doc['in_serialization'],
-                last_scraped_datetime=doc.get('last_scraped_datetime'),
+                last_crawled_datetime=doc.get('last_crawled_datetime'),
             )
 
         return oid_blog_map
@@ -1012,7 +992,7 @@ class MyakuCrawlDb(object):
                     ),
                     publication_datetime=doc['publication_datetime'],
                     last_updated_datetime=doc.get('last_updated_datetime'),
-                    scraped_datetime=doc['scraped_datetime'],
+                    last_crawled_datetime=doc['last_crawled_datetime'],
                 ),
             )
 

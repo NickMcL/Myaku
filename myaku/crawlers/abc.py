@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from abc import ABC, abstractmethod
+from datetime import datetime
 from random import random
 from typing import Generator, List, NamedTuple
 from urllib.parse import urljoin
@@ -42,8 +43,8 @@ class CrawlerABC(ABC):
     A child class should handle the crawling for a single article source.
     """
 
-    _MIN_REQUEST_WAIT_TIME = 2
-    _MAX_REQUSET_WAIT_TIME = 5
+    _MIN_REQUEST_WAIT_TIME = 1.5
+    _MAX_REQUSET_WAIT_TIME = 3
     _WEB_DRIVER_LOG_FILENAME = 'webdriver.log'
 
     @property
@@ -192,7 +193,7 @@ class CrawlerABC(ABC):
             the given metadatas each call.
         """
         with MyakuCrawlDb() as db:
-            uncrawled_metadatas = db.filter_to_unstored_article_metadatas(
+            uncrawled_metadatas = db.filter_to_uncrawled_article_metadatas(
                 metadatas
             )
 
@@ -254,5 +255,7 @@ class CrawlerABC(ABC):
                     'Crawling updated blog %s / %s',
                     i + 1, len(updated_blogs)
                 )
+
+                blog.last_crawled_datetime = datetime.utcnow()
                 yield from self.crawl_blog(blog.source_url)
-                db.update_blog_last_updated(blog)
+                db.update_blog_last_crawled(blog)
