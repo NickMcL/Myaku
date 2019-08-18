@@ -104,7 +104,7 @@ class KakuyomuCrawler(CrawlerABC):
     _IN_SERIALIZATION_STATUS = '連載中'
 
     _COMMENT_COUNT_TERM = '応援コメント'
-    _COMMENT_COUNT_REGEX = re.compile(r'^([0-9,]+)人$')
+    _COMMENT_COUNT_REGEX = re.compile(r'^([0-9,]+)件$')
     _FOLLOWER_COUNT_TERM = '小説フォロー数'
     _FOLLOWER_COUNT_REGEX = re.compile(r'^([0-9,]+)人$')
 

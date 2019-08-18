@@ -119,6 +119,7 @@ class JpnArticleMetadata(object):
 
     Attributes:
         title: Title of the article.
+        author: Author of the article.
         source_url: Fully-qualified URL where the article was found.
         source_name: Human-readable name of the source of the article.
         blog: Blog the article was posted to. If None, the article was not
