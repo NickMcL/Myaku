@@ -2,7 +2,6 @@
 
 import logging
 import os
-import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Generator, List, NamedTuple
@@ -10,6 +9,8 @@ from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from selenium import webdriver
 from selenium.webdriver import firefox
 
@@ -23,8 +24,12 @@ _log = logging.getLogger(__name__)
 # Generator type for progressing a crawl one article at a time
 CrawlGenerator = Generator[JpnArticle, None, None]
 
-_MIN_REQUEST_WAIT_TIME = 1.5
-_MAX_REQUSET_WAIT_TIME = 3
+# Constants related to making HTTP requests while crawling
+_REQUEST_MIN_WAIT_TIME = 1.5
+_REQUSET_MAX_WAIT_TIME = 3
+_REQUEST_MAX_RETRIES = 6
+_REQUEST_RETRY_BACKOFF_FACTOR = 2
+_REQUEST_RETRY_ERROR_CODES = (500, 502, 503, 504, 520, 522, 524)
 
 
 class Crawl(NamedTuple):
@@ -44,6 +49,11 @@ class CrawlerABC(ABC):
 
     A child class should handle the crawling for a single article source.
     """
+
+    # This must be overriden by child classes to make it True if the child
+    # class makes use of the web driver. It is False by default so that
+    # resources are not wasted initializing the web driver if it is not needed.
+    _REQUIRES_WEB_DRIVER = False
 
     _WEB_DRIVER_LOG_FILENAME = 'webdriver.log'
 
@@ -85,41 +95,43 @@ class CrawlerABC(ABC):
         """
         return JpnArticle()
 
-    @abstractmethod
-    def __init__(self, init_web_driver: bool, timeout: int = 10) -> None:
+    @utils.add_debug_logging
+    def __init__(self, timeout: int = 30) -> None:
         """Initializes the resources used by the crawler.
 
-        This method is abstract to force child classes to specify whether the
-        web driver should be initialized for them or not.
-
-        The web driver is expensive to initialize, so a child crawler should
-        not have it initialized if it is not needed by it.
-
         Args:
-            init_web_driver: If True, will initialize the selenium web driver
-                as self._web_driver.
             timeout: The timeout to use on all web requests.
         """
         self._timeout = timeout
-        self._session = requests.Session()
-
-        self._next_request_wait_time = time.monotonic()
-
-        self._web_driver = None
-        if init_web_driver:
-            self._init_web_driver()
+        self._session = self._init_requests_session()
+        self._web_driver = self._init_web_driver()
 
     @utils.add_debug_logging
-    def _init_web_driver(self) -> None:
-        """Inits the web driver used by the crawler."""
+    def _init_requests_session(self) -> requests.Session:
+        """Inits the requests session for the crawler."""
+        session = requests.Session()
+        retry = Retry(
+            total=_REQUEST_MAX_RETRIES,
+            backoff_factor=_REQUEST_RETRY_BACKOFF_FACTOR,
+            status_forcelist=_REQUEST_RETRY_ERROR_CODES,
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        return session
+
+    @utils.add_debug_logging
+    def _init_web_driver(self) -> webdriver.Firefox:
+        """Inits the web driver for the crawler."""
+        if not self._REQUIRES_WEB_DRIVER:
+            return None
+
         log_dir = utils.get_value_from_env_variable(myaku.LOG_DIR_ENV_VAR)
         log_path = os.path.join(log_dir, self._WEB_DRIVER_LOG_FILENAME)
 
         options = firefox.options.Options()
         options.headless = True
-        self._web_driver = webdriver.Firefox(
-            options=options, log_path=log_path
-        )
+        return webdriver.Firefox(options=options, log_path=log_path)
 
     @utils.add_debug_logging
     def close(self) -> None:
@@ -140,7 +152,7 @@ class CrawlerABC(ABC):
         self.close()
 
     @utils.add_debug_logging
-    @utils.rate_limit(_MIN_REQUEST_WAIT_TIME, _MAX_REQUSET_WAIT_TIME)
+    @utils.rate_limit(_REQUEST_MIN_WAIT_TIME, _REQUSET_MAX_WAIT_TIME)
     def _get_url_html_soup(self, url: str) -> BeautifulSoup:
         """Makes a GET request and returns a BeautifulSoup of the contents.
 

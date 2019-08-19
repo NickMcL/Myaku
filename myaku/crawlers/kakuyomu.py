@@ -127,10 +127,6 @@ class KakuyomuCrawler(CrawlerABC):
         """The base url for accessing the source."""
         return self.__SOURCE_BASE_URL
 
-    def __init__(self, timeout: int = 10) -> None:
-        """Initializes the resources used by the crawler."""
-        super().__init__(False, timeout)
-
     def _create_search_url(
         self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
         page_num: int = 1

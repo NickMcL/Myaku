@@ -27,6 +27,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     _SOURCE_NAME = 'NHK News Web'
     __SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
 
+    _REQUIRES_WEB_DRIVER = True
     _PAGE_LOAD_WAIT_TIME = 6  # in seconds
 
     _MOST_RECENT_PAGE_URL = 'https://www3.nhk.or.jp/news/catnew.html'
@@ -75,10 +76,6 @@ class NhkNewsWebCrawler(CrawlerABC):
     def _SOURCE_BASE_URL(self) -> str:
         """The base url for accessing the source."""
         return self.__SOURCE_BASE_URL
-
-    def __init__(self, timeout: int = 10) -> None:
-        """Initializes the resources used by the crawler."""
-        super().__init__(True, timeout)
 
     @utils.skip_method_debug_logging
     def _parse_body_div(self, tag: Tag) -> Optional[str]:
