@@ -77,8 +77,8 @@ def _get_jmdict_version() -> str:
     The version for JMdict will be in the form of a date "yyyy.mm.dd". For
     example, 2019.06.11 for the JMdict generated on June 11th, 2019.
     """
-    jmdict_xml_filepath = utils.get_value_from_environment_variable(
-        _JMDICT_XML_FILEPATH_ENV_VAR, 'JMdict XML filepath'
+    jmdict_xml_filepath = utils.get_value_from_env_variable(
+        _JMDICT_XML_FILEPATH_ENV_VAR
     )
 
     if not os.path.exists(jmdict_xml_filepath):
@@ -112,8 +112,8 @@ def _get_ipadic_neologd_version() -> str:
     For example, 2019.06.11 for the ipadic-NEologd generated on June 11th,
     2019.
     """
-    git_dir = utils.get_value_from_environment_variable(
-        _IPADIC_NEOLOGD_GIT_DIR_ENV_VAR, 'ipadic-NEologd git directory'
+    git_dir = utils.get_value_from_env_variable(
+        _IPADIC_NEOLOGD_GIT_DIR_ENV_VAR
     )
     changelog_path = os.path.join(git_dir, _IPADIC_NEOLOGD_CHANGELOG_FILENAME)
 
@@ -150,8 +150,8 @@ class JapaneseTextAnalyzer(object):
 
     def __init__(self) -> None:
         """Loads the external resources needed for text analysis."""
-        jmdict_xml_filepath = utils.get_value_from_environment_variable(
-            _JMDICT_XML_FILEPATH_ENV_VAR, 'JMdict XML filepath'
+        jmdict_xml_filepath = utils.get_value_from_env_variable(
+            _JMDICT_XML_FILEPATH_ENV_VAR
         )
         self._jmdict = JMdict(jmdict_xml_filepath)
 
@@ -762,8 +762,8 @@ class JMdict(object):
 
     def _get_shelf_filepath(self) -> str:
         """Returns the file path used for the JMdict shelf."""
-        shelf_dir = utils.get_value_from_environment_variable(
-            myaku.APP_DATA_DIR_ENV_VAR, 'App data directory'
+        shelf_dir = utils.get_value_from_env_variable(
+            myaku.APP_DATA_DIR_ENV_VAR
         )
 
         return os.path.join(shelf_dir, self._SHELF_FILENAME)

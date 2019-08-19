@@ -5,7 +5,6 @@ import os
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
-from random import random
 from typing import Generator, List, NamedTuple
 from urllib.parse import urljoin
 
@@ -23,6 +22,9 @@ _log = logging.getLogger(__name__)
 
 # Generator type for progressing a crawl one article at a time
 CrawlGenerator = Generator[JpnArticle, None, None]
+
+_MIN_REQUEST_WAIT_TIME = 1.5
+_MAX_REQUSET_WAIT_TIME = 3
 
 
 class Crawl(NamedTuple):
@@ -43,8 +45,6 @@ class CrawlerABC(ABC):
     A child class should handle the crawling for a single article source.
     """
 
-    _MIN_REQUEST_WAIT_TIME = 1.5
-    _MAX_REQUSET_WAIT_TIME = 3
     _WEB_DRIVER_LOG_FILENAME = 'webdriver.log'
 
     @property
@@ -112,9 +112,7 @@ class CrawlerABC(ABC):
     @utils.add_debug_logging
     def _init_web_driver(self) -> None:
         """Inits the web driver used by the crawler."""
-        log_dir = utils.get_value_from_environment_variable(
-            myaku.LOG_DIR_ENV_VAR, 'Log directory'
-        )
+        log_dir = utils.get_value_from_env_variable(myaku.LOG_DIR_ENV_VAR)
         log_path = os.path.join(log_dir, self._WEB_DRIVER_LOG_FILENAME)
 
         options = firefox.options.Options()
@@ -142,6 +140,7 @@ class CrawlerABC(ABC):
         self.close()
 
     @utils.add_debug_logging
+    @utils.rate_limit(_MIN_REQUEST_WAIT_TIME, _MAX_REQUSET_WAIT_TIME)
     def _get_url_html_soup(self, url: str) -> BeautifulSoup:
         """Makes a GET request and returns a BeautifulSoup of the contents.
 
@@ -155,26 +154,10 @@ class CrawlerABC(ABC):
         Raises:
             HTTPError: The response for the GET request had a code >= 400.
         """
-        current_time = time.monotonic()
-        if current_time < self._next_request_wait_time:
-            _log.debug(
-                'Sleeping for %s seconds before making next request',
-                self._next_request_wait_time - current_time
-            )
-            time.sleep(self._next_request_wait_time - current_time)
-
         _log.debug('Making GET request to url "%s"', url)
         response = self._session.get(url, timeout=self._timeout)
         _log.debug('Response received with code %s', response.status_code)
         response.raise_for_status()
-
-        wait_time = (
-            self._MIN_REQUEST_WAIT_TIME + (
-                random() *
-                (self._MAX_REQUSET_WAIT_TIME - self._MIN_REQUEST_WAIT_TIME)
-            )
-        )
-        self._next_request_wait_time = time.monotonic() + wait_time
 
         return BeautifulSoup(response.content, 'html.parser')
 

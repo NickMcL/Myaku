@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from operator import itemgetter
+from random import random
 from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
 import jaconv
@@ -130,11 +131,8 @@ def log_and_raise(log: logging.Logger, exc: Exception, error_msg: str) -> None:
     raise exc(error_msg)
 
 
-def get_value_from_environment_variable(env_var: str, value_name: str) -> str:
+def get_value_from_env_variable(env_var: str) -> str:
     """Gets a value from an environment variable.
-
-    value_name is only used in error messages as a human-readable name for
-    the value being retrieved.
 
     Raises:
         EnvironmentNotSetError: One of the following:
@@ -145,26 +143,20 @@ def get_value_from_environment_variable(env_var: str, value_name: str) -> str:
     if value is None:
         log_and_raise(
             _log, EnvironmentNotSetError,
-            '{} environment variable "{}" is not set in the '
-            'environment'.format(value_name, env_var)
+            'Environment variable "{}" is not set'.format(env_var)
         )
 
     if len(value) == 0:
         log_and_raise(
             _log, EnvironmentNotSetError,
-            '{} environment variable "{}" is set but empty'.format(
-                value_name, env_var
-            )
+            'Environment variable "{}" is empty'.format(env_var)
         )
 
     return value
 
 
-def get_value_from_environment_file(env_var: str, value_name: str) -> str:
+def get_value_from_env_file(env_var: str) -> str:
     """Gets a value from a file specified by an environment variable.
-
-    value_name is only used in error messages as a human-readable name for
-    the value being retrieved.
 
     Raises:
         EnvironmentNotSetError: One of the following:
@@ -173,23 +165,21 @@ def get_value_from_environment_file(env_var: str, value_name: str) -> str:
             - The file specified by the environment variable doesn't exist.
             - The file specified by the environment variable is empty.
     """
-    filepath = get_value_from_environment_variable(
-        env_var, value_name + ' file'
-    )
+    filepath = get_value_from_env_variable(env_var)
 
     if not os.path.exists(filepath):
         log_and_raise(
             _log, EnvironmentNotSetError,
-            '{} file specified by environment variable "{}" does not '
+            '"{}" file specified by environment variable "{}" does not '
             'exist'.format(filepath, env_var)
         )
 
     with open(filepath, 'r') as value_file:
         value = value_file.read()
-    if value == '':
+    if len(value) == 0:
         log_and_raise(
             _log, EnvironmentNotSetError,
-            '{} file specified by environment variable "{}" is '
+            '"{}" file specified by environment variable "{}" is '
             'empty'.format(filepath, env_var)
         )
 
@@ -328,6 +318,51 @@ def shorten_str(string: str, max_chars: int = 100) -> str:
     if len(string) <= max_chars:
         return string
     return string[:max_chars] + '...'
+
+
+def rate_limit(min_wait: float, max_wait: float) -> Callable:
+    """Decorator for enforcing a wait time between calls of a function.
+
+    After each call to the decorated function, picks a random wait_time in
+    seconds between [min_wait, max_wait). Then, when the function is next
+    called, if wait_time seconds have not yet passed since the last call,
+    sleeps until wait_time seconds have passed since the last call before
+    running the function.
+
+    Args:
+        min_wait: Minimum amount of time in seconds that must be waited between
+            calls to the function.
+        max_wait: Maximum amount of time in seconds that should be waited
+            between calls to the function.
+    """
+    def decorator_rate_limit(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper_rate_limit(*args, **kwargs):
+            current_time = time.monotonic()
+            next_call_wait_time = func.__dict__.get('next_call_wait_time')
+            if (next_call_wait_time is not None
+                    and current_time < next_call_wait_time):
+                _log.debug(
+                    'Sleeping for %s seconds before making call to %s',
+                    next_call_wait_time - current_time, get_full_name(func)
+                )
+                time.sleep(next_call_wait_time - current_time)
+
+            try:
+                value = func(*args, **kwargs)
+            finally:
+                wait_duration = min_wait + (random() * (max_wait - min_wait))
+                func.__dict__['next_call_wait_time'] = (
+                    time.monotonic() + wait_duration
+                )
+                _log.debug(
+                    'Will wait %s seconds before next call to %s',
+                    wait_duration, get_full_name(func)
+                )
+
+            return value
+        return wrapper_rate_limit
+    return decorator_rate_limit
 
 
 def add_debug_logging(func: Callable) -> Callable:

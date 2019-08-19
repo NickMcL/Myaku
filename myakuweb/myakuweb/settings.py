@@ -2,12 +2,9 @@
 
 import os
 
-from myaku.utils import (get_value_from_environment_file,
-                         get_value_from_environment_variable)
+from myaku.utils import get_value_from_env_file, get_value_from_env_variable
 
-debug_mode_flag = get_value_from_environment_variable(
-    'DJANGO_DEBUG_MODE', 'Django debug mode flag'
-)
+debug_mode_flag = get_value_from_env_variable('DJANGO_DEBUG_MODE')
 if int(debug_mode_flag) == 1:
     DEBUG = True
 else:
@@ -16,15 +13,13 @@ else:
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-SECRET_KEY = get_value_from_environment_file(
-    'DJANGO_SECRET_KEY_FILE', 'Django secret key'
-)
+SECRET_KEY = get_value_from_env_file('DJANGO_SECRET_KEY_FILE')
 
 if DEBUG:
     ALLOWED_HOSTS = []
 else:
-    allowed_hosts_filedata = get_value_from_environment_file(
-        'MYAKUWEB_ALLOWED_HOSTS_FILE', 'Allowed hosts file'
+    allowed_hosts_filedata = get_value_from_env_file(
+        'MYAKUWEB_ALLOWED_HOSTS_FILE'
     )
     ALLOWED_HOSTS = [
         host for host in allowed_hosts_filedata.split() if len(host) > 0
@@ -125,9 +120,7 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-STATIC_URL = get_value_from_environment_variable(
-    'MYAKUWEB_STATIC_URL', 'Myakuweb static URL'
-)
+STATIC_URL = get_value_from_env_variable('MYAKUWEB_STATIC_URL')
 
 
 # Other misc settings

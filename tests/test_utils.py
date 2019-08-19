@@ -236,9 +236,9 @@ def test_normalize_char_width():
 
 
 def test_get_value_from_enviroment_variable_set(monkeypatch):
-    """Test get_value_from_environment_variable with a set env var."""
+    """Test get_value_from_env_variable with a set env var."""
     monkeypatch.setenv(TEST_ENV_VAR, 'TestString')
-    value = utils.get_value_from_environment_variable(TEST_ENV_VAR, 'test')
+    value = utils.get_value_from_env_variable(TEST_ENV_VAR)
     assert value == 'TestString'
 
 
@@ -246,73 +246,67 @@ def test_get_value_from_enviroment_variable_not_set(monkeypatch):
     """Test get_value_from_enviroment_variable with no set env var."""
     monkeypatch.delenv(TEST_ENV_VAR, False)
     with pytest.raises(EnvironmentNotSetError) as exc_info:
-        utils.get_value_from_environment_variable(TEST_ENV_VAR, 'test')
+        utils.get_value_from_env_variable(TEST_ENV_VAR)
     assert exc_info.type is EnvironmentNotSetError
     assert 'not set' in exc_info.value.args[0]
-    assert 'test' in exc_info.value.args[0]
 
 
 def test_get_value_from_enviroment_variable_empty(monkeypatch):
-    """Test get_value_from_environment_variable with empty env var."""
+    """Test get_value_from_env_variable with empty env var."""
     monkeypatch.setenv(TEST_ENV_VAR, "")
     with pytest.raises(EnvironmentNotSetError) as exc_info:
-        utils.get_value_from_environment_variable(TEST_ENV_VAR, 'test')
+        utils.get_value_from_env_variable(TEST_ENV_VAR)
     assert exc_info.type is EnvironmentNotSetError
     assert 'set but empty' in exc_info.value.args[0]
-    assert 'test' in exc_info.value.args[0]
 
 
-def test_get_value_from_environment_file_all_set(monkeypatch, tmpdir):
-    """Test get_value_from_environment_file with set var and file."""
+def test_get_value_from_env_file_all_set(monkeypatch, tmpdir):
+    """Test get_value_from_env_file with set var and file."""
     test_file_path = os.path.join(tmpdir, 'test.txt')
     monkeypatch.setenv(TEST_ENV_VAR, test_file_path)
     with open(test_file_path, 'w') as f:
         f.write('TestString')
 
-    value = utils.get_value_from_environment_file(TEST_ENV_VAR, 'test')
+    value = utils.get_value_from_env_file(TEST_ENV_VAR)
     assert value == 'TestString'
 
 
 def test_get_value_from_enviroment_file_var_not_set(monkeypatch):
-    """Test get_value_from_environment_file with no set env var."""
+    """Test get_value_from_env_file with no set env var."""
     monkeypatch.delenv(TEST_ENV_VAR, False)
     with pytest.raises(EnvironmentNotSetError) as exc_info:
-        utils.get_value_from_environment_file(TEST_ENV_VAR, 'test')
+        utils.get_value_from_env_file(TEST_ENV_VAR)
     assert exc_info.type is EnvironmentNotSetError
     assert 'not set' in exc_info.value.args[0]
-    assert 'test' in exc_info.value.args[0]
 
 
 def test_get_value_from_enviroment_file_var_empty(monkeypatch):
-    """Test get_value_from_environment_file with empty env var."""
+    """Test get_value_from_env_file with empty env var."""
     monkeypatch.setenv(TEST_ENV_VAR, "")
     with pytest.raises(EnvironmentNotSetError) as exc_info:
-        utils.get_value_from_environment_file(TEST_ENV_VAR, 'test')
+        utils.get_value_from_env_file(TEST_ENV_VAR)
     assert exc_info.type is EnvironmentNotSetError
     assert 'set but empty' in exc_info.value.args[0]
-    assert 'test' in exc_info.value.args[0]
 
 
 def test_get_value_from_enviroment_file_no_file(monkeypatch, tmpdir):
-    """Test get_value_from_environment_file with no file at the var path."""
+    """Test get_value_from_env_file with no file at the var path."""
     test_file_path = os.path.join(tmpdir, 'test.txt')
     monkeypatch.setenv(TEST_ENV_VAR, test_file_path)
     with pytest.raises(EnvironmentNotSetError) as exc_info:
-        utils.get_value_from_environment_file(TEST_ENV_VAR, 'test')
+        utils.get_value_from_env_file(TEST_ENV_VAR)
     assert exc_info.type is EnvironmentNotSetError
     assert 'not exist' in exc_info.value.args[0]
-    assert 'test' in exc_info.value.args[0]
 
 
 def test_get_value_from_enviroment_file_file_empty(monkeypatch, tmpdir):
-    """Test get_value_from_environment_file with empty file at the var path."""
+    """Test get_value_from_env_file with empty file at the var path."""
     test_file_path = os.path.join(tmpdir, 'test.txt')
     monkeypatch.setenv(TEST_ENV_VAR, test_file_path)
     with open(test_file_path, 'w') as f:
         f.write('')
 
     with pytest.raises(EnvironmentNotSetError) as exc_info:
-        utils.get_value_from_environment_file(TEST_ENV_VAR, 'test')
+        utils.get_value_from_env_file(TEST_ENV_VAR)
     assert exc_info.type is EnvironmentNotSetError
     assert 'is empty' in exc_info.value.args[0]
-    assert 'test' in exc_info.value.args[0]

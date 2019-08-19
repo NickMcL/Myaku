@@ -217,15 +217,9 @@ class MyakuCrawlDb(object):
             EnvironmentNotSetError: if a needed value from the environment to
                 init the client is not set in the environment.
         """
-        username = utils.get_value_from_environment_file(
-            _DB_USERNAME_FILE_ENV_VAR, 'Database username'
-        )
-        password = utils.get_value_from_environment_file(
-            _DB_PASSWORD_FILE_ENV_VAR, 'Database password'
-        )
-        hostname = utils.get_value_from_environment_variable(
-            _DB_HOST_ENV_VAR, 'Database hostname'
-        )
+        username = utils.get_value_from_env_file(_DB_USERNAME_FILE_ENV_VAR)
+        password = utils.get_value_from_env_file(_DB_PASSWORD_FILE_ENV_VAR)
+        hostname = utils.get_value_from_env_variable(_DB_HOST_ENV_VAR)
 
         mongo_client = MongoClient(
             host=hostname, port=_DB_PORT,
