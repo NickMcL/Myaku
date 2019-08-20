@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import time
+import traceback
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from operator import itemgetter
@@ -382,6 +383,62 @@ def rate_limit(min_wait: float, max_wait: float) -> Callable:
             return value
         return wrapper_rate_limit
     return decorator_rate_limit
+
+
+def retry_on_exception(
+    max_retries: int, retry_exceptions: List[BaseException]
+) -> Callable:
+    """Decorator to retry a function call if it raises certain exceptions.
+
+    Will wait 2**(retry_count) seconds before each retry.
+
+    Args:
+        max_retries: Max number of times to retry the function call.
+        retry_exceptions: The function call will only be retried if an
+            exception in this list is raised from the function. Other
+            exceptions will continue to raise.
+    """
+    def decorator_retry_on_exception(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper_retry_on_exception(*args, **kwargs):
+            func_name = get_full_name(func)
+            for run_count in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except BaseException as exc:
+                    is_retry_exception = False
+                    for retry_exc in retry_exceptions:
+                        if isinstance(exc, retry_exc):
+                            is_retry_exception = True
+                            break
+
+                    if not is_retry_exception:
+                        _log.debug(
+                            'Will not retry %s because exception of type %s '
+                            'is not a retry exception', func_name, type(exc)
+                        )
+                        raise exc
+
+                    _log.debug(
+                        'Retry exception raised from %s:\n%s',
+                        func_name, traceback.format_exc()
+                    )
+                    if run_count != max_retries:
+                        sleep_time = 2 ** (run_count + 1)
+                        _log.debug(
+                            'Will attempt retry %s / %s after sleeping for %s '
+                            'seconds', run_count + 1, max_retries, sleep_time
+                        )
+                        time.sleep(sleep_time)
+                    else:
+                        _log.debug(
+                            'Reached max retry count of %s, so raising '
+                            'exception', max_retries
+                        )
+                        raise exc
+
+        return wrapper_retry_on_exception
+    return decorator_retry_on_exception
 
 
 def add_debug_logging(func: Callable) -> Callable:

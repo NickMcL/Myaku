@@ -9,8 +9,6 @@ from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 from selenium import webdriver
 from selenium.webdriver import firefox
 
@@ -28,8 +26,12 @@ CrawlGenerator = Generator[JpnArticle, None, None]
 _REQUEST_MIN_WAIT_TIME = 1.5
 _REQUSET_MAX_WAIT_TIME = 3
 _REQUEST_MAX_RETRIES = 6
-_REQUEST_RETRY_BACKOFF_FACTOR = 2
-_REQUEST_RETRY_ERROR_CODES = (500, 502, 503, 504, 520, 522, 524)
+_REQUEST_RETRY_EXCEPTIONS = [
+    requests.RequestException,
+    requests.ConnectionError,
+    requests.HTTPError,
+    requests.Timeout
+]
 
 
 class Crawl(NamedTuple):
@@ -103,22 +105,8 @@ class CrawlerABC(ABC):
             timeout: The timeout to use on all web requests.
         """
         self._timeout = timeout
-        self._session = self._init_requests_session()
+        self._session = requests.Session()
         self._web_driver = self._init_web_driver()
-
-    @utils.add_debug_logging
-    def _init_requests_session(self) -> requests.Session:
-        """Inits the requests session for the crawler."""
-        session = requests.Session()
-        retry = Retry(
-            total=_REQUEST_MAX_RETRIES,
-            backoff_factor=_REQUEST_RETRY_BACKOFF_FACTOR,
-            status_forcelist=_REQUEST_RETRY_ERROR_CODES,
-        )
-        adapter = HTTPAdapter(max_retries=retry)
-        session.mount('http://', adapter)
-        session.mount('https://', adapter)
-        return session
 
     @utils.add_debug_logging
     def _init_web_driver(self) -> webdriver.Firefox:
@@ -153,6 +141,7 @@ class CrawlerABC(ABC):
 
     @utils.add_debug_logging
     @utils.rate_limit(_REQUEST_MIN_WAIT_TIME, _REQUSET_MAX_WAIT_TIME)
+    @utils.retry_on_exception(8, _REQUEST_RETRY_EXCEPTIONS)
     def _get_url_html_soup(self, url: str) -> BeautifulSoup:
         """Makes a GET request and returns a BeautifulSoup of the contents.
 
