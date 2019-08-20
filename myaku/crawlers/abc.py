@@ -25,7 +25,7 @@ CrawlGenerator = Generator[JpnArticle, None, None]
 # Constants related to making HTTP requests while crawling
 _REQUEST_MIN_WAIT_TIME = 1.5
 _REQUSET_MAX_WAIT_TIME = 3
-_REQUEST_MAX_RETRIES = 6
+_REQUEST_MAX_RETRIES = 8
 _REQUEST_RETRY_EXCEPTIONS = [
     requests.RequestException,
     requests.ConnectionError,
@@ -141,7 +141,7 @@ class CrawlerABC(ABC):
 
     @utils.add_debug_logging
     @utils.rate_limit(_REQUEST_MIN_WAIT_TIME, _REQUSET_MAX_WAIT_TIME)
-    @utils.retry_on_exception(8, _REQUEST_RETRY_EXCEPTIONS)
+    @utils.retry_on_exception(_REQUEST_MAX_RETRIES, _REQUEST_RETRY_EXCEPTIONS)
     def _get_url_html_soup(self, url: str) -> BeautifulSoup:
         """Makes a GET request and returns a BeautifulSoup of the contents.
 
