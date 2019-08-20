@@ -127,4 +127,8 @@ def main() -> None:
 
 if __name__ == '__main__':
     _log = logging.getLogger('myaku.runners.run_crawl')
-    main()
+    try:
+        main()
+    except BaseException:
+        _log.exception('Unhandled exception in main')
+        raise

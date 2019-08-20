@@ -309,15 +309,34 @@ def get_full_name(obj: Any) -> str:
     return obj.__qualname__
 
 
-def shorten_str(string: str, max_chars: int = 100) -> str:
-    """Shorten string to a max length + a shortened indicator.
+def shorten_repr(obj: Any, max_chars: int = 100) -> str:
+    """Shorten object repr string to a max length + a shortened indicator.
 
-    Adds an indicator to the end of the string if some of the string was
-    removed by shortening it.
+    Args:
+        obj: Object whose repr to shorten.
+        max_chars: Max number of characters to shorten the object's repr to.
+
+    Returns:
+        The repr string for obj shortened to less than max_chars. Adds an
+        indicator to the end of the repr string if some of it was removed to
+        shorten it.
+
+        If the repr for obj is so large that it causes a memory error when
+        generated, instead returns a string indicating that the repr was too
+        large to generate.
     """
-    if len(string) <= max_chars:
-        return string
-    return string[:max_chars] + '...'
+    try:
+        obj_repr = repr(obj)
+    except MemoryError:
+        _log.debug(
+            'MemoryError occurred generating repr for %s type object',
+            type(obj)
+        )
+        return f"<Type {type(obj)} object's repr is too large to generate>"
+
+    if len(obj_repr) <= max_chars:
+        return obj_repr
+    return obj_repr[:max_chars] + '...'
 
 
 def rate_limit(min_wait: float, max_wait: float) -> Callable:
@@ -374,8 +393,8 @@ def add_debug_logging(func: Callable) -> Callable:
     def wrapper_add_debug_logging(*args, **kwargs):
         func_name = get_full_name(func)
 
-        args_repr = [shorten_str(repr(arg)) for arg in args]
-        kwargs_repr = [shorten_str(f'{k}={v!r}') for k, v in kwargs.items()]
+        args_repr = [shorten_repr(arg) for arg in args]
+        kwargs_repr = [f'{k}={shorten_repr(v)}' for k, v in kwargs.items()]
         func_args = ', '.join(args_repr + kwargs_repr)
         _log.debug('Calling %s(%s)', func_name, func_args)
         try:
@@ -384,7 +403,7 @@ def add_debug_logging(func: Callable) -> Callable:
             _log.exception('%s raised an exception', func_name)
             raise
 
-        short_value = shorten_str(repr(value))
+        short_value = shorten_repr(value)
         _log.debug('%s returned %s', func_name, short_value)
         return value
     return wrapper_add_debug_logging

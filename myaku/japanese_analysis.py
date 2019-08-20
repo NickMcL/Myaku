@@ -189,7 +189,7 @@ class JapaneseTextAnalyzer(object):
 
             _log.debug(
                 'Found %s lexical items in block "%s"',
-                len(found_lexical_items), utils.shorten_str(text_block, 15)
+                len(found_lexical_items), utils.shorten_repr(text_block, 15)
             )
             article_lexical_items.extend(found_lexical_items)
 
