@@ -58,7 +58,7 @@ class KakuyomuCrawler(CrawlerABC):
     Only crawls for articles in the non-fiction and essay sections of Kakuyomu.
     """
 
-    _SOURCE_NAME = 'Kakuyomu'
+    SOURCE_NAME = 'Kakuyomu'
     __SOURCE_BASE_URL = 'https://kakuyomu.jp'
 
     _SEARCH_PAGE_URL_TEMPLATE = (
@@ -116,11 +116,6 @@ class KakuyomuCrawler(CrawlerABC):
     _EPISODE_TITLE_CLASS = 'widget-episodeTitle'
     _EPISODE_TEXT_DIV_CLASS = 'widget-episodeBody'
     _EPISODE_INFO_LIST_ID = 'episodeInfo'
-
-    @property
-    def SOURCE_NAME(self) -> str:
-        """Human-readable name for the source crawled."""
-        return self._SOURCE_NAME
 
     @property
     def _SOURCE_BASE_URL(self) -> str:
@@ -187,7 +182,7 @@ class KakuyomuCrawler(CrawlerABC):
             search results page.
         """
         series_blogs = []
-        series_tiles = html.select_desendants_by_class(
+        series_tiles = html.select_descendants_by_class(
             page_soup, self._SEARCH_RESULT_TILE_CLASS, 'div'
         )
         _log.debug('Found %s series on search results page', len(series_tiles))
@@ -195,17 +190,17 @@ class KakuyomuCrawler(CrawlerABC):
         for series_tile in series_tiles:
             series_blog = JpnArticleBlog(source_name=self.SOURCE_NAME)
 
-            title_link_tag = html.select_desendants_by_class(
+            title_link_tag = html.select_descendants_by_class(
                 series_tile, self._SEARCH_RESULT_TITLE_CLASS, 'a', 1
             )[0]
             series_blog.title = html.parse_valid_child_text(title_link_tag)
             series_blog.source_url = title_link_tag['href']
 
-            series_blog.author = html.parse_text_from_desendant_by_class(
+            series_blog.author = html.parse_text_from_descendant_by_class(
                 series_tile, self._SEARCH_RESULT_AUTHOR_CLASS, 'a'
-            )
+            ).strip()
 
-            last_updated_str = html.parse_text_from_desendant_by_class(
+            last_updated_str = html.parse_text_from_descendant_by_class(
                 series_tile, self._SEARCH_RESULT_LAST_UPDATED_CLASS, 'span'
             )
             series_blog.last_updated_datetime = (
@@ -266,12 +261,12 @@ class KakuyomuCrawler(CrawlerABC):
                 a series homepage.
             series_blog: The blog object to store the parsed data in.
         """
-        rating_str = html.parse_text_from_desendant_by_id(
+        rating_str = html.parse_text_from_descendant_by_id(
             series_page_soup, self._SERIES_RATING_TAG_ID
         )
         series_blog.rating = float(re.sub('[^0-9]', '', rating_str))
 
-        rating_count_str = html.parse_text_from_desendant_by_class(
+        rating_count_str = html.parse_text_from_descendant_by_class(
             series_page_soup, self._SERIES_RATING_COUNT_CLASS, 'span'
         )
         series_blog.rating_count = int(re.sub('[^0-9]', '', rating_count_str))
@@ -287,7 +282,7 @@ class KakuyomuCrawler(CrawlerABC):
             series_blog: The blog object to store the parsed data in.
         """
         series_blog.tags = []
-        genre = html.parse_text_from_desendant_by_id(
+        genre = html.parse_text_from_descendant_by_id(
             series_page_soup, self._SERIES_GENRE_TAG_ID
         )
         series_blog.tags.append(genre.strip())
@@ -349,7 +344,7 @@ class KakuyomuCrawler(CrawlerABC):
                 a series homepage.
             series_blog: The blog object to store the parsed data in.
         """
-        info_lists = html.select_desendants_by_class(
+        info_lists = html.select_descendants_by_class(
             series_page_soup, self._SERIES_INFO_LIST_CLASS, 'dl', 2
         )
         meta_info_list = info_lists[0]
@@ -357,14 +352,14 @@ class KakuyomuCrawler(CrawlerABC):
         start_datetime_dd = html.select_desc_list_data(
             meta_info_list, self._START_DATETIME_TERM
         )
-        series_blog.start_datetime = html.parse_time_desendant(
+        series_blog.start_datetime = html.parse_time_descendant(
             start_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
         )
 
         last_updated_datetime_dd = html.select_desc_list_data(
             meta_info_list, self._LAST_UPDATED_DATETIME_TERM
         )
-        series_blog.last_updated_datetime = html.parse_time_desendant(
+        series_blog.last_updated_datetime = html.parse_time_descendant(
             last_updated_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
         )
 
@@ -399,7 +394,7 @@ class KakuyomuCrawler(CrawlerABC):
                 a series homepage.
             series_blog: The blog object to store the parsed data in.
         """
-        info_lists = html.select_desendants_by_class(
+        info_lists = html.select_descendants_by_class(
             series_page_soup, self._SERIES_INFO_LIST_CLASS, 'dl', 2
         )
         review_info_list = info_lists[1]
@@ -432,12 +427,12 @@ class KakuyomuCrawler(CrawlerABC):
             A JpnArticleBlog with the info from the given series homepage.
         """
         series_blog = JpnArticleBlog(
-            title=html.parse_text_from_desendant_by_id(
+            title=html.parse_text_from_descendant_by_id(
                 series_page_soup, self._SERIES_TITLE_TAG_ID
             ),
-            author=html.parse_text_from_desendant_by_id(
+            author=html.parse_text_from_descendant_by_id(
                 series_page_soup, self._SERIES_AUTHOR_TAG_ID
-            ),
+            ).strip(),
             source_name=self.SOURCE_NAME,
             source_url=series_page_url,
         )
@@ -463,10 +458,10 @@ class KakuyomuCrawler(CrawlerABC):
             The <li> tags from the table of contents list on the series
             homepage.
         """
-        table_of_contents_tag = html.select_desendants_by_class(
+        table_of_contents_tag = html.select_descendants_by_class(
             series_page_soup, self._SERIES_EPISODE_TOC_LIST_CLASS, 'ol', 1
         )[0]
-        table_of_contents_items = html.select_desendants_by_tag(
+        table_of_contents_items = html.select_descendants_by_tag(
             table_of_contents_tag, 'li'
         )
 
@@ -501,11 +496,11 @@ class KakuyomuCrawler(CrawlerABC):
             The metadata contained within the episode li tag.
         """
         return JpnArticleMetadata(
-            title=html.parse_text_from_desendant_by_class(
+            title=html.parse_text_from_descendant_by_class(
                 episode_li_tag, self._EPISODE_TOC_TITLE_CLASS, 'span'
             ).strip(),
             author=series_blog.author,
-            source_url=html.parse_link_desendant(episode_li_tag),
+            source_url=html.parse_link_descendant(episode_li_tag),
             source_name=self.SOURCE_NAME,
             blog=series_blog,
             blog_id=series_blog.get_id(),
@@ -513,7 +508,7 @@ class KakuyomuCrawler(CrawlerABC):
             blog_section_name=section_name,
             blog_section_order_num=section_order_num,
             blog_section_article_order_num=section_ep_order_num,
-            publication_datetime=html.parse_time_desendant(
+            publication_datetime=html.parse_time_descendant(
                 episode_li_tag, self._TIME_TAG_DATETIME_FORMAT
             ),
             last_crawled_datetime=datetime.utcnow(),
@@ -660,16 +655,16 @@ class KakuyomuCrawler(CrawlerABC):
             The full text for the episode.
         """
         body_text_list = []
-        title = html.parse_text_from_desendant_by_class(
+        title = html.parse_text_from_descendant_by_class(
             episode_page_soup, self._EPISODE_TITLE_CLASS, 'p'
         )
         body_text_list.append(title.strip())
         body_text_list.append('')  # Add extra new line after title
 
-        body_text_div = html.select_desendants_by_class(
+        body_text_div = html.select_descendants_by_class(
             episode_page_soup, self._EPISODE_TEXT_DIV_CLASS, 'div', 1
         )[0]
-        body_text_paras = html.select_desendants_by_tag(body_text_div, 'p')
+        body_text_paras = html.select_descendants_by_tag(body_text_div, 'p')
 
         for body_text_para in body_text_paras:
             para_text = html.parse_valid_child_text(body_text_para, False)
@@ -692,14 +687,14 @@ class KakuyomuCrawler(CrawlerABC):
         Returns:
             The last update UTC datetime for the episode.
         """
-        episode_info_list = html.select_desendant_by_id(
+        episode_info_list = html.select_descendant_by_id(
             episode_page_soup, self._EPISODE_INFO_LIST_ID
         )
 
         last_updated_datetime_dd = html.select_desc_list_data(
             episode_info_list, self._LAST_UPDATED_DATETIME_TERM
         )
-        return html.parse_time_desendant(
+        return html.parse_time_descendant(
             last_updated_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
         )
 

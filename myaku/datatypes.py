@@ -182,16 +182,18 @@ class JpnArticle(object):
         full_text: The full text of the article. Includes the title.
         alnum_count: The alphanumeric character count of full_text.
         has_video: True if the article contains a video.
-        metadata: The metadata for the article.
+        metadata: The source metadata for the article.
         text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
             automatically lazily after changes to full_text. Read-only.
         database_id: The ID for this article in the Myaku database.
+        quality_score: Quality score for this article determined by Myaku.
         """
     full_text: str = None
     alnum_count: int = None
     has_video: bool = None
     metadata: JpnArticleMetadata = None
     database_id: str = None
+    quality_score: int = None
 
     # Read-only
     text_hash: str = None

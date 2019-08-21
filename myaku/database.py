@@ -500,9 +500,7 @@ class MyakuCrawlDb(object):
         blog_oid_map = self._write_blogs(blogs)
 
         article_docs = self._convert_articles_to_docs(articles, blog_oid_map)
-        result = self._write_with_log(
-            article_docs, self._article_collection
-        )
+        result = self._write_with_log(article_docs, self._article_collection)
         article_oid_map = {
             id(a): oid for a, oid in zip(articles, result.inserted_ids)
         }
@@ -517,8 +515,8 @@ class MyakuCrawlDb(object):
             articles: Articles to read from the database.
 
         Returns:
-            A mapping from the id() for each given article to the
-            ObjectId that article is stored with.
+            A mapping from the id() for each given article to the ObjectId that
+            article is stored with.
         """
         text_hashes = [a.text_hash for a in articles]
         docs = self._read_with_log(
@@ -923,6 +921,7 @@ class MyakuCrawlDb(object):
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
                 'has_video': article.has_video,
+                # 'quality_score': article.quality_score,
                 'myaku_version_info': self._version_doc,
             })
 
@@ -988,21 +987,21 @@ class MyakuCrawlDb(object):
         the given found lexical items.
         """
         docs = []
-        for found_lexical_item in found_lexical_items:
+        for fli in found_lexical_items:
             interp_docs = self._convert_lexical_item_interps_to_docs(
-                found_lexical_item.possible_interps
+                fli.possible_interps
             )
             found_positions_docs = self._convert_found_positions_to_docs(
-                found_lexical_item.found_positions
+                fli.found_positions
             )
 
             interp_pos_map_doc = {}
-            for i, interp in enumerate(found_lexical_item.possible_interps):
-                if interp not in found_lexical_item.interp_position_map:
+            for i, interp in enumerate(fli.possible_interps):
+                if interp not in fli.interp_position_map:
                     continue
 
                 interp_pos_docs = self._convert_found_positions_to_docs(
-                    found_lexical_item.interp_position_map[interp]
+                    fli.interp_position_map[interp]
                 )
                 interp_pos_map_doc[str(i)] = interp_pos_docs
 
@@ -1010,11 +1009,15 @@ class MyakuCrawlDb(object):
                 interp_pos_map_doc = None
 
             docs.append({
-                'base_form': found_lexical_item.base_form,
-                'article_oid': article_oid_map[id(found_lexical_item.article)],
+                'base_form': fli.base_form,
+                'article_oid': article_oid_map[id(fli.article)],
                 'found_positions': found_positions_docs,
                 'possible_interps': interp_docs,
                 'interp_position_map': interp_pos_map_doc,
+                # 'article_quality_score': fli.article.quality_score,
+                # 'article_quality_score_modifier': fli,
+                # 'article_last_updated_datetime':
+                # fli.article.metadata.last_updated_datetime,
                 'myaku_version_info': self._version_doc,
             })
 
@@ -1070,6 +1073,7 @@ class MyakuCrawlDb(object):
                 alnum_count=doc['alnum_count'],
                 has_video=doc['has_video'],
                 database_id=str(doc['_id']),
+                # quality_score=doc['quality_score'],
                 metadata=JpnArticleMetadata(
                     title=doc['title'],
                     author=doc.get('author'),

@@ -19,7 +19,7 @@ _RUBY_TAG_REGEX = re.compile(r'</?ruby.*?>')
 _RT_CONTENT_REGEX = re.compile(r'<rt.*?>.*?</rt>')
 _RP_CONTENT_REGEX = re.compile(r'<rp.*?>.*?</rp>')
 _ALLOWABLE_HTML_TAGS_IN_TEXT = {
-    'a', 'b', 'blockquote', 'br', 'em', 'span', 'strong', 'sup'
+    'a', 'b', 'blockquote', 'br', 'em', 'i', 'span', 'strong', 'sup'
 }
 
 
@@ -76,7 +76,7 @@ def parse_valid_child_text(
     return re.sub(_HTML_TAG_REGEX, '', str(parent))
 
 
-def parse_text_from_desendant_by_class(
+def parse_text_from_descendant_by_class(
     parent: Tag, classes: Union[str, List[str]], tag_name: str = '',
     tag_index: int = 0, expected_tag_count: int = 1
 ) -> str:
@@ -98,6 +98,9 @@ def parse_text_from_desendant_by_class(
             classes. If the total tag_name descendants with classes is not
             equal to this amount, an HtmlParsingError will be raised.
 
+            If None, will not raise an exception as long as the total matched
+            tag descendants is >= tag_index.
+
     Returns:
         The parsed text.
 
@@ -111,7 +114,8 @@ def parse_text_from_desendant_by_class(
     found_tags = parent.select(
         '{}.{}'.format(tag_name, '.'.join(classes))
     )
-    if len(found_tags) != expected_tag_count:
+    if (expected_tag_count is not None
+            and len(found_tags) != expected_tag_count):
         _raise_parsing_error(
             'Found {} "{}" tags with class(es) "{}" instead of {} in: '
             '"{}"'.format(
@@ -130,7 +134,7 @@ def parse_text_from_desendant_by_class(
     return text
 
 
-def parse_text_from_desendant_by_id(parent: Tag, tag_id: str) -> str:
+def parse_text_from_descendant_by_id(parent: Tag, tag_id: str) -> str:
     """Parses the text from a tag_name descendant with id.
 
     Args:
@@ -164,7 +168,7 @@ def parse_text_from_desendant_by_id(parent: Tag, tag_id: str) -> str:
     return text
 
 
-def parse_time_desendant(
+def parse_time_descendant(
     parent: Tag, datetime_format: str, convert_from_jst: bool = False,
     tag_index: int = 0, expected_tag_count: int = 1
 ) -> datetime:
@@ -187,11 +191,14 @@ def parse_time_desendant(
             The indexing starts at 0 and proceeds in depth-first order from the
             parent.
         expected_tag_count: Expected number of time descendants. If the total
-            time descendants is not equal to this amount, an HtmlParsingError
-            will be raised.
+            time tag descendants is not equal to this amount, an
+            HtmlParsingError will be raised.
+
+            If None, will not raise an exception as long as the total time tag
+            descendants is >= tag_index.
 
     Returns:
-        UTC datetime parsed from the time tag desendant.
+        UTC datetime parsed from the time tag descendant.
 
     Raises:
         HtmlParsingError: There was an issue parsing the datetime from the time
@@ -199,7 +206,7 @@ def parse_time_desendant(
     """
     time_tags = parent.select('time')
 
-    if len(time_tags) != expected_tag_count:
+    if expected_tag_count is not None and len(time_tags) != expected_tag_count:
         _raise_parsing_error(
             'Found {} time tags instead of {} in "{}"'.format(
                 len(time_tags), expected_tag_count, parent
@@ -231,33 +238,36 @@ def parse_time_desendant(
     return parsed_datetime
 
 
-def parse_link_desendant(
+def parse_link_descendant(
     parent: Tag, tag_index: int = 0, expected_tag_count: int = 1
 ) -> str:
     """Parses the href link from an <a> tag descendant.
 
     Args:
         parent: Tag whose descendants to search for a <a> tag.
-        tag_index: Ordinal index of the a tag to parse out of the list of
-            a tag descendants (i.e. 0 would parse the first a tag descendant, 1
-            would parse the second, etc.).
+        tag_index: Ordinal index of the <a> tag to parse out of the list of
+            <a> tag descendants (i.e. 0 would parse the first <a> tag
+            descendant, 1 would parse the second, etc.).
 
             The indexing starts at 0 and proceeds in depth-first order from the
             parent.
-        expected_tag_count: Expected number of a tag descendants. If the total
-            a tag descendants is not equal to this amount, an HtmlParsingError
-            will be raised.
+        expected_tag_count: Expected number of <a> tag descendants. If the
+            total <a> tag descendants is not equal to this amount, an
+            HtmlParsingError will be raised.
+
+            If None, will not raise an exception as long as the total <a> tag
+            descendants is >= tag_index.
 
     Returns:
         The href link from an <a> tag descendant.
 
     Raises:
-        HtmlParsingError: There was an issue parsing the href link from the a
+        HtmlParsingError: There was an issue parsing the href link from the <a>
             tag descendant from the given parent.
     """
     link_tags = parent.select('a')
 
-    if len(link_tags) != expected_tag_count:
+    if expected_tag_count is not None and len(link_tags) != expected_tag_count:
         _raise_parsing_error(
             'Found {} <a> tags instead of {} in: "{}"'.format(
                 len(link_tags), expected_tag_count, parent
@@ -350,7 +360,7 @@ def select_desc_list_data(desc_list: Tag, term_text: str) -> str:
     return dd_tag
 
 
-def select_desendants_by_class(
+def select_descendants_by_class(
     parent: Tag, classes: Union[str, List[str]], tag_name: str = '',
     expected_tag_count: int = None
 ) -> List[Tag]:
@@ -396,7 +406,7 @@ def select_desendants_by_class(
     return tags
 
 
-def select_desendants_by_tag(
+def select_descendants_by_tag(
     parent: Tag, tag_name: str, expected_tag_count: int = None
 ) -> List[Tag]:
     """Selects tag_name descendant(s) within parent.
@@ -434,7 +444,7 @@ def select_desendants_by_tag(
     return tags
 
 
-def select_desendant_by_id(parent: Tag, id_: str) -> Tag:
+def select_descendant_by_id(parent: Tag, id_: str) -> Tag:
     """Selects the descendant with the given id within parent.
 
     Args:

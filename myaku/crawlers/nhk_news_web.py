@@ -24,7 +24,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     MAX_MOST_RECENT_SHOW_MORE_CLICKS = 9
     MAX_DOUGA_SHOW_MORE_CLICKS = 8
 
-    _SOURCE_NAME = 'NHK News Web'
+    SOURCE_NAME = 'NHK News Web'
     __SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
 
     _REQUIRES_WEB_DRIVER = True
@@ -54,6 +54,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     _SHOW_MORE_BUTTON_FOOTER_CLASS = 'button-more'
     _LOADING_CLASS_NAME = 'loading'
 
+    _SUMMARY_HEADER_DIV_COUNT = 5
     _SUMMARY_HEADER_DIV_CLASS = 'content--header'
     _SUMMARY_ARTICLE_LIST_CLASS = 'content--list'
 
@@ -66,11 +67,6 @@ class NhkNewsWebCrawler(CrawlerABC):
     _ARTICLE_BODY_CLASSES = [
         'news_add',
     ]
-
-    @property
-    def SOURCE_NAME(self) -> str:
-        """Human-readable name for the source crawled."""
-        return self._SOURCE_NAME
 
     @property
     def _SOURCE_BASE_URL(self) -> str:
@@ -169,15 +165,14 @@ class NhkNewsWebCrawler(CrawlerABC):
         """
         article_data = JpnArticle()
         article_data.metadata = JpnArticleMetadata(
-            title=utils.html.parse_text_from_desendant_by_class(
+            title=utils.html.parse_text_from_descendant_by_class(
                 article_tag, self._ARTICLE_TITLE_CLASS, 'span'
             ),
             source_url=article_metadata.source_url,
             source_name=self.SOURCE_NAME,
+            publication_datetime=article_metadata.publication_datetime,
+            last_updated_datetime=article_metadata.publication_datetime,
             last_crawled_datetime=datetime.utcnow(),
-            publication_datetime=utils.html.parse_time_desendant(
-                article_tag, self._TIME_TAG_DATETIME_FORMAT, True
-            ),
         )
 
         body_text = self._parse_body_text(article_tag)
@@ -210,7 +205,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         return main
 
     def _scrape_summary_page_list_articles(
-        self, page_soup: BeautifulSoup
+        self, page_soup: BeautifulSoup, has_single_link_list_articles: bool
     ) -> List[JpnArticleMetadata]:
         """Scrapes metadata from the article list of a summary page soup.
 
@@ -219,6 +214,8 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         Args:
             page_soup: BeautifulSoup for the summary page.
+            has_single_link_list_articles: If True, expects the list items in
+               the article list to always have a single link in them.
 
         Returns:
             A list of the article metadatas for the articles linked to in the
@@ -226,7 +223,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         """
         list_article_tags = []
         main = self._select_main(page_soup)
-        article_uls = utils.html.select_desendants_by_class(
+        article_uls = utils.html.select_descendants_by_class(
             main, self._SUMMARY_ARTICLE_LIST_CLASS, 'ul'
         )
         article_uls = self._filter_out_exclusions(article_uls)
@@ -235,15 +232,20 @@ class NhkNewsWebCrawler(CrawlerABC):
         _log.debug('Found %s list article tags', len(list_article_tags))
 
         metadatas = []
+        link_count = 1 if has_single_link_list_articles else None
         for tag in list_article_tags:
+            publication_datetime = utils.html.parse_time_descendant(
+                tag, self._TIME_TAG_DATETIME_FORMAT, True
+            )
             metadata = JpnArticleMetadata(
-                title=utils.html.parse_text_from_desendant_by_class(
+                title=utils.html.parse_text_from_descendant_by_class(
                     tag, self._TITLE_CLASS, 'em'
                 ),
-                publication_datetime=utils.html.parse_time_desendant(
-                    tag, self._TIME_TAG_DATETIME_FORMAT, True
+                publication_datetime=publication_datetime,
+                last_updated_datetime=publication_datetime,
+                source_url=utils.html.parse_link_descendant(
+                    tag, 0, link_count
                 ),
-                source_url=utils.html.parse_link_desendant(tag),
                 source_name=self.SOURCE_NAME,
             )
             metadatas.append(metadata)
@@ -266,22 +268,25 @@ class NhkNewsWebCrawler(CrawlerABC):
             header sections of the summary page.
         """
         main = self._select_main(page_soup)
-        header_article_tags = utils.html.parse_descendant_by_class(
-            main, self._SUMMARY_HEADER_DIV_CLASS, 'div', True
+        header_article_tags = utils.html.select_descendants_by_class(
+            main, self._SUMMARY_HEADER_DIV_CLASS, 'div',
+            self._SUMMARY_HEADER_DIV_COUNT
         )
         header_article_tags = self._filter_out_exclusions(header_article_tags)
         _log.debug('Found %s header article divs', len(header_article_tags))
 
         metadatas = []
         for tag in header_article_tags:
+            publication_datetime = utils.html.parse_time_descendant(
+                tag, self._TIME_TAG_DATETIME_FORMAT, True
+            )
             metadata = JpnArticleMetadata(
-                title=utils.html.parse_text_from_desendant_by_class(
+                title=utils.html.parse_text_from_descendant_by_class(
                     tag, self._TITLE_CLASS, 'em'
                 ),
-                publication_datetime=utils.html.parse_time_desendant(
-                    tag, self._TIME_TAG_DATETIME_FORMAT, True
-                ),
-                source_url=utils.html.parse_link_desendant(tag, 0, 2),
+                publication_datetime=publication_datetime,
+                last_updated_datetime=publication_datetime,
+                source_url=utils.html.parse_link_descendant(tag, 0, 2),
                 source_name=self.SOURCE_NAME,
             )
             metadatas.append(metadata)
@@ -289,7 +294,8 @@ class NhkNewsWebCrawler(CrawlerABC):
         return metadatas
 
     def _scrape_summary_page_article_metadatas(
-        self, page_soup: BeautifulSoup, has_header_sections: bool = False
+        self, page_soup: BeautifulSoup, has_header_sections: bool,
+        has_single_link_list_articles: bool
     ) -> List[JpnArticleMetadata]:
         """Scrapes all article metadata from a summary page soup.
 
@@ -299,12 +305,17 @@ class NhkNewsWebCrawler(CrawlerABC):
                 containing article metadatas on the summary page as well. If
                 False, will only look for summary lists containing article
                 metadatas on the summary page.
+            has_single_link_list_articles: If True, expects the list items in
+               the article list on the summary page to always have a single
+               link in them.
 
         Returns:
             A list of the metadatas for the articles linked to on the summary
             page.
         """
-        metadatas = self._scrape_summary_page_list_articles(page_soup)
+        metadatas = self._scrape_summary_page_list_articles(
+            page_soup, has_single_link_list_articles
+        )
         if has_header_sections:
             metadatas.extend(
                 self._scrape_summary_page_header_articles(page_soup)
@@ -446,7 +457,7 @@ class NhkNewsWebCrawler(CrawlerABC):
 
     def _crawl_summary_page(
         self, page_url: str, show_more_clicks: int,
-        has_header_sections: bool = False
+        has_header_sections: bool, has_single_link_list_articles: bool
     ) -> CrawlGenerator:
         """Gets all not yet crawled articles from given summary page.
 
@@ -457,6 +468,9 @@ class NhkNewsWebCrawler(CrawlerABC):
             has_header_sections: Whether or not the summary page has header
                 sections for featured articles in addition to its article
                 summary list.
+            has_single_link_list_articles: Whether or not the list items in
+               the article list on the summary page always have a single link
+               in them.
 
         Returns:
             A list of all of the not yet crawled articles linked to from the
@@ -467,14 +481,14 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
         metadatas = self._scrape_summary_page_article_metadatas(
-            soup, has_header_sections
+            soup, has_header_sections, has_single_link_list_articles
         )
         _log.debug(
             'Found %s metadatas from %s page',
             len(metadatas), self._web_driver.title
         )
 
-        yield from self._crawl_uncrawled_metadatas(metadatas)
+        yield from self._crawl_uncrawled_articles(metadatas)
 
     def crawl_most_recent(self, show_more_clicks: int = 0) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'Most Recent' page.
@@ -502,7 +516,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             )
 
         yield from self._crawl_summary_page(
-            self._MOST_RECENT_PAGE_URL, show_more_clicks
+            self._MOST_RECENT_PAGE_URL, show_more_clicks, False, False
         )
 
     def crawl_douga(self, show_more_clicks: int = 0) -> CrawlGenerator:
@@ -529,7 +543,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             )
 
         yield from self._crawl_summary_page(
-            self._DOUGA_PAGE_URL, show_more_clicks
+            self._DOUGA_PAGE_URL, show_more_clicks, False, True
         )
 
     def crawl_news_up(self, show_more_clicks: int = 0) -> CrawlGenerator:
@@ -544,7 +558,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             News Up page.
         """
         yield from self._crawl_summary_page(
-            self._NEWS_UP_PAGE_URL, show_more_clicks, True
+            self._NEWS_UP_PAGE_URL, show_more_clicks, True, True
         )
 
     def crawl_tokushu(self, show_more_clicks: int = 0) -> CrawlGenerator:
@@ -559,7 +573,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             Tokushu page.
         """
         yield from self._crawl_summary_page(
-            self._TOKUSHU_PAGE_URL, show_more_clicks, True
+            self._TOKUSHU_PAGE_URL, show_more_clicks, True, True
         )
 
     def get_crawls_for_most_recent(self) -> List[Crawl]:
@@ -576,20 +590,24 @@ class NhkNewsWebCrawler(CrawlerABC):
         """
         crawls = []
         most_recent_crawl = Crawl(
-            name='Most Recent',
-            crawl_gen=self.crawl_most_recent(
-                self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
+            'Most Recent',
+            self.crawl_most_recent(
+                1
+                # self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
             )
         )
         crawls.append(most_recent_crawl)
 
-        douga_crawl = Crawl(name='Douga', crawl_gen=self.crawl_douga(4))
+        douga_crawl = Crawl('Douga', self.crawl_douga(
+            1
+            # 4
+        ))
         crawls.append(douga_crawl)
 
-        news_up_crawl = Crawl(name='News Up', crawl_gen=self.crawl_news_up())
+        news_up_crawl = Crawl('News Up', self.crawl_news_up())
         crawls.append(news_up_crawl)
 
-        tokushu_crawl = Crawl(name='Tokushu', crawl_gen=self.crawl_tokushu())
+        tokushu_crawl = Crawl('Tokushu', self.crawl_tokushu())
         crawls.append(tokushu_crawl)
 
         return crawls

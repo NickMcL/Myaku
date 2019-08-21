@@ -52,18 +52,15 @@ class CrawlerABC(ABC):
     A child class should handle the crawling for a single article source.
     """
 
-    # This must be overriden by child classes to make it True if the child
-    # class makes use of the web driver. It is False by default so that
-    # resources are not wasted initializing the web driver if it is not needed.
+    # Must be overriden by child classes with their human-readable source name.
+    SOURCE_NAME = 'MUST_OVERRIDE'
+
+    # Must be overriden by child classes to make it True if the child class
+    # makes use of the web driver. It is False by default so that resources are
+    # not wasted initializing the web driver if it is not needed.
     _REQUIRES_WEB_DRIVER = False
 
     _WEB_DRIVER_LOG_FILENAME = 'webdriver.log'
-
-    @property
-    @abstractmethod
-    def SOURCE_NAME(self) -> str:
-        """The human-readable name of the source handled by the crawler."""
-        return ""
 
     @property
     @abstractmethod
