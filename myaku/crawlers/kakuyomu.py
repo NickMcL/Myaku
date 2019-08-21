@@ -193,7 +193,9 @@ class KakuyomuCrawler(CrawlerABC):
             title_link_tag = html.select_descendants_by_class(
                 series_tile, self._SEARCH_RESULT_TITLE_CLASS, 'a', 1
             )[0]
-            series_blog.title = html.parse_valid_child_text(title_link_tag)
+            series_blog.title = html.parse_valid_child_text(
+                title_link_tag
+            ).strip()
             series_blog.source_url = title_link_tag['href']
 
             series_blog.author = html.parse_text_from_descendant_by_class(
@@ -429,7 +431,7 @@ class KakuyomuCrawler(CrawlerABC):
         series_blog = JpnArticleBlog(
             title=html.parse_text_from_descendant_by_id(
                 series_page_soup, self._SERIES_TITLE_TAG_ID
-            ),
+            ).strip(),
             author=html.parse_text_from_descendant_by_id(
                 series_page_soup, self._SERIES_AUTHOR_TAG_ID
             ).strip(),
