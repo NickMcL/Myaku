@@ -11,7 +11,7 @@ import re
 from collections import defaultdict
 from contextlib import closing
 from operator import methodcaller
-from typing import Any, Callable, Dict, List, TypeVar, Union
+from typing import Any, Callable, Dict, Iterator, List, TypeVar, Union
 
 import pymongo
 from bson.objectid import ObjectId
@@ -425,6 +425,38 @@ class MyakuCrawlDb(object):
             found_lexical_item_docs, self._found_lexical_item_collection
         )
 
+    @utils.skip_method_debug_logging
+    @_require_write_permission
+    def update_article_score(self, article: JpnArticle) -> None:
+        """Updates the quality score for the article in the db.
+
+        Updates the quality score for the article and found lexical items for
+        the article in the db to match the data stored in quality_score field
+        of the given article object.
+
+        The given article must have its database_id field set.
+        """
+        _log.debug(
+            'Will update the quality score for the article with _id "%s" to '
+            '%s', article.database_id, article.quality_score
+        )
+        result = self._article_collection.update_one(
+            {'_id': ObjectId(article.database_id)},
+            {'$set': {'quality_score': article.quality_score}}
+        )
+        _log.debug('Update result: %s', result.raw_result)
+
+        _log.debug(
+            'Will update the quality score for the found lexical items for '
+            'the article with _id "%s" to %s',
+            article.database_id, article.quality_score
+        )
+        result = self._found_lexical_item_collection.update_many(
+            {'article_oid': ObjectId(article.database_id)},
+            {'$set': {'article_quality_score': article.quality_score}}
+        )
+        _log.debug('Update result: %s', result.raw_result)
+
     def read_found_lexical_items(
         self, base_forms: Union[str, List[str]], starts_with: bool = False
     ) -> List[FoundJpnLexicalItem]:
@@ -461,6 +493,37 @@ class MyakuCrawlDb(object):
             found_lexical_item_docs, oid_article_map
         )
         return found_lexical_items
+
+    def get_article_count(self) -> int:
+        """Returns the total number of articles in the db."""
+        return self._article_collection.count_documents({})
+
+    def read_all_articles(self) -> Iterator[JpnArticle]:
+        """Returns generator that yields all articles from the database."""
+        _log.debug(
+            'Will query %s for all documents',
+            self._article_collection.full_name
+        )
+        cursor = self._article_collection.find({}).sort('blog_oid')
+        _log.debug(
+            'Retrieved cursor from %s', self._article_collection.full_name
+        )
+
+        oid_blog_map = None
+        last_blog_oid = None
+        for doc in cursor:
+            if doc['blog_oid'] is None:
+                oid_blog_map = {}
+            elif doc['blog_oid'] != last_blog_oid:
+                blog_doc = self._blog_collection.find_one(
+                    {'_id': doc['blog_oid']}
+                )
+                oid_blog_map = self._convert_docs_to_blogs([blog_doc])
+
+            article_oid_map = self._convert_docs_to_articles(
+                [doc], oid_blog_map
+            )
+            yield article_oid_map[doc['_id']]
 
     def _write_blogs(
         self, blogs: JpnArticleBlog
@@ -558,22 +621,6 @@ class MyakuCrawlDb(object):
         )
 
         return oid_article_map
-
-    def read_all_articles(self) -> List[JpnArticle]:
-        """Reads all articles from the database."""
-        _log.debug(
-            'Will query %s for all documents',
-            self._article_collection.full_name
-        )
-        cursor = self._article_collection.find({})
-        docs = list(cursor)
-        _log.debug(
-            'Retrieved %s documents from %s',
-            len(docs), self._article_collection
-        )
-
-        article_oid_map = self._convert_docs_to_articles(docs)
-        return list(article_oid_map.values())
 
     @_require_write_permission
     def write_crawled(self, metadatas: List[JpnArticleMetadata]) -> None:
@@ -921,7 +968,7 @@ class MyakuCrawlDb(object):
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
                 'has_video': article.has_video,
-                # 'quality_score': article.quality_score,
+                'quality_score': article.quality_score,
                 'myaku_version_info': self._version_doc,
             })
 
@@ -1012,12 +1059,14 @@ class MyakuCrawlDb(object):
                 'base_form': fli.base_form,
                 'article_oid': article_oid_map[id(fli.article)],
                 'found_positions': found_positions_docs,
+                'found_positions_len': len(found_positions_docs),
                 'possible_interps': interp_docs,
                 'interp_position_map': interp_pos_map_doc,
-                # 'article_quality_score': fli.article.quality_score,
-                # 'article_quality_score_modifier': fli,
-                # 'article_last_updated_datetime':
-                # fli.article.metadata.last_updated_datetime,
+                'article_quality_score': fli.article.quality_score,
+                'article_quality_score_modifier':
+                    fli.article_quality_score_modifier,
+                'article_last_updated_datetime':
+                    fli.article.metadata.last_updated_datetime,
                 'myaku_version_info': self._version_doc,
             })
 
@@ -1073,7 +1122,7 @@ class MyakuCrawlDb(object):
                 alnum_count=doc['alnum_count'],
                 has_video=doc['has_video'],
                 database_id=str(doc['_id']),
-                # quality_score=doc['quality_score'],
+                quality_score=doc['quality_score'],
                 metadata=JpnArticleMetadata(
                     title=doc['title'],
                     author=doc.get('author'),
@@ -1184,6 +1233,9 @@ class MyakuCrawlDb(object):
                 found_positions=found_positions,
                 possible_interps=interps,
                 interp_position_map=interp_position_map,
+                article_quality_score_modifier=doc[
+                    'article_quality_score_modifier'
+                ],
                 database_id=str(doc['_id']),
             ))
 

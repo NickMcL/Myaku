@@ -56,6 +56,11 @@ class ResourceNotReadyError(Exception):
     pass
 
 
+class ScriptArgsError(Exception):
+    """The arguments passed to a script were invalid."""
+    pass
+
+
 class TextAnalysisError(Exception):
     """An unexpected error occurred related to text analysis."""
     pass

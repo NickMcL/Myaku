@@ -4,7 +4,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Generator, List, NamedTuple
+from typing import Generator, List, NamedTuple, Tuple
 from urllib.parse import urljoin
 
 import requests
@@ -38,12 +38,17 @@ class Crawl(NamedTuple):
     """Data for a crawl run of a website for Japanese articles.
 
     Attributes:
-        crawl_name: Name that should be displayed (etc. in logging) for the
-            crawl.
+        source_name: Name of the source being crawled.
+        crawl_name: Name of what is being crawled from the source.
         crawl_gen: Generator for progressing the crawl.
     """
+    source_name: str
     crawl_name: str
     crawl_gen: CrawlGenerator
+
+    def get_id(self) -> Tuple[str, str]:
+        """Gets the unique id tuple for this crawl."""
+        return (self.source_name, self.crawl_name)
 
 
 class CrawlerABC(ABC):

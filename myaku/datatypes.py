@@ -96,7 +96,7 @@ class JpnArticleBlog(object):
 
     def __str__(self) -> str:
         """Returns the title and author in string format."""
-        return '{}--{}'.format(self.title, self.author)
+        return '{}|{}'.format(self.title, self.author)
 
     def get_id(self) -> str:
         """Returns the unique id for this blog."""
@@ -166,7 +166,7 @@ class JpnArticleMetadata(object):
 
     def __str__(self) -> str:
         """Returns the title and publication time in string format."""
-        return '{}--{}--{}'.format(
+        return '{}|{}|{}'.format(
             self.title,
             self.blog,
             self.publication_datetime.isoformat()
@@ -234,8 +234,10 @@ class JpnArticle(object):
 
     def __str__(self) -> str:
         if self.metadata is None:
-            return '<No article metadata>'
-        return str(self.metadata)
+            metadata_str = '<No article metadata>'
+        else:
+            metadata_str = str(self.metadata)
+        return '{}|{}'.format(metadata_str, self.quality_score)
 
     def get_article_len_group(self) -> int:
         """Gets the article alnum length group for the lexical item."""
@@ -370,6 +372,10 @@ class FoundJpnLexicalItem(object):
             If an interpretation applies to all positions the lexical items was
             found in the article, that interpretation will not have an entry in
             this dict.
+        article_quality_score_modifier: The modifier for this found lexical
+            item that can be added to the base quality score for its article
+            to get the quality score for the article in terms of demonstrating
+            usage of this lexical item.
         database_id: The ID of this lexical item in the Myaku database.
     """
     base_form: str = None
@@ -379,6 +385,7 @@ class FoundJpnLexicalItem(object):
     interp_position_map: (
         Dict[JpnLexicalItemInterp, List[LexicalItemTextPosition]]
     ) = field(default_factory=dict)
+    article_quality_score_modifier: int = None
     database_id: str = None
 
     _base_form: str = field(init=False, repr=False)

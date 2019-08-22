@@ -601,7 +601,7 @@ class KakuyomuCrawler(CrawlerABC):
             _log.debug('No search results found for url "%s"', search_url)
             return
 
-        series_blogs = self._parse_search_results_page(page_soup)
+        series_blogs = [self._parse_search_results_page(page_soup)[0]]
         yield from self._crawl_updated_blogs(series_blogs)
 
     def crawl_search_results(
@@ -639,9 +639,9 @@ class KakuyomuCrawler(CrawlerABC):
         Kakuyomu.
         """
         popular_crawl = Crawl(
-            crawl_name='Popular',
-            crawl_gen=self.crawl_search_results(
-                KakuyomuGenre.NONFICTION, KakuyomuSortOrder.POPULAR, 100, 1
+            self.SOURCE_NAME, 'Popular',
+            self.crawl_search_results(
+                KakuyomuGenre.NONFICTION, KakuyomuSortOrder.POPULAR, 1, 1
             )
         )
         return [popular_crawl]

@@ -54,7 +54,6 @@ class NhkNewsWebCrawler(CrawlerABC):
     _SHOW_MORE_BUTTON_FOOTER_CLASS = 'button-more'
     _LOADING_CLASS_NAME = 'loading'
 
-    _SUMMARY_HEADER_DIV_COUNT = 5
     _SUMMARY_HEADER_DIV_CLASS = 'content--header'
     _SUMMARY_ARTICLE_LIST_CLASS = 'content--list'
 
@@ -269,8 +268,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         """
         main = self._select_main(page_soup)
         header_article_tags = utils.html.select_descendants_by_class(
-            main, self._SUMMARY_HEADER_DIV_CLASS, 'div',
-            self._SUMMARY_HEADER_DIV_COUNT
+            main, self._SUMMARY_HEADER_DIV_CLASS, 'div'
         )
         header_article_tags = self._filter_out_exclusions(header_article_tags)
         _log.debug('Found %s header article divs', len(header_article_tags))
@@ -590,7 +588,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         """
         crawls = []
         most_recent_crawl = Crawl(
-            'Most Recent',
+            self.SOURCE_NAME, 'Most Recent',
             self.crawl_most_recent(
                 1
                 # self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
@@ -598,16 +596,20 @@ class NhkNewsWebCrawler(CrawlerABC):
         )
         crawls.append(most_recent_crawl)
 
-        douga_crawl = Crawl('Douga', self.crawl_douga(
+        douga_crawl = Crawl(self.SOURCE_NAME, 'Douga', self.crawl_douga(
             1
             # 4
         ))
         crawls.append(douga_crawl)
 
-        news_up_crawl = Crawl('News Up', self.crawl_news_up())
+        news_up_crawl = Crawl(
+            self.SOURCE_NAME, 'News Up', self.crawl_news_up()
+        )
         crawls.append(news_up_crawl)
 
-        tokushu_crawl = Crawl('Tokushu', self.crawl_tokushu())
+        tokushu_crawl = Crawl(
+            self.SOURCE_NAME, 'Tokushu', self.crawl_tokushu()
+        )
         crawls.append(tokushu_crawl)
 
         return crawls

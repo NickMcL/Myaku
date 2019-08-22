@@ -5,9 +5,9 @@ import math
 
 from myaku.datatypes import FoundJpnLexicalItem, JpnArticle
 
-from .scorers import (ArticleLengthScorer, BlogArticleOrderScorer,
-                      BlogRatingScorer, HasVideoScorer,
-                      PublicationRecencyScorer, TermFrequencyScorer)
+from .factor_scorers import (ArticleLengthScorer, BlogArticleOrderScorer,
+                             BlogRatingScorer, HasVideoScorer,
+                             PublicationRecencyScorer, TermFrequencyScorer)
 
 _log = logging.getLogger(__name__)
 
@@ -21,16 +21,16 @@ class MyakuArticleScorer(object):
 
     # 2-tuples in format (ArticleFactorScorer, factor weight)
     _ARTICLE_SCORE_FACTORS = [
-        (ArticleLengthScorer(), 2),
+        (ArticleLengthScorer(), 3),
         (BlogArticleOrderScorer(), 1),
         (BlogRatingScorer(), 2),
         (HasVideoScorer(), 1),
-        (PublicationRecencyScorer(), 1),
+        (PublicationRecencyScorer(), 2),
     ]
 
     # 2-tuples in format (FoundLexicalItemModifierFactorScorer, factor weight)
     _FLI_MODIFIER_SCORE_FACTORS = [
-        (TermFrequencyScorer(), 1),
+        (TermFrequencyScorer(), 2),
     ]
 
     def score_article(self, article: JpnArticle) -> None:
@@ -53,7 +53,6 @@ class MyakuArticleScorer(object):
             article_score += math.floor(
                 scorer.score_article(article) * factor_weight
             )
-            print(article_score)
         article.quality_score = article_score
 
     def score_fli_modifier(self, fli: FoundJpnLexicalItem) -> None:
@@ -78,6 +77,6 @@ class MyakuArticleScorer(object):
         fli_modifier_score = 0
         for (scorer, factor_weight) in self._FLI_MODIFIER_SCORE_FACTORS:
             fli_modifier_score += math.floor(
-                scorer.score_article(fli) * factor_weight
+                scorer.score_fli_modifier(fli) * factor_weight
             )
         fli.article_quality_score_modifier = fli_modifier_score
