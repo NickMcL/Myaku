@@ -1032,7 +1032,7 @@ class MecabTagger:
         # Very rarely, MeCab will give a blank base form for some proper
         # nouns. In these cases, set the base form to be the same as the
         # surface form.
-        if (len(tags) >= 3 and len(tags[2]) == 0 and tags[0] == tags[1]):
+        if len(tags) >= 4 and len(tags[0]) > 0 and len(tags[2]) == 0:
             tags[2] = tags[0]
 
         adjusted_tags = self._ADJUST_TAGS_MAP.get(tuple(tags))

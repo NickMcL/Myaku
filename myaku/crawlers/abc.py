@@ -197,9 +197,8 @@ class CrawlerABC(ABC):
                     i + 1, len(uncrawled_metadatas)
                 )
                 article = self.crawl_article(metadata.source_url, metadata)
-                db.write_crawled([article.metadata])
-
                 yield article
+                db.write_crawled([article.metadata])
 
     @utils.add_debug_logging
     def _crawl_updated_blogs(
