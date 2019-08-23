@@ -5,11 +5,14 @@ implementation of the article index can be changed freely while keeping the
 access interface consistent.
 """
 
+import enum
 import functools
+import itertools
 import logging
 import re
 from collections import defaultdict
 from contextlib import closing
+from dataclasses import dataclass
 from operator import methodcaller
 from typing import Any, Callable, Dict, Iterator, List, TypeVar, Union
 
@@ -17,6 +20,7 @@ import pymongo
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.collection import Collection, ReturnDocument
+from pymongo.cursor import Cursor
 from pymongo.errors import DuplicateKeyError
 from pymongo.results import InsertManyResult
 
@@ -159,6 +163,69 @@ def _require_write_permission(func: Callable) -> Callable:
     return wrapper_require_write_permission
 
 
+@enum.unique
+class JpnArticleQueryType(enum.Enum):
+    """Match type for a found lexical item query on an article corpus.
+
+    Attributes:
+        EXACT: Only match articles containing a term whose base form matches
+            the query exactly.
+
+            For example, searching for "落ち込む" will not match
+            "落ちこむ" because they do not match exactly even though they are
+            definte alternate forms of the same lexical item.
+        DEFINITE_ALT_FORMS: In addition to articles matched by EXACT,
+            also match articles containing any term whose base form
+            is a definite alternate form of a lexical item that has a form that
+            exactly matches the query.
+
+            For example, searching for "落ち込む" will also match
+            "落ちこむ" because they are definite alternate forms of the same
+            lexical item, but searching for "変える" will not match
+            "かえる" even though "かえる" is an alternate form of it because it
+            is not a definite alternate form.
+            This is because "かえる" is also an alternate form for words like
+            "帰る" which are completely different lexical items that do not
+            have the searched "変える" as an alternate form.
+
+        POSSIBLE_ALT_FORMS: In addition to the articles matched by
+            DEFNITE_ALT_FORMS, also match articles containing any term whose
+            base form is an alternate form of a lexical item that has a form
+            that exactly matches the query, even if that base form is also an
+            alternate form of other lexical items that do not have a form that
+            exactly matches the query.
+
+            For example, searching for "変える" will also match "かえる"
+            because "かえる" is an alternate form of it even though "かえる" is
+            also an alternate form for "帰る" which is a completely different
+            lexical item that does not have the searched "変える" as an
+            alternate form.
+
+    """
+    EXACT = 1
+    DEFINITE_ALT_FORMS = 3
+    POSSIBLE_ALT_FORMS = 2
+
+
+@dataclass
+class JpnArticleSearchResult(object):
+    """Article result of a database search for found lexical items.
+
+    Attributes:
+        article: Article matching the found lexical item search query.
+        matched_base_forms: Lexical item base forms that matched the search
+            query that were found in the article.
+        found_positions: Positions of the found lexical items in the article
+            that matched the search query.
+        quality_score: Quality score of this search result. See the scorers
+            module for more info on how quality scoring is done.
+    """
+    article: JpnArticle
+    matched_base_forms: List[str]
+    found_positions: List[LexicalItemTextPosition]
+    quality_score: int
+
+
 @utils.add_method_debug_logging
 class MyakuCrawlDb(object):
     """Interface object for accessing the Myaku database.
@@ -189,6 +256,18 @@ class MyakuCrawlDb(object):
         {'$group': {'_id': '$base_form', 'total': {'$sum': 1}}},
         {'$match': {'total': {'$gt': _BASE_FORM_COUNT_LIMIT}}},
     ]
+
+    _QUERY_TYPE_QUERY_FIELD_MAP = {
+        JpnArticleQueryType.EXACT: 'base_form',
+        JpnArticleQueryType.DEFINITE_ALT_FORMS: 'base_form_definite_group',
+        JpnArticleQueryType.POSSIBLE_ALT_FORMS: 'base_form_possible_group',
+    }
+
+    _QUERY_TYPE_SCORE_FIELD_MAP = {
+        JpnArticleQueryType.EXACT: 'quality_score_exact',
+        JpnArticleQueryType.DEFINITE_ALT_FORMS: 'quality_score_definite',
+        JpnArticleQueryType.POSSIBLE_ALT_FORMS: 'quality_score_possible',
+    }
 
     def __init__(self, read_only: bool = False) -> None:
         """Initializes the connection to the database."""
@@ -236,8 +315,15 @@ class MyakuCrawlDb(object):
         """Creates the necessary indexes for the db if they don't exist."""
         self._article_collection.create_index('text_hash')
         self._article_collection.create_index('blog_oid')
-        self._found_lexical_item_collection.create_index('base_form')
         self._found_lexical_item_collection.create_index('article_oid')
+
+        for q_type in JpnArticleQueryType:
+            self._found_lexical_item_collection.create_index([
+                (self._QUERY_TYPE_QUERY_FIELD_MAP[q_type], pymongo.DESCENDING),
+                (self._QUERY_TYPE_SCORE_FIELD_MAP[q_type], pymongo.DESCENDING),
+                ('article_last_updated_datetime', pymongo.DESCENDING),
+                ('article_oid', pymongo.DESCENDING),
+            ])
 
         crawled_id_index = []
         for field in JpnArticleMetadata.ID_FIELDS:
@@ -457,6 +543,105 @@ class MyakuCrawlDb(object):
         )
         _log.debug('Update result: %s', result.raw_result)
 
+    def _get_article_docs_from_search_results(
+        self, search_results_cursor: Cursor, quality_score_field: str,
+        results_start_index: int, max_results_to_return: int
+    ) -> List[_Document]:
+        """Merges the top search result docs together to get one per article.
+
+        Args:
+            search_results_cursor: Cursor that will yield search result
+                docs in ranked order.
+            quality_score_field: Name of field in the docs yielded from the
+                search_results_cursor that has the quality score for the search
+                result.
+            results_start_index: Index of the search results to start getting
+                article docs from. Indexing starts at 0.
+            max_results_to_return: Max number of search result article docs to
+                get. If the cursor reaches the last search result before
+                reaching this max, will return all of the search result article
+                docs that could be got.
+
+        Returns:
+            A list of ranked search results docs with only one per article.
+        """
+        article_search_result_docs = []
+        last_article_oid = None
+        skipped_articles = 0
+        for doc in search_results_cursor:
+            if doc['article_oid'] != last_article_oid:
+                last_article_oid = doc['article_oid']
+                if skipped_articles != results_start_index:
+                    skipped_articles += 1
+                    continue
+
+                if len(article_search_result_docs) == max_results_to_return:
+                    break
+
+                article_search_result_docs.append({
+                    'article_oid': doc['article_oid'],
+                    'matched_base_forms': [doc['base_form']],
+                    'found_positions': doc['found_positions'],
+                    'quality_score': doc[quality_score_field],
+                })
+            elif skipped_articles == results_start_index:
+                article_search_result_docs[-1]['matched_base_forms'].append(
+                    doc['base_form']
+                )
+                article_search_result_docs[-1]['found_positions'].extend(
+                    doc['found_positions']
+                )
+
+        return article_search_result_docs
+
+    def search_articles(
+        self, query: str, query_type: JpnArticleQueryType,
+        results_start_index: int, max_results_to_return: int
+    ) -> List[JpnArticleSearchResult]:
+        """Searchs the db for articles that match the given lexical item query.
+
+        The search results are in ranked order by quality score. See the scorer
+        module for more info on how quality scores are determined.
+
+        Args:
+            query_value: Lexical item base form value to use to search for
+                articles.
+            query_type: Type of matching to use when searching for articles
+                whose text contains terms matching query_value.
+            results_start_index: Index of the search results that the returned
+                results should start from. Indexing start from 0.
+            max_results_to_return: Max number of search results that the
+                returned generator should yield. If the generator reaches the
+                last overall search result before reaching this max, it will
+                also stop yielding.
+
+        Returns:
+            A list of article search results that match the found lexical item
+            query starting from index results_start_index of the results with a
+            max of max_results_to_return results in the list.
+        """
+        query_field = self._QUERY_TYPE_QUERY_FIELD_MAP[query_type]
+        quality_score_field = self._QUERY_TYPE_SCORE_FIELD_MAP[query_type]
+
+        cursor = self._found_lexical_item_collection.find({query_field: query})
+        cursor.sort([
+            (quality_score_field, pymongo.DESCENDING),
+            ('article_last_updated_datetime', pymongo.DESCENDING),
+            ('article_oid', pymongo.DESCENDING),
+        ])
+        search_result_docs = self._get_article_docs_from_search_results(
+            cursor, quality_score_field, results_start_index,
+            max_results_to_return
+        )
+
+        article_oids = [doc['article_oid'] for doc in search_result_docs]
+        oid_article_map = self._read_articles(article_oids)
+
+        search_results = self._convert_docs_to_search_results(
+            search_result_docs, oid_article_map
+        )
+        return search_results
+
     def read_found_lexical_items(
         self, base_forms: Union[str, List[str]], starts_with: bool = False
     ) -> List[FoundJpnLexicalItem]:
@@ -608,18 +793,16 @@ class MyakuCrawlDb(object):
         article_docs = self._read_with_log(
             '_id', object_ids, self._article_collection
         )
-        blog_oids = list(
-            set(doc['blog_oid'] for doc in article_docs)
-        )
+
+        blog_oids = list(set(doc['blog_oid'] for doc in article_docs))
         blog_docs = self._read_with_log(
             '_id', blog_oids, self._blog_collection
         )
-
         oid_blog_map = self._convert_docs_to_blogs(blog_docs)
+
         oid_article_map = self._convert_docs_to_articles(
             article_docs, oid_blog_map
         )
-
         return oid_article_map
 
     @_require_write_permission
@@ -1024,6 +1207,25 @@ class MyakuCrawlDb(object):
 
         return docs
 
+    def _convert_interp_pos_map_to_doc(
+        self, fli: FoundJpnLexicalItem
+    ) -> _Document:
+        """Converts a found lexical item interp position map to a doc."""
+        interp_pos_map_doc = {}
+        for i, interp in enumerate(fli.possible_interps):
+            if interp not in fli.interp_position_map:
+                continue
+
+            interp_pos_docs = self._convert_found_positions_to_docs(
+                fli.interp_position_map[interp]
+            )
+            interp_pos_map_doc[str(i)] = interp_pos_docs
+
+        if len(interp_pos_map_doc) == 0:
+            interp_pos_map_doc = None
+
+        return interp_pos_map_doc
+
     def _convert_found_lexical_items_to_docs(
         self, found_lexical_items: List[FoundJpnLexicalItem],
         article_oid_map: Dict[int, ObjectId]
@@ -1041,32 +1243,29 @@ class MyakuCrawlDb(object):
             found_positions_docs = self._convert_found_positions_to_docs(
                 fli.found_positions
             )
+            interp_pos_map_doc = self._convert_interp_pos_map_to_doc(fli)
 
-            interp_pos_map_doc = {}
-            for i, interp in enumerate(fli.possible_interps):
-                if interp not in fli.interp_position_map:
-                    continue
-
-                interp_pos_docs = self._convert_found_positions_to_docs(
-                    fli.interp_position_map[interp]
-                )
-                interp_pos_map_doc[str(i)] = interp_pos_docs
-
-            if len(interp_pos_map_doc) == 0:
-                interp_pos_map_doc = None
-
+            quality_score = fli.article.quality_score + fli.quality_score_mod
             docs.append({
                 'base_form': fli.base_form,
+                'base_form_definite_group': fli.base_form,
+                'base_form_possible_group': fli.base_form,
                 'article_oid': article_oid_map[id(fli.article)],
                 'found_positions': found_positions_docs,
-                'found_positions_len': len(found_positions_docs),
+                'found_positions_exact_count': len(found_positions_docs),
+                'found_positions_definite_count': len(found_positions_docs),
+                'found_positions_possible_count': len(found_positions_docs),
                 'possible_interps': interp_docs,
                 'interp_position_map': interp_pos_map_doc,
+                'quality_score_exact_mod': fli.quality_score_mod,
+                'quality_score_definite_mod': fli.quality_score_mod,
+                'quality_score_possible_mod': fli.quality_score_mod,
                 'article_quality_score': fli.article.quality_score,
-                'article_quality_score_modifier':
-                    fli.article_quality_score_modifier,
                 'article_last_updated_datetime':
                     fli.article.metadata.last_updated_datetime,
+                'quality_score_exact': quality_score,
+                'quality_score_definite': quality_score,
+                'quality_score_possible': quality_score,
                 'myaku_version_info': self._version_doc,
             })
 
@@ -1233,10 +1432,27 @@ class MyakuCrawlDb(object):
                 found_positions=found_positions,
                 possible_interps=interps,
                 interp_position_map=interp_position_map,
-                article_quality_score_modifier=doc[
-                    'article_quality_score_modifier'
-                ],
                 database_id=str(doc['_id']),
             ))
 
         return found_lexical_items
+
+    def _convert_docs_to_search_results(
+        self, docs: List[_Document],
+        oid_article_map: Dict[ObjectId, JpnArticle]
+    ) -> List[FoundJpnLexicalItem]:
+        """Converts MongoDB docs to article search results.
+
+        The given ObjectId to article map must contain the created article
+        objects for all of the given search result docs.
+        """
+        search_results = []
+        for doc in docs:
+            search_results.append(JpnArticleSearchResult(
+                article=oid_article_map[doc['article_oid']],
+                matched_base_forms=doc['matched_base_forms'],
+                found_positions=doc['found_positions'],
+                quality_score=doc['quality_score'],
+            ))
+
+        return search_results

@@ -30,7 +30,7 @@ class MyakuArticleScorer(object):
 
     # 2-tuples in format (FoundLexicalItemModifierFactorScorer, factor weight)
     _FLI_MODIFIER_SCORE_FACTORS = [
-        (TermFrequencyScorer(), 2),
+        (TermFrequencyScorer(), 3),
     ]
 
     def score_article(self, article: JpnArticle) -> None:
@@ -58,8 +58,7 @@ class MyakuArticleScorer(object):
     def score_fli_modifier(self, fli: FoundJpnLexicalItem) -> None:
         """Determines the article score modifier for a found lexical item.
 
-        Sets the score as the article_quality_score_modifier attr of the found
-        lexical item.
+        Sets the score as the quality_score_mod attr of the found lexical item.
 
         The score_article function gives the base quality score of an article,
         but the quality of an article in terms of demenostrating usage of a
@@ -79,4 +78,4 @@ class MyakuArticleScorer(object):
             fli_modifier_score += math.floor(
                 scorer.score_fli_modifier(fli) * factor_weight
             )
-        fli.article_quality_score_modifier = fli_modifier_score
+        fli.quality_score_mod = fli_modifier_score

@@ -372,10 +372,10 @@ class FoundJpnLexicalItem(object):
             If an interpretation applies to all positions the lexical items was
             found in the article, that interpretation will not have an entry in
             this dict.
-        article_quality_score_modifier: The modifier for this found lexical
-            item that can be added to the base quality score for its article
-            to get the quality score for the article in terms of demonstrating
-            usage of this lexical item.
+        quality_score_mod: The modifier for this found lexical item that can be
+            added to the base quality score for its article to get the quality
+            score for the article in terms of demonstrating usage of this
+            lexical item.
         database_id: The ID of this lexical item in the Myaku database.
     """
     base_form: str = None
@@ -385,7 +385,7 @@ class FoundJpnLexicalItem(object):
     interp_position_map: (
         Dict[JpnLexicalItemInterp, List[LexicalItemTextPosition]]
     ) = field(default_factory=dict)
-    article_quality_score_modifier: int = None
+    quality_score_mod: int = None
     database_id: str = None
 
     _base_form: str = field(init=False, repr=False)
