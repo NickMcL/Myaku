@@ -1,26 +1,31 @@
+"""Views for the search for Myaku web."""
+
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-from operator import methodcaller
 from typing import List, NamedTuple
 
 from django.http import HttpResponse
 from django.http.request import HttpRequest
 from django.shortcuts import render
 
-from myaku.database import MyakuCrawlDb
-from myaku.datatypes import (FoundJpnLexicalItem, JpnArticle,
-                             LexicalItemTextPosition)
+from myaku.database import (JpnArticleQueryType, JpnArticleSearchResult,
+                            MyakuCrawlDb)
+from myaku.datatypes import JpnArticle, LexicalItemTextPosition
 
 # If a found article for a query has many instances of the query in its text,
 # the max number of instance sentences to show on the results page for that
 # article.
 MAX_ARTICLE_INSTANCE_SAMPLES = 3
 
-ARTICLE_LEN_GROUP_NAME_MAP = {
-    0: 'Short length',
-    500: 'Medium length',
-    1000: 'Long length',
-}
+_ARTICLE_LEN_GROUPS = [
+    (700, 'Short length'),
+    (1200, 'Medium length'),
+    (2000, 'Long length')
+]
+_ARTICLE_LEN_GROUP_MAX_NAME = 'Very long length'
+
+_VERY_RECENT_DAYS = 7
 
 
 class QueryMatchType(Enum):
@@ -46,10 +51,10 @@ class ResourceLinkSet(object):
 class QueryResourceLinks(object):
     """Creates and manages all resource links for a query."""
 
-    def __init__(self, query: str, match_type: QueryMatchType) -> None:
+    def __init__(self, query: str) -> None:
         """Creates the resource link sets for the given query."""
         self._query = query
-        self._match_type = match_type
+        self._match_type = QueryMatchType.EXACT_MATCH
 
         self.resource_link_sets = []
         self.resource_link_sets.append(self._create_jpn_eng_dict_links())
@@ -188,56 +193,67 @@ class QueryResourceLinks(object):
 class QueryArticleResultSet(object):
     """The set of article results of a query of the Myaku db."""
 
-    def __init__(self, query: str, match_type: QueryMatchType) -> None:
+    def __init__(self, query: str, match_type: JpnArticleQueryType) -> None:
         """Queries the Myaku db to get the article result set for query."""
         if query:
             with MyakuCrawlDb(read_only=True) as db:
-                self._result_flis = db.read_found_lexical_items(query, True)
+                self._result_articles = db.search_articles(
+                    query, match_type, 0, 20
+                )
         else:
-            self._result_flis = []
+            self._result_articles = []
 
-        self._result_flis.sort(key=methodcaller('quality_key'), reverse=True)
-        self._result_flis = self._result_flis[:20]
-
-        self.article_count = len(self._result_flis)
+        self.article_count = len(self._result_articles)
         self.instance_count = sum(
-            len(item.found_positions) for item in self._result_flis
+            len(a.found_positions) for a in self._result_articles
         )
 
         self.ranked_article_results = [
-            QueryArticleResult(fli) for fli in self._result_flis
+            QueryArticleResult(a) for a in self._result_articles
         ]
 
 
 class QueryArticleResult(object):
     """A single article result of a query of the Myaku db."""
 
-    def __init__(self, fli: FoundJpnLexicalItem) -> None:
-        """Populates article result data using given found lexical item."""
-        self.title = fli.article.metadata.title
-        self.publication_datetime = fli.article.metadata.publication_datetime
-        self.source_name = fli.article.metadata.source_name
-        self.source_url = fli.article.metadata.source_url
-        self.alnum_count = fli.article.alnum_count
-        self.instance_count = len(fli.found_positions)
-        self.tags = self._get_tags(fli)
+    def __init__(self, search_result: JpnArticleSearchResult) -> None:
+        """Populates article result data using given search result."""
+        self.article = search_result.article
+        self.matched_base_forms = search_result.matched_base_forms
+        self.quality_score = search_result.quality_score
+        self.instance_count = len(search_result.found_positions)
+        self.tags = self._get_tags(search_result.article)
 
         self.main_instance_result = QueryInstanceResult(
-            fli.found_positions[0], fli.article
+            search_result.found_positions[0], search_result.article
         )
+
         self.more_instance_results = []
-        for pos in fli.found_positions[1:MAX_ARTICLE_INSTANCE_SAMPLES]:
+        more_found_positions = search_result.found_positions[
+            1:MAX_ARTICLE_INSTANCE_SAMPLES
+        ]
+        for pos in more_found_positions:
             self.more_instance_results.append(
-                QueryInstanceResult(pos, fli.article)
+                QueryInstanceResult(pos, search_result.article)
             )
 
-    def _get_tags(self, fli: FoundJpnLexicalItem) -> List[str]:
-        """Gets the tags applicable for the found lexical item."""
+    def _get_tags(self, article: JpnArticle) -> List[str]:
+        """Gets the tags applicable for the article."""
         tag_strs = []
-        tag_strs.append(
-            ARTICLE_LEN_GROUP_NAME_MAP[fli.article.get_article_len_group()]
+        for len_group in _ARTICLE_LEN_GROUPS:
+            if article.alnum_count < len_group[0]:
+                tag_strs.append(len_group[1])
+                break
+        else:
+            tag_strs.append(_ARTICLE_LEN_GROUP_MAX_NAME)
+
+        duration_since_update = (
+            datetime.utcnow() - article.metadata.last_updated_datetime
         )
-        if fli.article.has_video:
+        if duration_since_update.days <= _VERY_RECENT_DAYS:
+            tag_strs.append('Very recent')
+
+        if article.has_video:
             tag_strs.append('Video')
         return tag_strs
 
@@ -250,16 +266,15 @@ class QueryInstanceResult(object):
     ) -> None:
         """Populates instance result data using given position in article."""
         sentence, start = article.get_containing_sentence(pos)
-        sentence = sentence.rstrip()
 
         self.pos_percent = round((pos.index / len(article.full_text)) * 100)
-        self.sentence_start_text = sentence[:pos.index - start]
+        self.sentence_start_text = sentence[:pos.index - start].lstrip()
         self.instance_text = sentence[
             pos.index - start: pos.index + pos.len - start
         ]
         self.sentence_end_text = sentence[
             pos.index + pos.len - start:
-        ]
+        ].rstrip()
 
 
 def index(request: HttpRequest) -> HttpResponse:
@@ -268,11 +283,9 @@ def index(request: HttpRequest) -> HttpResponse:
         return render(request, 'search/start.html', {})
 
     query = request.GET['q']
-    match_type = QueryMatchType[
-        request.GET.get('match_type', QueryMatchType.STARTS_WITH.name)
-    ]
+    match_type = JpnArticleQueryType.EXACT
     query_result_set = QueryArticleResultSet(query, match_type)
-    resource_links = QueryResourceLinks(query, match_type)
+    resource_links = QueryResourceLinks(query)
 
     return render(
         request, 'search/results.html',

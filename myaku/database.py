@@ -1448,10 +1448,14 @@ class MyakuCrawlDb(object):
         """
         search_results = []
         for doc in docs:
+            found_positions = self._convert_docs_to_found_positions(
+                doc['found_positions']
+            )
+
             search_results.append(JpnArticleSearchResult(
                 article=oid_article_map[doc['article_oid']],
                 matched_base_forms=doc['matched_base_forms'],
-                found_positions=doc['found_positions'],
+                found_positions=found_positions,
                 quality_score=doc['quality_score'],
             ))
 
