@@ -1,0 +1,125 @@
+body {
+  font-family: "Noto Sans JP", "Noto Sans", sans-serif;
+}
+
+a {
+  color: #5272a6;
+}
+
+.start-tile {
+  font-size: 1.1em;
+}
+
+.resource-tile {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.key-word {
+  font-weight: 700;
+  color: #1d4381;
+}
+
+.myaku-color {
+  color: #1d4381;
+}
+
+.search-button {
+  color: #fff;
+  background-color: #1d4381;
+  border-color: #1d4381;
+}
+
+.search-button:hover {
+  color: #fff;
+  background-color: #0f326a;
+  border-color: #0f326a;
+}
+
+/* Add color to ol numbers */
+.myaku-color-ol {
+  list-style: none;
+  counter-reset: li;
+}
+.myaku-color-ol li::before {
+  content: counter(li) ".";
+  color: #1d4381;
+  font-weight: 700;
+  display: inline-block;
+  width: 1.2em;
+  margin-left: -1em;
+}
+.myaku-color-ol li {
+  counter-increment: li;
+}
+
+/* Add color to ul bullets */
+.myaku-color-ul {
+  list-style: none;
+}
+.myaku-color-ul li::before {
+  content: "•";
+  color: #1d4381;
+  font-weight: 700;
+  display: inline-block;
+  width: 1em;
+  margin-left: -1em;
+}
+
+.light-header {
+  font-weight: 400;
+}
+
+.tag-badge {
+  padding: .4em .4em;
+  font-size: 80%;
+  color: #fff;
+  /*background-color: #1d4381;*/
+  background-color: #126B9C;
+}
+
+.article-title {
+  color: #1d4381;
+}
+
+.article-sample-text {
+  font-size: 1.1em;
+  letter-spacing: .5pt;
+}
+
+.article-sample-instance {
+  /*color: #1d4381;*/
+  font-weight: 700;
+}
+
+.article-pos-text {
+  font-size: .9em;
+}
+
+.navbar a {
+  text-decoration: underline;
+}
+
+.navbar {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.form-control:focus{
+  border-color: #cccccc;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+
+@media (max-width: 991.98px) {
+  .search-top {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .nav-link {
+    padding-top: 0;
+  }
+}

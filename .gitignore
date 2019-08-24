@@ -107,5 +107,5 @@ venv.bak/
 .shelf
 backups/
 
-# Myaku web collectstatic directory
-myakuweb/static/
+# Django admin static
+myakuweb/static/admin/
