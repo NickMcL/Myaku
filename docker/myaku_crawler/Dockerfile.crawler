@@ -57,13 +57,19 @@ VOLUME ["$MYAKU_LOG_DIR"]
 ENV MYAKU_APP_DATA_DIR $MYAKU_BASE_DIR/appdata
 VOLUME ["$MYAKU_APP_DATA_DIR"]
 
-ENV CRAWL_CRON_SCHEDULE "0 */8 * * *"
+ENV CRAWL_START_SCRIPT $MYAKU_SRC_DIR/docker/myaku_crawler/start_crawl.sh
 ENV CRAWL_PYTHON_SCRIPT $MYAKU_SRC_DIR/myaku/runners/run_crawl.py
+
+# Can be modified at run time of the container and will still take effect.
+ENV CRAWL_CRON_SCHEDULE "0 */8 * * *"
+
+# Comma-separated list of the crawlers to use. Can be modified at run time of
+# the container and will still take effect.
+ENV CRAWLER_LIST "NhkNewsWeb"
 
 # Intentionally insert the env variable name and not its value into the cron
 # file so that the cron schedule can be swapped in for it at run time.
-RUN echo "CRAWL_CRON_SCHEDULE root $PYTHON_BIN \"$CRAWL_PYTHON_SCRIPT\"" \
-    >> $CRON_FILE
+RUN echo "CRAWL_CRON_SCHEDULE root $CRAWL_START_SCRIPT" >> $CRON_FILE
 
 WORKDIR $MYAKU_SRC_DIR
 
@@ -83,3 +89,5 @@ FROM base AS prod
 
 # Copy full source into image
 COPY . $MYAKU_SRC_DIR
+
+RUN chmod +x $CRAWL_START_SCRIPT

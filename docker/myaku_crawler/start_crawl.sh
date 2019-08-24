@@ -1,0 +1,3 @@
+#!/bin/bash
+
+$PYTHON_BIN "$CRAWL_PYTHON_SCRIPT" "$CRAWLER_LIST"

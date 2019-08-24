@@ -10,7 +10,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.0.1
+    image: friedrice2/myaku_crawler:1.1.1
     deploy:
       restart_policy:
         condition: any
@@ -32,6 +32,7 @@ services:
           size: 2000000000  # 2gb
     environment:
       CRAWL_CRON_SCHEDULE: "0 */3 * * *"
+      CRAWLER_LIST: "NhkNewsWeb,Kakuyomu"
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
@@ -43,7 +44,7 @@ services:
     networks:
       - crawler_net
   web:
-    image: friedrice2/myaku_web:1.1.0
+    image: friedrice2/myaku_web:1.2.0
     deploy:
       restart_policy:
         condition: any
@@ -70,7 +71,7 @@ services:
     networks:
       - web_net
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy:1.1.0
+    image: friedrice2/myaku_nginx.reverseproxy:1.1.1
     deploy:
       restart_policy:
         condition: any
@@ -93,7 +94,7 @@ services:
     networks:
       - web_net
   crawldb:
-    image: friedrice2/myaku_mongo.crawldb:1.0.0
+    image: friedrice2/myaku_mongo.crawldb:1.1.0
     deploy:
       restart_policy:
         condition: any
@@ -131,7 +132,7 @@ services:
       - web_net
       - crawler_net
   crawldb_backup:
-    image: friedrice2/mongobackup:1.0.1_4.0.10
+    image: friedrice2/mongobackup:1.0.1_4.2.0
     deploy:
       restart_policy:
         condition: any
