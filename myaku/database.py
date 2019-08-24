@@ -7,7 +7,6 @@ access interface consistent.
 
 import enum
 import functools
-import itertools
 import logging
 import re
 from collections import defaultdict
@@ -255,6 +254,35 @@ class MyakuCrawlDb(object):
         {'$match': {'base_form': {'$gt': ''}}},
         {'$group': {'_id': '$base_form', 'total': {'$sum': 1}}},
         {'$match': {'total': {'$gt': _BASE_FORM_COUNT_LIMIT}}},
+    ]
+
+    # If attempting to recalculate the composite quality scores for found
+    # lexical items for more than this percentage of the total articles in the
+    # database, it is faster to simply do a recalculate query on the whole
+    # found lexical item collection instead.
+    _RECALCULATE_ALL_FLI_SCORES_THRESHOLD_PERCENT = 0.5
+
+    _FLI_QUALITY_SCORE_RECALCULATE_AGGREGATE = [
+        {'$set': {
+            'quality_score_exact': {
+                '$add': [
+                    '$article_quality_score',
+                    '$quality_score_exact_mod'
+                ]
+            },
+            'quality_score_definite': {
+                '$add': [
+                    '$article_quality_score',
+                    '$quality_score_definite_mod'
+                ]
+            },
+            'quality_score_possible': {
+                '$add': [
+                    '$article_quality_score',
+                    '$quality_score_possible_mod'
+                ]
+            },
+        }},
     ]
 
     _QUERY_TYPE_QUERY_FIELD_MAP = {
@@ -513,7 +541,7 @@ class MyakuCrawlDb(object):
 
     @utils.skip_method_debug_logging
     @_require_write_permission
-    def update_article_score(self, article: JpnArticle) -> None:
+    def update_article_score(self, article: JpnArticle) -> bool:
         """Updates the quality score for the article in the db.
 
         Updates the quality score for the article and found lexical items for
@@ -521,6 +549,14 @@ class MyakuCrawlDb(object):
         of the given article object.
 
         The given article must have its database_id field set.
+
+        Args:
+            article: The article whose quality score to update in the db.
+
+        Returns:
+            True if the quality score was changed for the article in the db.
+            False if the quality score for the article in the db was already
+            the same as the given one, so no update was necessary.
         """
         _log.debug(
             'Will update the quality score for the article with _id "%s" to '
@@ -531,6 +567,8 @@ class MyakuCrawlDb(object):
             {'$set': {'quality_score': article.quality_score}}
         )
         _log.debug('Update result: %s', result.raw_result)
+        if result.modified_count == 0:
+            return False
 
         _log.debug(
             'Will update the quality score for the found lexical items for '
@@ -540,6 +578,43 @@ class MyakuCrawlDb(object):
         result = self._found_lexical_item_collection.update_many(
             {'article_oid': ObjectId(article.database_id)},
             {'$set': {'article_quality_score': article.quality_score}}
+        )
+        _log.debug('Update result: %s', result.raw_result)
+
+        return True
+
+    def recalculate_found_lexical_item_scores(
+        self, changed_article_ids: List[str]
+    ) -> None:
+        """Recalculates quality scores for found lexical items in the db.
+
+        Args:
+            changed_article_ids: Ids of the articles whose found lexical items
+                need their composite quality scores recalculated.
+        """
+        changed_article_percent = (
+            len(changed_article_ids) / self.get_article_count()
+        )
+        if (changed_article_percent >
+                self._RECALCULATE_ALL_FLI_SCORES_THRESHOLD_PERCENT):
+            _log.debug(
+                'Attempting to recalculate the found lexical item composite '
+                'quality scores for {} percent of articles, so the scores for '
+                'all found lexical items will be recalculated instead.'.format(
+                    changed_article_percent
+                )
+            )
+            query_doc = {}
+        else:
+            _log.debug(
+                'Will recalculate the found lexical item composite quality '
+                'scores for {} articles'.format(len(changed_article_ids))
+            )
+            article_oids = [ObjectId(id_str) for id_str in changed_article_ids]
+            query_doc = {'article_oid': {'$in': article_oids}}
+
+        result = self._found_lexical_item_collection.update_many(
+            query_doc, self._FLI_QUALITY_SCORE_RECALCULATE_AGGREGATE
         )
         _log.debug('Update result: %s', result.raw_result)
 
