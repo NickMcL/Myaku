@@ -146,8 +146,8 @@ services:
       DB_HOST: crawldb
       DB_USERNAME_FILE: /run/secrets/crawldb_backup_username
       DB_PASSWORD_FILE: /run/secrets/crawldb_backup_password
-      DB_MAX_ALLOWED_BACKUPS: 20
-      DB_BACKUP_CRON_SCHEDULE: "0 5,17 * * *"
+      DB_MAX_ALLOWED_BACKUPS: 7
+      DB_BACKUP_CRON_SCHEDULE: "0 5 * * *"
     secrets:
       - crawldb_backup_username
       - crawldb_backup_password

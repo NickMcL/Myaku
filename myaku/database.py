@@ -345,23 +345,32 @@ class MyakuCrawlDb(object):
         self._article_collection.create_index('blog_oid')
         self._found_lexical_item_collection.create_index('article_oid')
 
-        for q_type in JpnArticleQueryType:
-            self._found_lexical_item_collection.create_index([
-                (self._QUERY_TYPE_QUERY_FIELD_MAP[q_type], pymongo.DESCENDING),
-                (self._QUERY_TYPE_SCORE_FIELD_MAP[q_type], pymongo.DESCENDING),
-                ('article_last_updated_datetime', pymongo.DESCENDING),
-                ('article_oid', pymongo.DESCENDING),
-            ])
+        for query_type in JpnArticleQueryType:
+            query_field = self._QUERY_TYPE_QUERY_FIELD_MAP[query_type]
+            score_field = self._QUERY_TYPE_SCORE_FIELD_MAP[query_type]
+            self._found_lexical_item_collection.create_index(
+                [
+                    (query_field, pymongo.DESCENDING),
+                    (score_field, pymongo.DESCENDING),
+                    ('article_last_updated_datetime', pymongo.DESCENDING),
+                    ('article_oid', pymongo.DESCENDING),
+                ],
+                name=query_field + '_search'
+            )
 
         crawled_id_index = []
         for field in JpnArticleMetadata.ID_FIELDS:
             crawled_id_index.append((field, pymongo.ASCENDING))
-        self._crawled_collection.create_index(crawled_id_index)
+        self._crawled_collection.create_index(
+            crawled_id_index, name='crawled_id_index'
+        )
 
         blog_id_index = []
         for field in JpnArticleBlog.ID_FIELDS:
             blog_id_index.append((field, pymongo.ASCENDING))
-        self._blog_collection.create_index(blog_id_index)
+        self._blog_collection.create_index(
+            blog_id_index, name='blog_id_index'
+        )
 
     def is_article_stored(self, article: JpnArticle) -> bool:
         """Returns True if article is stored in the db, False otherwise."""
