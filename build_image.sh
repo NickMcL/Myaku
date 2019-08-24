@@ -6,7 +6,7 @@ NC='\e[0m'
 
 IMAGE_NAME_PREFIX="friedrice2/"
 
-POSSIBLE_IMAGE_NAMES=(\
+POSSIBLE_IMAGE_TYPES=(\
     "crawler" \
     "web" \
     "nginx.reverseproxy" \
@@ -15,7 +15,7 @@ POSSIBLE_IMAGE_NAMES=(\
     "ubuntu.cron" \
 )
 
-NO_DEV_TARGET_IMAGE_NAMES=(\
+NO_DEV_TARGET_IMAGE_TYPES=(\
     "ubuntu.cron" \
 )
 
@@ -23,7 +23,7 @@ NO_DEV_TARGET_IMAGE_NAMES=(\
 function usage()
 {
     cat << EOF
-usage: build_image.sh <image_type> <tag>
+usage: build_image.sh [-n|--no-cache] [-h|--help] <image_type> <tag>
 
 Builds a docker image of the given type with the given tag and applies the
 appropriate labels to the image such as git commit hash for prod images.
@@ -42,6 +42,9 @@ for the image, or the script will error.
     - mongo.crawldb
     - mongobackup
     - ubuntu.cron
+
+-n|--no-cache: Builds the image with the --no-cache option.
+-h|--help: Outputs this message and exits.
 EOF
 }
 
@@ -61,43 +64,75 @@ error_handler()
 trap 'error_handler ${LINENO}' ERR
 
 
-if [ $# -ne 2 ] ; then
+no_cache_flag=""
+image_type=""
+tag=""
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+    case $key in 
+        -n|--no-cache)
+            no_cache_flag="--no-cache"
+            shift
+            ;;
+
+        -h|--help)
+            usage
+            exit 1
+            ;;
+
+        *)
+            if [ -z "$image_type" ]; then
+                image_type="$key"
+            elif [ -z "$tag" ]; then
+                tag="$key"
+            else
+                usage
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [ -z $image_type ] || [ -z $tag ]; then
     usage
     exit 1
 fi
 
-# Check if $1 is in the array of possible image names
-if [[ ! " ${POSSIBLE_IMAGE_NAMES[@]} " =~ " $1 " ]]; then
+# Check if image type is in the array of possible image types
+if [[ ! " ${POSSIBLE_IMAGE_TYPES[@]} " =~ " $image_type " ]]; then
     error_handler $LINENO "$(echo \
-        "Image name \"$1\" is not one of the possible image names:" \
-        "${POSSIBLE_IMAGE_NAMES[@]}")"
+        "Image type \"$image_type\" is not one of the possible image types:" \
+        "${POSSIBLE_IMAGE_TYPES[@]}")"
 fi
 
-if [[ " ${NO_DEV_TARGET_IMAGE_NAMES[@]} " =~ " $1 " ]] && \
-        [[ "$2" == "dev" ]]; then
+if [[ " ${NO_DEV_TARGET_IMAGE_TYPES[@]} " =~ " $image_type " ]] && \
+        [[ "$tag" == "dev" ]]; then
     error_handler $LINENO \
-        "Image type \"$1\" does not have a dev target for building"
+        "Image type \"$image_type\" does not have a dev target for building"
 fi
 
 # Check if given tag matches versioning scheme for given image type
-if [ "$1" == "mongobackup" ]; then
-    match="$(echo "$2" | \
+if [ "$image_type" == "mongobackup" ]; then
+    match="$(echo "$tag" | \
         grep -E '^[0-9]+.[0-9]+.[0-9]+_[0-9]+.[0-9]+.[0-9]+$' | cat)"
-elif [ "$1" == "ubuntu.cron" ]; then
-    match="$(echo "$2" | grep -E '^[0-9]+.[0-9]+.[0-9]+_[0-9]+.[0-9]+$' | cat)"
+elif [ "$image_type" == "ubuntu.cron" ]; then
+    match="$(echo "$tag" | \
+        grep -E '^[0-9]+.[0-9]+.[0-9]+_[0-9]+.[0-9]+$' | cat)"
 else
-    match="$(echo "$2" | grep -E '^[0-9]+.[0-9]+.[0-9]+$' | cat)"
+    match="$(echo "$tag" | grep -E '^[0-9]+.[0-9]+.[0-9]+$' | cat)"
 fi
 
-if [ -z "$match" ] && [ "$2" != "dev" ]; then
+if [ -z "$match" ] && [ "$tag" != "dev" ]; then
     error_handler $LINENO \
-        "Tag \"$2\" is not properly formatted for \"$1\" image type"
+        "Tag \"$tag\" is not properly formatted for \"$image_type\" image type"
 fi
 
 # To make sure that the most recent git commit is representative of the current
 # state of the working directory, do not build and label prod images unless
 # there are currently no uncommitted changes in the working directory.
-if [ "$2" != "dev" ] && [ -n "$(git status --porcelain)" ]; then
+if [ "$tag" != "dev" ] && [ -n "$(git status --porcelain)" ]; then
     error_handler $LINENO "$(echo \
         "There are changes in the git working directory, so prod images" \
         "cannot be built and labeled. Please commit all changes then run" \
@@ -105,15 +140,15 @@ if [ "$2" != "dev" ] && [ -n "$(git status --porcelain)" ]; then
 fi
 git_commit_hash="$(git log --format="%H" -n 1)"
 
-image_name="${IMAGE_NAME_PREFIX}myaku_$1"
-if [ "$2" == "dev" ]; then
+image_name="${IMAGE_NAME_PREFIX}myaku_$image_type"
+if [ "$tag" == "dev" ]; then
     build_flags="--target dev"
 else
     build_flags="$(echo "--target prod" \
         "--label git_commit_hash=$git_commit_hash")"
 fi
 
-case $1 in
+case $image_type in
     "crawler")
         dockerfile="./docker/myaku_crawler/Dockerfile.crawler"
         ;;
@@ -132,25 +167,26 @@ case $1 in
 
     "mongobackup")
         dockerfile="./docker/mongobackup/Dockerfile.mongobackup"
-        image_name="${IMAGE_NAME_PREFIX}$1"
+        image_name="${IMAGE_NAME_PREFIX}$image_type"
         build_flags="$(echo "$build_flags --label" \
-            "mongo_version=$(echo "$2" | cut -d '_' -f 2)")"
+            "mongo_version=$(echo "$tag" | cut -d '_' -f 2)")"
         ;;
 
     "ubuntu.cron")
         dockerfile="./docker/ubuntu-cron/Dockerfile.ubuntu.cron"
-        image_name="${IMAGE_NAME_PREFIX}$1"
+        image_name="${IMAGE_NAME_PREFIX}$image_type"
         build_flags="$(echo "--label git_commit_hash=$git_commit_hash" \
-            "--label ubuntu_version=$(echo "$2" | cut -d '_' -f 2)")"
+            "--label ubuntu_version=$(echo "$tag" | cut -d '_' -f 2)")"
         ;;
 
     * )
         error_handler $LINENO "$(echo \
-            "Image name \"$1\" is not one of the possible image names:" \
-            "${POSSIBLE_IMAGE_NAMES[@]}")"
+            "Image name \"$image_type\" is not one of the possible image" \
+            "types: ${POSSIBLE_IMAGE_NAMES[@]}")"
 esac
 
-sudo docker build $build_flags -f "$dockerfile" -t "$image_name:$2" .
-if [ "$2" != "dev" ]; then
+sudo docker build $build_flags $no_cache_flag -f "$dockerfile" \
+    -t "$image_name:$tag" .
+if [ "$tag" != "dev" ]; then
     sudo docker build $build_flags -f "$dockerfile" -t "$image_name:latest" .
 fi
