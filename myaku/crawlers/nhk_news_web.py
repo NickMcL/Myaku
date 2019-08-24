@@ -589,17 +589,11 @@ class NhkNewsWebCrawler(CrawlerABC):
         crawls = []
         most_recent_crawl = Crawl(
             self.SOURCE_NAME, 'Most Recent',
-            self.crawl_most_recent(
-                1
-                # self.MAX_MOST_RECENT_SHOW_MORE_CLICKS
-            )
+            self.crawl_most_recent(self.MAX_MOST_RECENT_SHOW_MORE_CLICKS)
         )
         crawls.append(most_recent_crawl)
 
-        douga_crawl = Crawl(self.SOURCE_NAME, 'Douga', self.crawl_douga(
-            1
-            # 4
-        ))
+        douga_crawl = Crawl(self.SOURCE_NAME, 'Douga', self.crawl_douga(4))
         crawls.append(douga_crawl)
 
         news_up_crawl = Crawl(

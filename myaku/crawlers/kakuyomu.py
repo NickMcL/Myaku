@@ -601,7 +601,7 @@ class KakuyomuCrawler(CrawlerABC):
             _log.debug('No search results found for url "%s"', search_url)
             return
 
-        series_blogs = [self._parse_search_results_page(page_soup)[0]]
+        series_blogs = self._parse_search_results_page(page_soup)
         yield from self._crawl_updated_blogs(series_blogs)
 
     def crawl_search_results(
@@ -635,16 +635,16 @@ class KakuyomuCrawler(CrawlerABC):
     def get_crawls_for_most_recent(self) -> List[Crawl]:
         """Gets a list of Crawls for the most recent Kakuyomu articles.
 
-        Only crawls for articles in the non-fiction and essay sections of
-        Kakuyomu.
+        Only crawls for articles in the non-fiction section of Kakuyomu.
         """
-        popular_crawl = Crawl(
-            self.SOURCE_NAME, 'Popular',
+        nonfiction_crawl = Crawl(
+            self.SOURCE_NAME, 'Nonfiction most recent',
             self.crawl_search_results(
-                KakuyomuGenre.NONFICTION, KakuyomuSortOrder.POPULAR, 1, 1
+                KakuyomuGenre.NONFICTION,
+                KakuyomuSortOrder.LAST_EPISODE_PUBLISHED_AT, 1, 5
             )
         )
-        return [popular_crawl]
+        return [nonfiction_crawl]
 
     def _parse_episode_text(self, episode_page_soup: BeautifulSoup) -> str:
         """Parses the full text for an episode.
