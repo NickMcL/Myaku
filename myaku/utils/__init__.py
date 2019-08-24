@@ -150,7 +150,7 @@ def get_value_from_env_variable(env_var: str) -> str:
     if len(value) == 0:
         log_and_raise(
             _log, EnvironmentNotSetError,
-            'Environment variable "{}" is empty'.format(env_var)
+            'Environment variable "{}" is set but empty'.format(env_var)
         )
 
     return value

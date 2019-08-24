@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from typing import List, NamedTuple, TypeVar
 
 import pytest
-import pytz
 
 import myaku.utils as utils
 from myaku.errors import EnvironmentNotSetError
@@ -200,7 +199,7 @@ def test_convert_jst_to_utc():
         assert offset_dt.second == converted_dt.second
         assert offset_dt.microsecond == converted_dt.microsecond
 
-        assert converted_dt.tzinfo == pytz.utc
+        assert converted_dt.tzinfo is None
 
 
 def test_get_alnum_count():
