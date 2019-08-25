@@ -99,7 +99,7 @@
                         {% endfor %}
                       </p>
                       <footer class="blockquote-footer">
-                        {{ matching_sentence.artcle_pos_percent }}% into article
+                        {{ matching_sentence.article_pos_percent }}% into article
                       </footer>
                     </blockquote>
                   </li>
@@ -108,7 +108,7 @@
               </div>
             {% endif %}
           </div>
-          {% if result.more_instance_results %}
+          {% if result.more_matching_sentences %}
             <div class="col-12 px-0">
               <div class="card-footer text-center py-0">
                 <button class="btn btn-link text-muted" type="button" data-toggle="collapse"
