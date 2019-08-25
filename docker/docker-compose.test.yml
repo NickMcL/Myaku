@@ -14,6 +14,19 @@ services:
     deploy:
       restart_policy:
         condition: none
+    environment:
+      # A cron schedule of "#" will comment out the line for the crawl job in
+      # the crontab file so that it will not run during testing.
+      CRAWL_CRON_SCHEDULE: "#"  
+  rescore:
+    image: friedrice2/myaku_rescore:test
+    deploy:
+      restart_policy:
+        condition: none
+    environment:
+      # A cron schedule of "#" will comment out the line for the rescore job in
+      # the crontab file so that it will not run during testing.
+      RESCORE_CRON_SCHEDULE: "#"  
   web:
     image: friedrice2/myaku_web:test
     deploy:
@@ -34,6 +47,10 @@ services:
     deploy:
       restart_policy:
         condition: none
+    environment:
+      # A cron schedule of "#" will comment out the line for the backup job in
+      # the crontab file so that it will not run while doing development.
+      DB_BACKUP_CRON_SCHEDULE: "#"
 
 configs:
   myakuweb_allowed_hosts:

@@ -73,6 +73,11 @@ if [ $use_existing_images -eq 0 ]; then
         -f "../docker/myaku_crawler/Dockerfile.crawler" \
         -t "friedrice2/myaku_crawler:test" .. > /dev/null
 
+    echo "Building friedrice2/myaku_rescore:test image..." >&2
+    sudo docker build --target prod \
+        -f "../docker/myaku_rescore/Dockerfile.rescore" \
+        -t "friedrice2/myaku_rescore:test" .. > /dev/null
+
     echo "Building friedrice2/myaku_web:test image..." >&2
     sudo docker build --target prod \
         -f "../docker/myaku_web/Dockerfile.myakuweb" \
