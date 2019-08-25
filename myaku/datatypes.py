@@ -7,6 +7,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+from operator import attrgetter
 from typing import Any, Dict, List, NamedTuple, Tuple
 
 import myaku.utils as utils
@@ -254,8 +255,7 @@ class JpnArticle(object):
         return 0
 
     def get_containing_sentence(
-        self, item_pos: 'LexicalItemTextPosition',
-        include_end_punctuation: bool = False
+        self, item_pos: 'LexicalItemTextPosition'
     ) -> Tuple[str, int]:
         """Gets the sentence containing the lexical item at item_pos.
 
@@ -280,6 +280,39 @@ class JpnArticle(object):
         )
 
         return (self.full_text[start:end + 1], start)
+
+    def group_text_positions_by_sentence(
+        self, text_positions: List['LexicalItemTextPosition']
+    ) -> List[Tuple[str, int, Tuple['LexicalItemTextPosition', ...]]]:
+        """Groups a list of text positions by their containing sentences.
+
+        Args:
+            text_positions: List of of text positions in this article.
+
+        Returns:
+            A list of (sentence start index, sentence end index,
+            contained text positions) tuples. The tuples are sorted by
+            sentence start index.
+        """
+        sentence_groups = defaultdict(list)
+        end = -1
+        for pos in sorted(text_positions, key=attrgetter('index')):
+            if pos.index > end:
+                start = utils.find_jpn_sentence_start(
+                    self.full_text, pos.index
+                )
+                end = utils.find_jpn_sentence_end(
+                    self.full_text, pos.index + pos.len
+                )
+            sentence_groups[(start, end)].append(pos)
+
+        group_tuples = []
+        for sentence_bounds, pos_list in sentence_groups.items():
+            group_tuples.append(
+                (sentence_bounds[0], sentence_bounds[1], tuple(pos_list))
+            )
+
+        return group_tuples
 
 
 class JpnLexicalItemInterp(NamedTuple):

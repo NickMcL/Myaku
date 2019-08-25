@@ -1,4 +1,5 @@
 {% extends "search/base.html" %}
+{% load humanize %}
 
 {% block tile_content %}
 <div class="row mb-3">
@@ -9,10 +10,11 @@
           <h3 class="d-inline">
             Articles
             <small class="text-muted">
-              — {{ query_result_set.article_count }}
-              article{{ query_result_set.article_count|pluralize }} and
-              {{ query_result_set.instance_count }}
-              instance{{ query_result_set.instance_count|pluralize }} found
+              — {{ query_result_set.article_count|intcomma }} found
+            </small>
+            <small class="text-muted d-none d-md-inline">
+              with {{ query_result_set.instance_count|intcomma }}
+              instance{{ query_result_set.instance_count|pluralize }} in total
             </small>
           </h3>
         </div>
@@ -49,7 +51,14 @@
                 {% if result.article.metadata.publication_datetime != result.article.metadata.last_updated_datetime %}
                   (Updated {{ result.article.metadata.last_updated_datetime|date:"M jS, Y" }})
                 {% endif %}
-                - {{ result.instance_count }} instance{{ result.instance_count|pluralize }}
+              </span>
+              <span class="article-info-text d-none d-md-inline">
+                - {{ result.instance_count|intcomma }} instance{{ result.instance_count|pluralize }}
+              </span>
+            </div>
+            <div class="d-md-none">
+              <span class="article-info-text">
+                {{ result.instance_count|intcomma }} instance{{ result.instance_count|pluralize }}
               </span>
             </div>
 
@@ -62,31 +71,35 @@
             <hr>
             <blockquote class="mb-3 article-sample-text">
               <p class="mb-0">
-                {{ result.main_instance_result.sentence_start_text}}
-                <span class="article-sample-instance">
-                  {{ result.main_instance_result.instance_text }}
-                </span>
-                {{ result.main_instance_result.sentence_end_text }}
+                {% for segment in result.main_matching_sentence.segments %}
+                  {% if segment.is_query_match %}
+                    <span class="article-sample-instance">{{ segment.segment_text }}</span>
+                  {% else %}
+                    {{ segment.segment_text }}
+                  {% endif %}
+                {% endfor %}
               </p>
               <footer class="blockquote-footer">
-                  {{ result.main_instance_result.pos_percent }}% into article
+                  {{ result.main_matching_sentence.article_pos_percent }}% into article
               </footer>
             </blockquote>
-            {% if result.more_instance_results %}
+            {% if result.more_matching_sentences %}
               <div id="more-samples-{{ forloop.counter }}" class="collapse">
                 <ul class="list-unstyled mb-3 article-sample-text">
-                {% for instance_result in result.more_instance_results %}
+                {% for matching_sentence in result.more_matching_sentences %}
                   <li>
                     <blockquote>
                       <p class="mb-0">
-                        {{ instance_result.sentence_start_text}}
-                        <span class="article-sample-instance">
-                          {{ instance_result.instance_text }}
-                        </span>
-                        {{ instance_result.sentence_end_text }}
+                        {% for segment in matching_sentence.segments %}
+                          {% if segment.is_query_match %}
+                            <span class="article-sample-instance">{{ segment.segment_text }}</span>
+                          {% else %}
+                            {{ segment.segment_text }}
+                          {% endif %}
+                        {% endfor %}
                       </p>
                       <footer class="blockquote-footer">
-                        {{ instance_result.pos_percent }}% into article
+                        {{ matching_sentence.artcle_pos_percent }}% into article
                       </footer>
                     </blockquote>
                   </li>

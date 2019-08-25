@@ -48,6 +48,46 @@ class ResourceLinkSet(object):
     resource_links: List[ResourceLink]
 
 
+@dataclass
+class SearchResultMatchingSentenceSegment(object):
+    """A single segment of a sample sentence for an article search result.
+
+    Attributes:
+        is_match_segment: True if the text of this segment matches the searched
+            query, and False otherwise.
+        segment_text: Text for this segment of the sample sentence.
+    """
+    is_query_match: bool
+    segment_text: str
+
+
+@dataclass
+class SearchResultMatchingSentence(object):
+    """Data for a sample sentence for an article search result.
+
+    Attributes:
+        sentence_len: Total length of the sample sentence.
+        article_pos_percent: Percentage (between 0-100) of the total characters
+            in the article that are ahead of the start of the sample sentence.
+        match_instance_count: How many instances of the searched query are in
+            this sample sentence.
+        segments: Segments that make up the sample sentence.
+    """
+    sentence_len: int
+    article_pos_percent: int
+    match_instance_count: int
+    segments: List[SearchResultMatchingSentenceSegment]
+
+    def trim_whitespace(self):
+        """Strips surrounding whitespace from the edge segments."""
+        self.segments[0].segment_text = (
+            self.segments[0].segment_text.lstrip()
+        )
+        self.segments[-1].segment_text = (
+            self.segments[-1].segment_text.rstrip()
+        )
+
+
 class QueryResourceLinks(object):
     """Creates and manages all resource links for a query."""
 
@@ -224,18 +264,92 @@ class QueryArticleResult(object):
         self.instance_count = len(search_result.found_positions)
         self.tags = self._get_tags(search_result.article)
 
-        self.main_instance_result = QueryInstanceResult(
-            search_result.found_positions[0], search_result.article
+        matching_sentences = self._get_result_matching_sentences(
+            search_result, MAX_ARTICLE_INSTANCE_SAMPLES
         )
-
-        self.more_instance_results = []
-        more_found_positions = search_result.found_positions[
+        self.main_matching_sentence = matching_sentences[0]
+        self.more_matching_sentences = matching_sentences[
             1:MAX_ARTICLE_INSTANCE_SAMPLES
         ]
-        for pos in more_found_positions:
-            self.more_instance_results.append(
-                QueryInstanceResult(pos, search_result.article)
+
+    def _create_matching_sentence(
+        self, article_text: str, sentence_start_index: int,
+        sentence_end_index: int, found_positions: LexicalItemTextPosition
+    ) -> SearchResultMatchingSentence:
+        """Creates a matching sentence object from article and sentence data.
+
+        Args:
+            article_text: Full text of the article containing the sentence
+            sentence_text: Full text of the matching sentence.
+            sentence_start_index: Starting index of the matching sentence in
+                the article text.
+            found_positions: Positions where the text matching the search was
+                found in the article.
+
+        Returns:
+            A SearchResultMatchingSentence object created from the given data.
+        """
+        matching_sentence = SearchResultMatchingSentence(
+            sentence_start_index - sentence_end_index + 1,
+            round(((sentence_start_index + 1) / len(article_text)) * 100),
+            len(found_positions),
+            []
+        )
+
+        last_end_index = sentence_start_index - 1
+        for pos in found_positions:
+            if last_end_index != pos.index - 1:
+                segment_text = article_text[last_end_index + 1:pos.index]
+                matching_sentence.segments.append(
+                    SearchResultMatchingSentenceSegment(False, segment_text)
+                )
+                last_end_index += len(segment_text)
+            match_text = article_text[pos.slice()]
+            matching_sentence.segments.append(
+                SearchResultMatchingSentenceSegment(True, match_text)
             )
+            last_end_index += pos.len
+
+        end_text = article_text[
+            last_end_index + 1: sentence_end_index + 1
+        ]
+        if len(end_text) > 0:
+            matching_sentence.segments.append(
+                SearchResultMatchingSentenceSegment(False, end_text)
+            )
+
+        matching_sentence.trim_whitespace()
+        return matching_sentence
+
+    def _get_result_matching_sentences(
+        self, result: JpnArticleSearchResult, max_count: int
+    ) -> List[SearchResultMatchingSentence]:
+        """Gets a list of the matching sentences for the search result.
+
+        Args:
+            search_result: The search result to get the matching sentences for.
+            max_count: Maximum number of matching sentences to return.
+
+        Returns:
+            A ranked list by sentence length of the matching sentences of the
+            article for the search result.
+        """
+        sentence_groups = result.article.group_text_positions_by_sentence(
+            result.found_positions
+        )
+
+        # Sort by sentence length (end_index - start_index + 1)
+        sorted_groups = sorted(
+            sentence_groups, key=lambda t: t[1] - t[0] + 1, reverse=True
+        )
+
+        matching_sentences = []
+        for sentence_group in sorted_groups[:max_count]:
+            matching_sentences.append(self._create_matching_sentence(
+                result.article.full_text, *sentence_group
+            ))
+
+        return matching_sentences
 
     def _get_tags(self, article: JpnArticle) -> List[str]:
         """Gets the tags applicable for the article."""
