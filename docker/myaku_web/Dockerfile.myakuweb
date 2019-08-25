@@ -64,5 +64,6 @@ ENV DJANGO_DEBUG_MODE 0
 COPY ./myaku $MYAKU_SRC_DIR
 COPY ./myakuweb $DJANGO_SRC_DIR
 COPY ./docker/myaku_web/run_uwsgi.sh $RUN_UWSGI_SCRIPT
+COPY ./docker/myaku_web/myakuweb_uwsgi_template.ini $SCRIPTS_DIR/
 
 RUN chmod +x $RUN_UWSGI_SCRIPT
