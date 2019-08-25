@@ -5,7 +5,7 @@ import time
 from typing import List
 
 import myaku.utils as utils
-from myaku.database import MyakuCrawlDb
+from myaku.database import DbAccessMode, MyakuCrawlDb
 from myaku.scorer import MyakuArticleScorer
 
 _log = logging.getLogger(__name__)
@@ -81,8 +81,15 @@ def recalculate_found_lexical_item_scores(
     Found lexical items whose article quality score was updated will need to
     have their composite quality score updated.
     """
-    timer = Timer('found lexical item rescore')
-    db.recalculate_found_lexical_item_scores(updated_article_ids)
+    timer = Timer('found lexical item recalculation')
+    recalculated_count = db.recalculate_found_lexical_item_scores(
+        updated_article_ids
+    )
+    _log.info(
+        '{} found lexical items had their quality score recalculated'.format(
+            recalculated_count
+        )
+    )
     timer.stop()
 
 
@@ -91,7 +98,7 @@ def main() -> None:
     timer = Timer('rescore')
 
     scorer = MyakuArticleScorer()
-    with MyakuCrawlDb() as db:
+    with MyakuCrawlDb(DbAccessMode.READ_UPDATE) as db:
         updated_article_ids = rescore_articles(db, scorer)
         if len(updated_article_ids) > 0:
             recalculate_found_lexical_item_scores(db, updated_article_ids)

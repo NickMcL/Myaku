@@ -14,7 +14,7 @@ from selenium.webdriver import firefox
 
 import myaku
 import myaku.utils as utils
-from myaku.database import MyakuCrawlDb
+from myaku.database import DbAccessMode, MyakuCrawlDb
 from myaku.datatypes import JpnArticle, JpnArticleBlog, JpnArticleMetadata
 
 _log = logging.getLogger(__name__)
@@ -178,7 +178,7 @@ class CrawlerABC(ABC):
             A generator that will yield a previously uncrawled JpnArticle from
             the given metadatas each call.
         """
-        with MyakuCrawlDb() as db:
+        with MyakuCrawlDb(DbAccessMode.READ) as db:
             uncrawled_metadatas = db.filter_to_uncrawled_article_metadatas(
                 metadatas
             )
@@ -195,7 +195,7 @@ class CrawlerABC(ABC):
                 urljoin(self._SOURCE_BASE_URL, metadata.source_url)
             )
 
-        with MyakuCrawlDb() as db:
+        with MyakuCrawlDb(DbAccessMode.READ_WRITE) as db:
             for i, metadata in enumerate(uncrawled_metadatas):
                 _log.debug(
                     'Crawling uncrawled artcile %s / %s',
@@ -219,7 +219,7 @@ class CrawlerABC(ABC):
             A generator that will yield a previously uncrawled JpnArticle from
             one of the updated blogs each call.
         """
-        with MyakuCrawlDb() as db:
+        with MyakuCrawlDb(DbAccessMode.READ) as db:
             updated_blogs = db.filter_to_updated_blogs(blogs)
 
         _log.debug(
@@ -234,7 +234,7 @@ class CrawlerABC(ABC):
                 urljoin(self._SOURCE_BASE_URL, blog.source_url)
             )
 
-        with MyakuCrawlDb() as db:
+        with MyakuCrawlDb(DbAccessMode.READ_WRITE) as db:
             for i, blog in enumerate(updated_blogs):
                 _log.debug(
                     'Crawling updated blog %s / %s',

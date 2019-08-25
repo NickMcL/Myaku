@@ -9,8 +9,8 @@ from django.http import HttpResponse
 from django.http.request import HttpRequest
 from django.shortcuts import render
 
-from myaku.database import (JpnArticleQueryType, JpnArticleSearchResult,
-                            MyakuCrawlDb)
+from myaku.database import (DbAccessMode, JpnArticleQueryType,
+                            JpnArticleSearchResult, MyakuCrawlDb)
 from myaku.datatypes import JpnArticle, LexicalItemTextPosition
 
 # If a found article for a query has many instances of the query in its text,
@@ -196,7 +196,7 @@ class QueryArticleResultSet(object):
     def __init__(self, query: str, match_type: JpnArticleQueryType) -> None:
         """Queries the Myaku db to get the article result set for query."""
         if query:
-            with MyakuCrawlDb(read_only=True) as db:
+            with MyakuCrawlDb(DbAccessMode.READ) as db:
                 self._result_articles = db.search_articles(
                     query, match_type, 0, 20
                 )

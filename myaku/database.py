@@ -29,7 +29,7 @@ from myaku.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
                              JpnArticleBlog, JpnArticleMetadata,
                              JpnLexicalItemInterp, LexicalItemTextPosition,
                              MecabLexicalItemInterp)
-from myaku.errors import NoDbWritePermissionError
+from myaku.errors import DbPermissionError
 
 _log = logging.getLogger(__name__)
 
@@ -112,12 +112,16 @@ def _copy_db_collection_data(
         new_foreign_key_maps = {}
 
     new_id_map = {}
-    skipped = 0
     src_coll = src_client[MyakuCrawlDb._DB_NAME][collection_name]
     dest_coll = dest_client[MyakuCrawlDb._DB_NAME][collection_name]
+    total_docs = src_coll.count_documents({})
+    skipped = 0
     for i, doc in enumerate(src_coll.find({})):
         if i % 1000 == 0:
-            _log.info('Skipped %s, copied %s documents', skipped, i - skipped)
+            _log.info(
+                'Processed %s / %s documents (%s copied, %s skipped)',
+                i, total_docs, i - skipped, skipped
+            )
 
         for (field, new_foreign_key_map) in new_foreign_key_maps.items():
             if doc[field] in new_foreign_key_map:
@@ -140,21 +144,48 @@ def _copy_db_collection_data(
 
 
 def _require_write_permission(func: Callable) -> Callable:
-    """Checks that the db object instance is not read-only before running func.
+    """Checks that the client has db write permission before running func.
 
-    Can only be used to wrap db class methods for a db class with a read_only
+    Can only be used to wrap db class methods for a db class with a access_mode
     member variable.
 
     Raises:
-        NoDbWritePermissionError: If the db object is read-only.
+        DbPermissionError: If the client does not have write permission.
     """
     @functools.wraps(func)
     def wrapper_require_write_permission(*args, **kwargs):
-        if args[0].read_only:
+        if args[0].access_mode.has_write_permission():
             utils.log_and_raise(
-                _log, NoDbWritePermissionError,
-                'Write operation "{}" was attempted with a read-only database '
-                'connection'.format(utils.get_full_name(func))
+                _log, DbPermissionError,
+                'Write operation "{}" was attempted with only {}'
+                'permission'.format(
+                    utils.get_full_name(func), args[0].access_mode.name
+                )
+            )
+
+        value = func(*args, **kwargs)
+        return value
+    return wrapper_require_write_permission
+
+
+def _require_update_permission(func: Callable) -> Callable:
+    """Checks that the client has db update permission before running func.
+
+    Can only be used to wrap db class methods for a db class with a access_mode
+    member variable.
+
+    Raises:
+        DbPermissionError: If the client does not have update permission.
+    """
+    @functools.wraps(func)
+    def wrapper_require_write_permission(*args, **kwargs):
+        if not args[0].access_mode.has_update_permission():
+            utils.log_and_raise(
+                _log, DbPermissionError,
+                'Update operation "{}" was attempted with only {}'
+                'permission'.format(
+                    utils.get_full_name(func), args[0].access_mode.name
+                )
             )
 
         value = func(*args, **kwargs)
@@ -204,6 +235,33 @@ class JpnArticleQueryType(enum.Enum):
     EXACT = 1
     DEFINITE_ALT_FORMS = 3
     POSSIBLE_ALT_FORMS = 2
+
+
+@enum.unique
+class DbAccessMode(enum.Enum):
+    """Database client access modes. Determine read-write permissions.
+
+    Attributes:
+        READ: Can only read data from database. Cannot make any modifications
+            to the database.
+        READ_UPDATE: Can read data and update existing objects in the database.
+            Cannot write new objects to the database.
+        READ_WRITE: Can read data and write data to the database. No
+            restrictions on what modifications can be made to the database.
+    """
+    READ = 1
+    READ_UPDATE = 2
+    READ_WRITE = 3
+
+    def has_update_permission(self) -> bool:
+        """Returns True if the access mode as update permission."""
+        return (
+            self is DbAccessMode.READ_UPDATE or self is DbAccessMode.READ_WRITE
+        )
+
+    def has_write_permission(self) -> bool:
+        """Returns True if the access mode as write permission."""
+        return self is DbAccessMode.READ_WRITE
 
 
 @dataclass
@@ -297,7 +355,7 @@ class MyakuCrawlDb(object):
         JpnArticleQueryType.POSSIBLE_ALT_FORMS: 'quality_score_possible',
     }
 
-    def __init__(self, read_only: bool = False) -> None:
+    def __init__(self, access_mode: DbAccessMode = DbAccessMode.READ) -> None:
         """Initializes the connection to the database."""
         self._mongo_client = self._init_mongo_client()
 
@@ -309,8 +367,8 @@ class MyakuCrawlDb(object):
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
 
-        self.read_only = read_only
-        if not read_only:
+        self.access_mode = access_mode
+        if access_mode.has_write_permission():
             self._create_indexes()
             self._version_doc = myaku.get_version_info()
 
@@ -339,6 +397,7 @@ class MyakuCrawlDb(object):
 
         return mongo_client
 
+    @_require_write_permission
     def _create_indexes(self) -> None:
         """Creates the necessary indexes for the db if they don't exist."""
         self._article_collection.create_index('text_hash')
@@ -476,6 +535,7 @@ class MyakuCrawlDb(object):
         )
         return updated_blogs
 
+    @_require_update_permission
     def update_blog_last_crawled(self, blog: JpnArticleBlog) -> None:
         """Updates the last crawled datetime of the blog in the db."""
         query, proj = self._create_id_query(blog)
@@ -549,7 +609,7 @@ class MyakuCrawlDb(object):
         )
 
     @utils.skip_method_debug_logging
-    @_require_write_permission
+    @_require_update_permission
     def update_article_score(self, article: JpnArticle) -> bool:
         """Updates the quality score for the article in the db.
 
@@ -592,14 +652,19 @@ class MyakuCrawlDb(object):
 
         return True
 
+    @_require_update_permission
     def recalculate_found_lexical_item_scores(
         self, changed_article_ids: List[str]
-    ) -> None:
+    ) -> int:
         """Recalculates quality scores for found lexical items in the db.
 
         Args:
             changed_article_ids: Ids of the articles whose found lexical items
                 need their composite quality scores recalculated.
+
+        Returns:
+            The number of found lexical items that had their scores
+            recalculated.
         """
         changed_article_percent = (
             len(changed_article_ids) / self.get_article_count()
@@ -626,6 +691,8 @@ class MyakuCrawlDb(object):
             query_doc, self._FLI_QUALITY_SCORE_RECALCULATE_AGGREGATE
         )
         _log.debug('Update result: %s', result.raw_result)
+
+        return result.modified_count
 
     def _get_article_docs_from_search_results(
         self, search_results_cursor: Cursor, quality_score_field: str,

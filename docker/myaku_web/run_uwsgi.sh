@@ -5,8 +5,7 @@ set -e
 
 
 
-envsubst < $MYAKUWEB_SRC_DIR/docker/myaku_web/myakuweb_uwsgi_template.ini > \
-    /myakuweb_uwsgi.ini
+envsubst < $SCRIPTS_DIR/myakuweb_uwsgi_template.ini > /myakuweb_uwsgi.ini
 
 # Remove dev mode only settings from uwsgi ini if not in dev mode
 if [ "$DJANGO_DEBUG_MODE" == "0" ]; then

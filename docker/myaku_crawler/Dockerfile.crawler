@@ -2,9 +2,9 @@
 
 FROM friedrice2/ubuntu.cron:1.0.1_18.04 AS base
 
-ENV MYAKU_BASE_DIR /myaku
-ENV MYAKU_RESOURCE_DIR $MYAKU_BASE_DIR/resources
-WORKDIR $MYAKU_RESOURCE_DIR
+ENV CRAWLER_BASE_DIR /crawler
+ENV CRAWLER_RESOURCE_DIR $CRAWLER_BASE_DIR/resources
+WORKDIR $CRAWLER_RESOURCE_DIR
 
 # All needed to install ipadic-NEologd in the next run statement
 RUN apt-get update && apt-get install -y build-essential curl git sudo file \
@@ -42,23 +42,28 @@ ENV PYTHON_BIN python3.7
 # Get latest pip
 RUN $PYTHON_BIN -m pip install -U pip
 
-ENV MYAKU_SRC_DIR $MYAKU_BASE_DIR/src
-COPY ./requirements.txt $MYAKU_SRC_DIR/
-RUN $PYTHON_BIN -m pip install -r $MYAKU_SRC_DIR/requirements.txt
+ENV CRAWLER_SRC_DIR $CRAWLER_BASE_DIR/src
 
-ENV PYTHONPATH $PYTHONPATH:$MYAKU_SRC_DIR
+COPY ./LICENSE $CRAWLER_SRC_DIR/
 
-ENV IPADIC_NEOLOGD_GIT_DIR $MYAKU_RESOURCE_DIR/mecab-ipadic-neologd
-ENV JMDICT_XML_FILEPATH $MYAKU_RESOURCE_DIR/JMdict_e.xml
+COPY ./requirements.txt $CRAWLER_SRC_DIR/
+RUN $PYTHON_BIN -m pip install -r $CRAWLER_SRC_DIR/requirements.txt
 
-ENV MYAKU_LOG_DIR $MYAKU_BASE_DIR/log
+ENV PYTHONPATH $PYTHONPATH:$CRAWLER_SRC_DIR
+ENV MYAKU_SRC_DIR $CRAWLER_SRC_DIR/myaku
+ENV SCRIPTS_DIR $CRAWLER_SRC_DIR/scripts
+
+ENV IPADIC_NEOLOGD_GIT_DIR $CRAWLER_RESOURCE_DIR/mecab-ipadic-neologd
+ENV JMDICT_XML_FILEPATH $CRAWLER_RESOURCE_DIR/JMdict_e.xml
+
+ENV MYAKU_LOG_DIR $CRAWLER_BASE_DIR/log
 VOLUME ["$MYAKU_LOG_DIR"]
 
-ENV MYAKU_APP_DATA_DIR $MYAKU_BASE_DIR/appdata
+ENV MYAKU_APP_DATA_DIR $CRAWLER_BASE_DIR/appdata
 VOLUME ["$MYAKU_APP_DATA_DIR"]
 
-ENV CRAWL_START_SCRIPT $MYAKU_SRC_DIR/docker/myaku_crawler/start_crawl.sh
-ENV CRAWL_PYTHON_SCRIPT $MYAKU_SRC_DIR/myaku/runners/run_crawl.py
+ENV CRAWL_START_SCRIPT $SCRIPTS_DIR/start_crawl.sh
+ENV CRAWL_PYTHON_SCRIPT $MYAKU_SRC_DIR/runners/run_crawl.py
 
 # Can be modified at run time of the container and will still take effect.
 ENV CRAWL_CRON_SCHEDULE "0 */8 * * *"
@@ -71,16 +76,17 @@ ENV CRAWLER_LIST "NhkNewsWeb"
 # file so that the cron schedule can be swapped in for it at run time.
 RUN echo "CRAWL_CRON_SCHEDULE root $CRAWL_START_SCRIPT" >> $CRON_FILE
 
-WORKDIR $MYAKU_SRC_DIR
+WORKDIR $CRAWLER_SRC_DIR
 
 
 FROM base AS dev
 
-# Volume for sharing in development source on host with container.
+# Volumes for sharing in development source on host with container.
 VOLUME ["$MYAKU_SRC_DIR"]
+VOLUME ["$SCRIPTS_DIR"]
 
 # Volume for persisting data only used in development such as ipython history.
-ENV MYAKU_DEV_DATA_DIR $MYAKU_BASE_DIR/devdata
+ENV MYAKU_DEV_DATA_DIR $CRAWLER_BASE_DIR/devdata
 ENV IPYTHONDIR $MYAKU_DEV_DATA_DIR/ipython
 VOLUME ["$MYAKU_DEV_DATA_DIR"]
 
@@ -88,6 +94,7 @@ VOLUME ["$MYAKU_DEV_DATA_DIR"]
 FROM base AS prod
 
 # Copy full source into image
-COPY . $MYAKU_SRC_DIR
+COPY ./myaku $MYAKU_SRC_DIR
+COPY ./docker/myaku_crawler/start_crawl.sh $CRAWL_START_SCRIPT
 
 RUN chmod +x $CRAWL_START_SCRIPT

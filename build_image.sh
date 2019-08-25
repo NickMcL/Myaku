@@ -8,6 +8,7 @@ IMAGE_NAME_PREFIX="friedrice2/"
 
 POSSIBLE_IMAGE_TYPES=(\
     "crawler" \
+    "rescore" \
     "web" \
     "nginx.reverseproxy" \
     "mongo.crawldb" \
@@ -37,6 +38,7 @@ for the image, or the script will error.
 
 <image_type> must be one of:
     - crawler
+    - rescore
     - web
     - nginx.reverseproxy
     - mongo.crawldb
@@ -151,6 +153,10 @@ fi
 case $image_type in
     "crawler")
         dockerfile="./docker/myaku_crawler/Dockerfile.crawler"
+        ;;
+
+    "rescore")
+        dockerfile="./docker/myaku_rescore/Dockerfile.rescore"
         ;;
 
     "web")

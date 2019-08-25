@@ -1,7 +1,7 @@
 from operator import methodcaller
 
 import myaku.utils as utils
-from myaku.database import MyakuCrawlDb
+from myaku.database import DbAccessMode, MyakuCrawlDb
 from myaku.datatypes import FoundJpnLexicalItem
 
 LOG_NAME = 'query'
@@ -36,7 +36,7 @@ def main(search_term: str = None) -> None:
         else:
             query = search_term
 
-        with MyakuCrawlDb() as db:
+        with MyakuCrawlDb(DbAccessMode.READ) as db:
             found_lexical_items = db.read_found_lexical_items(query, True)
         if len(found_lexical_items) == 0:
             print('\nFound 0 results')

@@ -9,7 +9,7 @@ from typing import List
 import myaku.crawlers
 import myaku.utils as utils
 from myaku.crawlers.abc import Crawl
-from myaku.database import MyakuCrawlDb
+from myaku.database import DbAccessMode, MyakuCrawlDb
 from myaku.datatypes import JpnArticle, FoundJpnLexicalItem
 from myaku.errors import ScriptArgsError
 from myaku.japanese_analysis import JapaneseTextAnalyzer
@@ -163,7 +163,8 @@ def crawl_most_recent(
     scorer: MyakuArticleScorer, stats: CrawlStats
 ) -> None:
     """Runs the most recent articles crawl for the given crawler type."""
-    with MyakuCrawlDb() as db, crawler_type() as crawler:
+    read_write_access = DbAccessMode.READ_WRITE
+    with MyakuCrawlDb(read_write_access) as db, crawler_type() as crawler:
         stats.add_crawl_source(crawler.SOURCE_NAME)
         crawls = crawler.get_crawls_for_most_recent()
         for crawl in crawls:

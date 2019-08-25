@@ -19,11 +19,11 @@ services:
     volumes:
       - type: volume
         source: crawler_log
-        target: /myaku/log
+        target: /crawler/log
 
       - type: volume
         source: crawler_appdata
-        target: /myaku/appdata
+        target: /crawler/appdata
 
       # Needed for Firefox web driver to work reliably in the container.
       - type: tmpfs
@@ -31,8 +31,31 @@ services:
         tmpfs:
           size: 2000000000  # 2gb
     environment:
-      CRAWL_CRON_SCHEDULE: "0 */3 * * *"
+      CRAWL_CRON_SCHEDULE: "0 1,4,7,10,13,16,19,22 * * *"
       CRAWLER_LIST: "NhkNewsWeb,Kakuyomu"
+      MYAKU_CRAWLDB_HOST: crawldb
+      MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
+      MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
+      DEBUG_LOG_MAX_SIZE: 200000000  # 200mb
+      INFO_LOG_MAX_SIZE: 20000000 # 20mb
+    secrets:
+      - crawldb_crawler_username
+      - crawldb_crawler_password
+    networks:
+      - crawler_net
+  rescore:
+    image: friedrice2/myaku_rescore:1.0.0
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+    volumes:
+      - type: volume
+        source: rescore_log
+        target: /rescore/log
+    environment:
+      RESCORE_CRON_SCHEDULE: "0 9 * * *"
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
@@ -147,7 +170,7 @@ services:
       DB_USERNAME_FILE: /run/secrets/crawldb_backup_username
       DB_PASSWORD_FILE: /run/secrets/crawldb_backup_password
       DB_MAX_ALLOWED_BACKUPS: 7
-      DB_BACKUP_CRON_SCHEDULE: "0 5 * * *"
+      DB_BACKUP_CRON_SCHEDULE: "0 6 * * *"
     secrets:
       - crawldb_backup_username
       - crawldb_backup_password
@@ -157,6 +180,7 @@ services:
 volumes:
   crawler_log:
   crawler_appdata:
+  rescore_log:
   web_log:
   reverseproxy_log:
   crawldb_datadb:

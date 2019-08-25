@@ -1,0 +1,57 @@
+# Builds a prod or dev image for the Myaku article rescorer.
+
+FROM friedrice2/ubuntu.cron:1.0.1_18.04 AS base
+
+ENV RESCORE_BASE_DIR /rescore
+
+# Set up deadsnakes ppa for installing newer Python versions
+RUN apt-get update \
+    && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update
+
+# Install all other needed packages
+RUN apt-get install -y python3.7 python3.7-dev python3-pip python3-gdbm
+
+# Set python binary that should be used in the container
+ENV PYTHON_BIN python3.7
+
+# Get latest pip
+RUN $PYTHON_BIN -m pip install -U pip
+
+ENV RESCORE_SRC_DIR $RESCORE_BASE_DIR/src
+
+COPY ./LICENSE $RESCORE_SRC_DIR/
+
+COPY ./requirements.txt $RESCORE_SRC_DIR/
+RUN $PYTHON_BIN -m pip install -r $RESCORE_SRC_DIR/requirements.txt
+
+ENV PYTHONPATH $PYTHONPATH:$RESCORE_SRC_DIR
+ENV MYAKU_SRC_DIR $RESCORE_SRC_DIR/myaku
+
+ENV RESCORE_LOG_DIR $RESCORE_BASE_DIR/log
+VOLUME ["$RESCORE_LOG_DIR"]
+
+ENV RESCORE_PYTHON_SCRIPT $MYAKU_SRC_DIR/runners/rescore.py
+
+# Can be modified at run time of the container and will still take effect.
+ENV RESCORE_CRON_SCHEDULE "0 0 * * *"
+
+# Intentionally insert the env variable name and not its value into the cron
+# file so that the cron schedule can be swapped in for it at run time.
+RUN echo "RESCORE_CRON_SCHEDULE root $PYTHON_BIN $RESCORE_PYTHON_SCRIPT" \
+    >> $CRON_FILE
+
+WORKDIR $RESCORE_SRC_DIR
+
+
+FROM base AS dev
+
+# Volume for sharing in development source on host with container.
+VOLUME ["$MYAKU_SRC_DIR"]
+
+
+FROM base AS prod
+
+# Copy full myaku python package source into image
+COPY ./myaku $MYAKU_SRC_DIR

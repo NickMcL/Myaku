@@ -10,6 +10,15 @@ class CannotAccessPageError(Exception):
     pass
 
 
+class DbPermissionError(Exception):
+    """A database operation was attempted without proper permissions.
+
+    For example, if a read-only client connection to the database was used to
+    perform a write operation to the database.
+    """
+    pass
+
+
 class EnvironmentNotSetError(Exception):
     """A needed parameter from the environment was not set."""
     pass
@@ -25,15 +34,6 @@ class MissingDataError(Exception):
 
     For example, if an Article method is called that depends on certain attrs
     of the Article having data set, but those attrs are not set.
-    """
-    pass
-
-
-class NoDbWritePermissionError(Exception):
-    """A database operation needing write permission was attempted without it.
-
-    For example, if a read-only connection to the database was used to perform
-    a write operation to the database.
     """
     pass
 

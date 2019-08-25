@@ -27,15 +27,34 @@ services:
     volumes:
       - type: volume
         source: crawler_devdata
-        target: /myaku/devdata
+        target: /crawler/devdata
 
       - type: bind
-        source: ..
-        target: /myaku/src
+        source: ../myaku
+        target: /crawler/src/myaku
+
+      - type: bind
+        source: ./myaku_crawler
+        target: /crawler/src/scripts
     environment:
       # A cron schedule of "#" will comment out the line for the crawl job in
       # the crontab file so that it will not run while doing development.
       CRAWL_CRON_SCHEDULE: "#"  
+      DEBUG_LOG_MAX_SIZE: 0
+      INFO_LOG_MAX_SIZE: 0
+  rescore:
+    image: friedrice2/myaku_rescore:dev
+    deploy:
+      restart_policy:
+        condition: none
+    volumes:
+      - type: bind
+        source: ../myaku
+        target: /rescore/src/myaku
+    environment:
+      # A cron schedule of "#" will comment out the line for the rescore job in
+      # the crontab file so that it will not run while doing development.
+      RESCORE_CRON_SCHEDULE: "#"  
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   web:
@@ -45,8 +64,16 @@ services:
         condition: none
     volumes:
       - type: bind
-        source: ..
-        target: /myakuweb/src
+        source: ../myaku
+        target: /myakuweb/src/myaku
+
+      - type: bind
+        source: ../myakuweb
+        target: /myakuweb/src/myakuweb
+
+      - type: bind
+        source: ./myaku_web
+        target: /myakuweb/src/scripts
     environment:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
@@ -93,6 +120,10 @@ services:
       - type: bind
         source: ./mongobackup
         target: /run_files
+    environment:
+      # A cron schedule of "#" will comment out the line for the backup job in
+      # the crontab file so that it will not run while doing development.
+      DB_BACKUP_CRON_SCHEDULE: "#"
 
 volumes:
   crawler_devdata:

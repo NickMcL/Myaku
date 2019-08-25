@@ -20,33 +20,40 @@ RUN $PYTHON_BIN -m pip install -U pip
 
 ENV MYAKUWEB_BASE_DIR /myakuweb
 ENV MYAKUWEB_SRC_DIR $MYAKUWEB_BASE_DIR/src
-ENV PYTHONPATH $PYTHONPATH:$MYAKUWEB_SRC_DIR
+
+COPY ./LICENSE $MYAKUWEB_SRC_DIR/
 
 COPY ./requirements.txt $MYAKUWEB_SRC_DIR/
 RUN $PYTHON_BIN -m pip install -r $MYAKUWEB_SRC_DIR/requirements.txt
 
+ENV PYTHONPATH $PYTHONPATH:$MYAKUWEB_SRC_DIR
+ENV MYAKU_SRC_DIR $MYAKUWEB_SRC_DIR/myaku
+ENV DJANGO_SRC_DIR $MYAKUWEB_SRC_DIR/myakuweb
+ENV SCRIPTS_DIR $MYAKUWEB_SRC_DIR/scripts
+
 ENV MYAKUWEB_LOG_DIR /myakuweb/log
 VOLUME ["$MYAKUWEB_LOG_DIR"]
-
-ENV MYAKUWEB_PROJECT_DIR $MYAKUWEB_SRC_DIR/myakuweb
-WORKDIR $MYAKUWEB_PROJECT_DIR
 
 ENV PYTHONUNBUFFERED 1
 
 ENV MYAKUWEB_STATIC_URL /static/
 
 ENV UWSGI_PORT 3031
+ENV RUN_UWSGI_SCRIPT $SCRIPTS_DIR/run_uwsgi.sh
 
-ENTRYPOINT ["/bin/bash", "-c", \
-    "$MYAKUWEB_SRC_DIR/docker/myaku_web/run_uwsgi.sh"]
+ENTRYPOINT ["/bin/bash", "-c", "$RUN_UWSGI_SCRIPT"]
+
+WORKDIR $DJANGO_SRC_DIR
 
 
 FROM base AS dev
 
 ENV DJANGO_DEBUG_MODE 1
 
-# Volume for sharing in development source on host with container
-VOLUME ["$MYAKUWEB_SRC_DIR"]
+# Volumes for sharing in development source on host with container
+VOLUME ["$MYAKU_SRC_DIR"]
+VOLUME ["$DJANGO_SRC_DIR"]
+VOLUME ["$SCRIPTS_DIR"]
 
 
 FROM base AS prod
@@ -54,6 +61,8 @@ FROM base AS prod
 ENV DJANGO_DEBUG_MODE 0
 
 # Copy all source code into the container
-COPY . $MYAKUWEB_SRC_DIR
+COPY ./myaku $MYAKU_SRC_DIR
+COPY ./myakuweb $DJANGO_SRC_DIR
+COPY ./docker/myaku_web/run_uwsgi.sh $RUN_UWSGI_SCRIPT
 
-RUN chmod +x $MYAKUWEB_SRC_DIR/docker/myaku_web/run_uwsgi.sh
+RUN chmod +x $RUN_UWSGI_SCRIPT
