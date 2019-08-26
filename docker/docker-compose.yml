@@ -10,7 +10,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.2.4
+    image: friedrice2/myaku_crawler:1.3.0
     deploy:
       restart_policy:
         condition: any
@@ -24,15 +24,9 @@ services:
       - type: volume
         source: crawler_appdata
         target: /crawler/appdata
-
-      # Needed for Firefox web driver to work reliably in the container.
-      - type: tmpfs
-        target: /dev/shm
-        tmpfs:
-          size: 2000000000  # 2gb
     environment:
       CRAWL_CRON_SCHEDULE: "0 1,4,7,10,13,16,19,22 * * *"
-      CRAWLER_LIST: "Kakuyomu,NhkNewsWeb"
+      CRAWLER_LIST: "NhkNewsWeb,Kakuyomu"
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
