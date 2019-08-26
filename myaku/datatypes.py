@@ -203,15 +203,6 @@ class JpnArticle(object):
     _text_hash: str = field(default=None, init=False, repr=False)
     _text_hash_change: bool = field(default=False, init=False, repr=False)
 
-    _ARTICLE_LEN_GROUPS: Tuple[int, ...] = field(
-        default=(
-            1000,
-            500,
-        ),
-        init=False,
-        repr=False
-    )
-
     @property
     def full_text(self) -> str:
         """See class docstring for full_text documentation."""
@@ -239,20 +230,6 @@ class JpnArticle(object):
         else:
             metadata_str = str(self.metadata)
         return '{}|{}'.format(metadata_str, self.quality_score)
-
-    def get_article_len_group(self) -> int:
-        """Gets the article alnum length group for the lexical item."""
-        if self.alnum_count is None:
-            utils.log_and_raise(
-                _log, MissingDataError,
-                'alnum_count is not set, so cannot get article length group '
-                'for {!r}'.format(self)
-            )
-
-        for group_min in self._ARTICLE_LEN_GROUPS:
-            if self.alnum_count >= group_min:
-                return group_min
-        return 0
 
     def get_containing_sentence(
         self, item_pos: 'LexicalItemTextPosition'
@@ -458,68 +435,6 @@ class FoundJpnLexicalItem(object):
     ) -> None:
         """Adds surface form to a cache for quick retrieval later."""
         self._surface_form_cache[text_pos] = surface_form
-
-    def _text_position_quality_key(
-        self, text_pos: LexicalItemTextPosition
-    ) -> Tuple[Any, ...]:
-        """Key function for getting quality of a lexical item text position."""
-        if self.article is None:
-            utils.log_and_raise(
-                _log, MissingDataError,
-                'article is not set, so cannot generate quality key value for '
-                '{!r}'.format(text_pos)
-            )
-
-        key_list = []
-        key_list.append(utils.get_alnum_count(
-            self.article.get_containing_sentence(text_pos)[0]
-        ))
-        key_list.append(-1 * text_pos.index)
-        key_list.append(text_pos.len)
-
-        return tuple(key_list)
-
-    def sort_found_positions_by_quality(self) -> None:
-        """Sorts the found positions of the lexical item by their quality."""
-        self.found_positions.sort(
-            key=self._text_position_quality_key, reverse=True
-        )
-
-        if not self.interp_position_map:
-            return
-        for pos_list in self.interp_position_map.values():
-            pos_list.sort(key=self._text_position_quality_key, reverse=True)
-
-    def quality_key(self) -> Tuple[Any, ...]:
-        """Key function for getting usage quality of the found lexical item."""
-        required_attrs = [
-            ('article', self.article),
-            ('article.full_text', self.article.full_text),
-            ('article.has_video', self.article.has_video),
-            ('article.alnum_count', self.article.alnum_count),
-            ('article.text_hash', self.article.text_hash),
-            ('article.metadata', self.article.metadata),
-            ('article.metadata.publication_datetime',
-                self.article.metadata.publication_datetime),
-            ('found_positions', self.found_positions),
-        ]
-        for attr in required_attrs:
-            if attr[1] is None:
-                utils.log_and_raise(
-                    _log, MissingDataError,
-                    '{} is not set, so cannot generate quality key value for '
-                    '{}'.format(attr[0], self)
-                )
-
-        key_list = []
-        key_list.append(int(self.article.has_video))
-        key_list.append(len(self.found_positions))
-        key_list.append(self.article.get_article_len_group())
-        key_list.append(self.article.metadata.publication_datetime)
-        key_list.append(self.article.alnum_count)
-        key_list.append(self.article.text_hash)
-
-        return tuple(key_list)
 
 
 def reduce_found_lexical_items(
