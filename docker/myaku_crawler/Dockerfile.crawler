@@ -74,7 +74,8 @@ ENV CRAWLER_LIST "NhkNewsWeb"
 
 # Intentionally insert the env variable name and not its value into the cron
 # file so that the cron schedule can be swapped in for it at run time.
-RUN echo "CRAWL_CRON_SCHEDULE root $CRAWL_START_SCRIPT" >> $CRON_FILE
+RUN echo "CRAWL_CRON_SCHEDULE root" \
+    "flock -n /tmp/crawl.lockfile $CRAWL_START_SCRIPT" >> $CRON_FILE
 
 WORKDIR $CRAWLER_SRC_DIR
 
