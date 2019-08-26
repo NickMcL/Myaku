@@ -2,20 +2,18 @@
 
 import enum
 import logging
-import posixpath
 import re
 from datetime import datetime
 from typing import List, Optional
-from urllib.parse import urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
-import myaku.utils as utils
-import myaku.utils.html as html
+from myaku import utils
 from myaku.crawlers.abc import Crawl, CrawlerABC, CrawlGenerator
 from myaku.datatypes import JpnArticle, JpnArticleBlog, JpnArticleMetadata
 from myaku.errors import HtmlParsingError
+from myaku.utils import html
 
 _log = logging.getLogger(__name__)
 
@@ -700,19 +698,6 @@ class KakuyomuCrawler(CrawlerABC):
             last_updated_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
         )
 
-    def _create_episode_sidebar_url(self, episode_url: str) -> str:
-        """Creates the url for the sidebar for the given episode."""
-        url_split = urlsplit(episode_url)
-        return urlunsplit(
-            (
-                url_split.scheme, url_split.netloc,
-                posixpath.join(
-                    url_split.path, self._EPISODE_SIDEBAR_URL_SUFFIX
-                ),
-                url_split.query, url_split.fragment
-            )
-        )
-
     def crawl_article(
         self, article_url: str, article_metadata: JpnArticleMetadata
     ) -> JpnArticle:
@@ -737,7 +722,9 @@ class KakuyomuCrawler(CrawlerABC):
         article.full_text = self._parse_episode_text(episode_page_soup)
         article.alnum_count = utils.get_alnum_count(article.full_text)
 
-        sidebar_url = self._create_episode_sidebar_url(article_url)
+        sidebar_url = utils.join_path_to_url(
+            article_url, self._EPISODE_SIDEBAR_URL_SUFFIX
+        )
         episode_sidebar_soup = self._get_url_html_soup(sidebar_url)
         article.metadata.last_updated_datetime = (
             self._parse_episode_last_updated_datetime(episode_sidebar_soup)

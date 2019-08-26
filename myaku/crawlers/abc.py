@@ -4,8 +4,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Generator, List, NamedTuple, Tuple
-from urllib.parse import urljoin
+from typing import Any, Dict, Generator, List, NamedTuple, Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -13,7 +12,7 @@ from selenium import webdriver
 from selenium.webdriver import firefox
 
 import myaku
-import myaku.utils as utils
+from myaku import utils
 from myaku.database import DbAccessMode, MyakuCrawlDb
 from myaku.datatypes import JpnArticle, JpnArticleBlog, JpnArticleMetadata
 
@@ -142,8 +141,23 @@ class CrawlerABC(ABC):
         self.close()
 
     @utils.add_debug_logging
-    @utils.rate_limit(_REQUEST_MIN_WAIT_TIME, _REQUSET_MAX_WAIT_TIME)
-    @utils.retry_on_exception(_REQUEST_MAX_RETRIES, _REQUEST_RETRY_EXCEPTIONS)
+    def _get_url_json(self, url: str) -> Dict[str, Any]:
+        """Makes a GET request to get JSON from a url.
+
+        Args:
+            url: Url to get the JSON from.
+
+        Returns:
+            A dict with the contents of the JSON from the url.
+
+        Raises:
+            HTTPError: The response for the GET request had a code >= 400.
+            JSONDecodeError: The content at the given url was not valid JSON.
+        """
+        response = self._make_get_request(url)
+        return response.json()
+
+    @utils.add_debug_logging
     def _get_url_html_soup(self, url: str) -> BeautifulSoup:
         """Makes a GET request and returns a BeautifulSoup of the contents.
 
@@ -157,12 +171,19 @@ class CrawlerABC(ABC):
         Raises:
             HTTPError: The response for the GET request had a code >= 400.
         """
+        response = self._make_get_request(url)
+        return BeautifulSoup(response.content, 'html.parser')
+
+    @utils.rate_limit(_REQUEST_MIN_WAIT_TIME, _REQUSET_MAX_WAIT_TIME)
+    @utils.retry_on_exception(_REQUEST_MAX_RETRIES, _REQUEST_RETRY_EXCEPTIONS)
+    def _make_get_request(self, url: str) -> requests.Response:
+        """Makes a GET request to given url and returns the response."""
         _log.debug('Making GET request to url "%s"', url)
         response = self._session.get(url, timeout=self._timeout)
         _log.debug('Response received with code %s', response.status_code)
         response.raise_for_status()
 
-        return BeautifulSoup(response.content, 'html.parser')
+        return response
 
     @utils.add_debug_logging
     def _crawl_uncrawled_articles(
@@ -191,8 +212,8 @@ class CrawlerABC(ABC):
             return
 
         for metadata in uncrawled_metadatas:
-            metadata.source_url = (
-                urljoin(self._SOURCE_BASE_URL, metadata.source_url)
+            metadata.source_url = utils.join_suffix_to_url_base(
+                self._SOURCE_BASE_URL, metadata.source_url
             )
 
         with MyakuCrawlDb(DbAccessMode.READ_WRITE) as db:
@@ -230,8 +251,8 @@ class CrawlerABC(ABC):
             return
 
         for blog in updated_blogs:
-            blog.source_url = (
-                urljoin(self._SOURCE_BASE_URL, blog.source_url)
+            blog.source_url = utils.join_suffix_to_url_base(
+                self._SOURCE_BASE_URL, blog.source_url
             )
 
         with MyakuCrawlDb(DbAccessMode.READ_WRITE) as db:

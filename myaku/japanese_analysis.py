@@ -15,7 +15,7 @@ from xml.etree import ElementTree
 import MeCab
 
 import myaku
-import myaku.utils as utils
+from myaku import utils
 from myaku.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
                              JpnLexicalItemInterp, LexicalItemTextPosition,
                              MecabLexicalItemInterp,

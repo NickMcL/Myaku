@@ -1,19 +1,16 @@
 """Crawler for the NHK News Web website."""
 
 import logging
-import time
 from datetime import datetime
 from typing import List, Optional
 
-from bs4 import BeautifulSoup
 from bs4.element import Tag
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.firefox.webelement import FirefoxWebElement
 
-import myaku.utils as utils
+from myaku import utils
 from myaku.crawlers.abc import Crawl, CrawlerABC, CrawlGenerator
 from myaku.datatypes import JpnArticle, JpnArticleMetadata
-from myaku.errors import CannotAccessPageError, HtmlParsingError
+from myaku.errors import HtmlParsingError
+from myaku.utils import html
 
 _log = logging.getLogger(__name__)
 
@@ -21,41 +18,31 @@ _log = logging.getLogger(__name__)
 @utils.add_method_debug_logging
 class NhkNewsWebCrawler(CrawlerABC):
     """Crawls articles from the NHK News Web website."""
-    MAX_MOST_RECENT_SHOW_MORE_CLICKS = 9
-    MAX_DOUGA_SHOW_MORE_CLICKS = 8
+    # Nhk News Web only makes these max numbers of pages of history available
+    # for the Most Recent and Douga pages.
+    MAX_MOST_RECENT_PAGES = 10
+    MAX_DOUGA_PAGES = 10
 
     SOURCE_NAME = 'NHK News Web'
-    __SOURCE_BASE_URL = 'https://www3.nhk.or.jp'
+    __SOURCE_BASE_URL = 'https://www3.nhk.or.jp/news/'
 
-    _REQUIRES_WEB_DRIVER = True
-    _PAGE_LOAD_WAIT_TIME = 6  # in seconds
+    _REQUIRES_WEB_DRIVER = False
 
-    _MOST_RECENT_PAGE_URL = 'https://www3.nhk.or.jp/news/catnew.html'
-    _DOUGA_PAGE_URL = 'https://www3.nhk.or.jp/news/movie.html'
-    _TOKUSHU_PAGE_URL = 'https://www3.nhk.or.jp/news/tokushu/'
-    _NEWS_UP_PAGE_URL = 'https://www3.nhk.or.jp/news/netnewsup/'
-    _PAGE_TITLES = {
-        _MOST_RECENT_PAGE_URL: '速報・新着ニュース一覧｜NHK NEWS WEB',
-        _DOUGA_PAGE_URL: '動画ニュース一覧｜NHK NEWS WEB',
-        _TOKUSHU_PAGE_URL: '特集一覧｜NHK NEWS WEB',
-        _NEWS_UP_PAGE_URL: 'News Up一覧｜NHK NEWS WEB',
+    _MOST_RECENT_JSON_URL_PREFIX = 'https://www3.nhk.or.jp/news/json16/new'
+    _DOUGA_JSON_URL_PREFIX = 'https://www3.nhk.or.jp/news/json16/newmovie'
+    _NEWS_UP_JSON_URL_PREFIX = 'https://www3.nhk.or.jp/news/json16/arch_newsup'
+    _TOKUSHU_JSON_URL_PREFIX = (
+        'https://www3.nhk.or.jp/news/json16/tokushu/new_tokushu'
+    )
+
+    _JSON_PREFIX_FIRST_PAGE_MAP = {
+        _NEWS_UP_JSON_URL_PREFIX:
+            'https://www3.nhk.or.jp/news/json16/newsup.json',
     }
 
-    _TIME_TAG_DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
+    _NHK_JSON_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %z'
 
-    _MAIN_ID = 'main'
-    _TITLE_CLASS = 'title'
     _NEWS_VIDEO_ID = 'news_video'
-    _EXCLUDE_ARTICLE_CLASSES = {
-        'module--cameramanseye',
-    }
-
-    _SHOW_MORE_BUTTON_CLASS = 'button'
-    _SHOW_MORE_BUTTON_FOOTER_CLASS = 'button-more'
-    _LOADING_CLASS_NAME = 'loading'
-
-    _SUMMARY_HEADER_DIV_CLASS = 'content--header'
-    _SUMMARY_ARTICLE_LIST_CLASS = 'content--list'
 
     _ARTICLE_TAG_CLASS = 'detail-no-js'
     _ARTICLE_TITLE_CLASS = 'contentTitle'
@@ -86,7 +73,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             CannotParsePageError: There was an error parsing the body text from
                 tag.
         """
-        section_text = utils.html.parse_valid_child_text(tag, False)
+        section_text = html.parse_valid_child_text(tag, False)
         if section_text is not None:
             return section_text
 
@@ -96,7 +83,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             if child.name is None:
                 continue
 
-            child_text = utils.html.parse_valid_child_text(child, False)
+            child_text = html.parse_valid_child_text(child, False)
             if child_text is None:
                 continue
 
@@ -145,7 +132,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     def _contains_news_video(self, tag: Tag) -> bool:
         """Returns True if an NHK news video is in the tag's descendants."""
         video_tag = tag.find(id=self._NEWS_VIDEO_ID)
-        if video_tag is None:
+        if video_tag is None or not video_tag.string:
             return False
         return True
 
@@ -164,7 +151,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         """
         article_data = JpnArticle()
         article_data.metadata = JpnArticleMetadata(
-            title=utils.html.parse_text_from_descendant_by_class(
+            title=html.parse_text_from_descendant_by_class(
                 article_tag, self._ARTICLE_TITLE_CLASS, 'span'
             ),
             source_url=article_metadata.source_url,
@@ -185,393 +172,184 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         return article_data
 
-    def _select_main(self, soup: BeautifulSoup) -> Tag:
-        """Selects the main tag from the given BeautifulSoup html.
+    @utils.skip_method_debug_logging
+    def _get_summary_json_url(self, url_prefix: str, page_num: int) -> str:
+        """Gets the url for a page of the JSON for a summary page."""
+        if page_num == 1 and url_prefix in self._JSON_PREFIX_FIRST_PAGE_MAP:
+            return self._JSON_PREFIX_FIRST_PAGE_MAP[url_prefix]
+        return '{}_{}.json'.format(url_prefix, str(page_num).zfill(3))
 
-        Args:
-            soup: BeautifulSoup object with parsed html.
+    @utils.skip_method_debug_logging
+    def _parse_json_datetime_str(self, dt_str: str) -> datetime:
+        """Parses a datetime string from NHK article metadata json.
 
-        Returns:
-            The selected main tag.
+        The datetime strings in NHK article metadata json are stored as JST, so
+        this function also converts the datetime to UTC.
         """
-        main = soup.find(id=self._MAIN_ID)
-        if main is None:
+        try:
+            dt = datetime.strptime(dt_str, self._NHK_JSON_DATETIME_FORMAT)
+        except ValueError:
             utils.log_and_raise(
-                _log, HtmlParsingError,
-                'Could not find "main" tag in page "{}"'.format(soup)
-            )
-
-        return main
-
-    def _scrape_summary_page_list_articles(
-        self, page_soup: BeautifulSoup, has_single_link_list_articles: bool
-    ) -> List[JpnArticleMetadata]:
-        """Scrapes metadata from the article list of a summary page soup.
-
-        Does not scrape the metadata from articles in header sections at the
-        top of the summary page.
-
-        Args:
-            page_soup: BeautifulSoup for the summary page.
-            has_single_link_list_articles: If True, expects the list items in
-               the article list to always have a single link in them.
-
-        Returns:
-            A list of the article metadatas for the articles linked to in the
-            article list on the summary page.
-        """
-        list_article_tags = []
-        main = self._select_main(page_soup)
-        article_uls = utils.html.select_descendants_by_class(
-            main, self._SUMMARY_ARTICLE_LIST_CLASS, 'ul'
-        )
-        article_uls = self._filter_out_exclusions(article_uls)
-        for ul in article_uls:
-            list_article_tags.extend(ul.contents)
-        _log.debug('Found %s list article tags', len(list_article_tags))
-
-        metadatas = []
-        link_count = 1 if has_single_link_list_articles else None
-        for tag in list_article_tags:
-            publication_datetime = utils.html.parse_time_descendant(
-                tag, self._TIME_TAG_DATETIME_FORMAT, True
-            )
-            metadata = JpnArticleMetadata(
-                title=utils.html.parse_text_from_descendant_by_class(
-                    tag, self._TITLE_CLASS, 'em'
-                ),
-                publication_datetime=publication_datetime,
-                last_updated_datetime=publication_datetime,
-                source_url=utils.html.parse_link_descendant(
-                    tag, 0, link_count
-                ),
-                source_name=self.SOURCE_NAME,
-            )
-            metadatas.append(metadata)
-
-        return metadatas
-
-    def _scrape_summary_page_header_articles(
-        self, page_soup: BeautifulSoup
-    ) -> List[JpnArticleMetadata]:
-        """Scrapes metadata from the header articles of a summary page soup.
-
-        Does not scrape the metadata from articles outside of the header
-        sections of the summary page.
-
-        Args:
-            page_soup: BeautifulSoup for the summary page.
-
-        Returns:
-            A list of the article metadatas for the articles linked to in the
-            header sections of the summary page.
-        """
-        main = self._select_main(page_soup)
-        header_article_tags = utils.html.select_descendants_by_class(
-            main, self._SUMMARY_HEADER_DIV_CLASS, 'div'
-        )
-        header_article_tags = self._filter_out_exclusions(header_article_tags)
-        _log.debug('Found %s header article divs', len(header_article_tags))
-
-        metadatas = []
-        for tag in header_article_tags:
-            publication_datetime = utils.html.parse_time_descendant(
-                tag, self._TIME_TAG_DATETIME_FORMAT, True
-            )
-            metadata = JpnArticleMetadata(
-                title=utils.html.parse_text_from_descendant_by_class(
-                    tag, self._TITLE_CLASS, 'em'
-                ),
-                publication_datetime=publication_datetime,
-                last_updated_datetime=publication_datetime,
-                source_url=utils.html.parse_link_descendant(tag, 0, 2),
-                source_name=self.SOURCE_NAME,
-            )
-            metadatas.append(metadata)
-
-        return metadatas
-
-    def _scrape_summary_page_article_metadatas(
-        self, page_soup: BeautifulSoup, has_header_sections: bool,
-        has_single_link_list_articles: bool
-    ) -> List[JpnArticleMetadata]:
-        """Scrapes all article metadata from a summary page soup.
-
-        Args:
-            page_soup: BeautifulSoup for the summary page.
-            has_header_sections: If True, will look for header sections
-                containing article metadatas on the summary page as well. If
-                False, will only look for summary lists containing article
-                metadatas on the summary page.
-            has_single_link_list_articles: If True, expects the list items in
-               the article list on the summary page to always have a single
-               link in them.
-
-        Returns:
-            A list of the metadatas for the articles linked to on the summary
-            page.
-        """
-        metadatas = self._scrape_summary_page_list_articles(
-            page_soup, has_single_link_list_articles
-        )
-        if has_header_sections:
-            metadatas.extend(
-                self._scrape_summary_page_header_articles(page_soup)
-            )
-
-        return metadatas
-
-    def _filter_out_exclusions(self, tags: List[Tag]) -> List[Tag]:
-        """Filters out tags that are known exclusions for parsing.
-
-        Does not modify the given tags list.
-
-        Args:
-            tags: List of tags to check if known exlusion.
-
-        Returns:
-            A new list containing only the tags from the given list that were
-            not known exclusions.
-        """
-        filtered_tags = []
-        for tag in tags:
-            parents = tag.find_parents(
-                'article', class_=self._EXCLUDE_ARTICLE_CLASSES
-            )
-            if len(parents) != 0:
-                _log.debug(
-                    'Filtered out "%s" tag with excluded parent "article" tag '
-                    'with classes %s', tag.name, parents[0].attrs['class']
-                )
-                continue
-
-            if (tag.name is not None and tag.name == 'article'
-                    and 'class' in tag.attrs
-                    and (set(tag.attrs['class']) &
-                         self._EXCLUDE_ARTICLE_CLASSES)):
-                _log.debug(
-                    'Filtered out excluded "%s" tag with classes %s',
-                    tag.name, tag.attrs['class']
-                )
-                continue
-
-            filtered_tags.append(tag)
-
-        return filtered_tags
-
-    def _get_show_more_button(self) -> FirefoxWebElement:
-        """Gets the show more button element from the page.
-
-        Assumes the class web driver is already set to a page with a show more
-        button.
-        """
-        main = self._web_driver.find_element_by_id(self._MAIN_ID)
-        footers = main.find_elements_by_class_name(
-            self._SHOW_MORE_BUTTON_FOOTER_CLASS
-        )
-        if len(footers) != 1:
-            utils.log_and_raise(
-                _log, HtmlParsingError,
-                'Found {} "footer" tags with class "{}" instead of 1 at page '
+                _log, ValueError,
+                'Failed to parse NHK json datetime "{}" using format '
                 '"{}"'.format(
-                    len(footers), self._SHOW_MORE_BUTTON_FOOTER_CLASS,
-                    self._web_driver.current_url
+                    dt_str, self._NHK_JSON_DATETIME_FORMAT
                 )
             )
 
-        buttons = footers[0].find_elements_by_class_name(
-            self._SHOW_MORE_BUTTON_CLASS
-        )
-        if len(buttons) != 1:
-            utils.log_and_raise(
-                _log, HtmlParsingError,
-                'Found {} "button" tags with class "{}" instead of 1 at page '
-                '{}'.format(
-                    len(footers), self._SHOW_MORE_BUTTON_CLASS,
-                    self._web_driver.current_url
-                )
-            )
+        return utils.convert_jst_to_utc(dt)
 
-        return buttons[0]
-
-    def _click_show_more(self, show_more_clicks: int) -> None:
-        """Clicks the show more button in the page a number of times.
-
-        Assumes the class web driver is already set to a page with a show more
-        button to click.
+    def _crawl_summary_page_json(
+        self, json_url_prefix: str, max_pages_to_crawl
+    ) -> List[JpnArticleMetadata]:
+        """Crawls summary page JSON to get the article metadata for the page.
 
         Args:
-            show_more_clicks: Number of times to click the show more button on
-                the page.
+            json_url_prefix: Url prefix for the summary page JSON urls to
+                crawl. Will append a page number suffix to this url to make the
+                full urls to crawl.
+            max_pages_to_crawl: Max number of pages of the JSON for the summary
+                page to crawl. If the total available pages is less than this
+                number, will crawl all available pages.
 
-        Raises:
-            NoSuchElementException: Web driver was unable to find an element
-                while searching for the show more button.
+        Returns:
+            A list of all of the article metadata in the JSON at the urls with
+            the given prefix.
         """
-        if show_more_clicks < 1:
-            return
-
-        show_more_button = self._get_show_more_button()
-        for i in reversed(range(show_more_clicks)):
-            _log.debug('Clicking show more button. %s clicks remaining.', i)
-            show_more_button.click()
-            time.sleep(self._PAGE_LOAD_WAIT_TIME)
-
-        wait_max = 60
-        while wait_max > 0:
-            try:
-                self._web_driver.find_element_by_class_name(
-                    self._LOADING_CLASS_NAME
+        page_num = 1
+        metadatas = []
+        while True:
+            json_url = self._get_summary_json_url(json_url_prefix, page_num)
+            json = self._get_url_json(json_url)
+            for i, article in enumerate(json['channel']['item']):
+                pub_datetime_str = article['pubDate']
+                pub_datetime = self._parse_json_datetime_str(pub_datetime_str)
+                metadata = JpnArticleMetadata(
+                    title=article['title'],
+                    publication_datetime=pub_datetime,
+                    last_updated_datetime=pub_datetime,
+                    source_url=article['link'],
+                    source_name=self.SOURCE_NAME,
                 )
-            except NoSuchElementException:
-                break
+                metadatas.append(metadata)
+
             _log.debug(
-                'Loading element found. Will wait %s more seconds', wait_max
+                'Found %s metadatas from JSON url "%s"', i + 1, json_url
             )
-            time.sleep(1)
-            wait_max -= 1
+            if page_num >= max_pages_to_crawl:
+                return metadatas
 
-        if wait_max == 0:
-            utils.log_and_raise(
-                _log, HtmlParsingError,
-                'Elements still loading at page "{}" after timeout'.format(
-                    self._web_driver.current_url
+            # Some summary pages like News Up do not have the hasNext field for
+            # their first page, but they actually do always have a next page
+            # after the first in that case.
+            hasNext = json['channel'].get('hasNext')
+            if not (page_num == 1 and hasNext is None) and not hasNext:
+                _log.debug(
+                    'Only %s pages of JSON were available for url prefix '
+                    '"%s", so max of %s pages was not reached',
+                    page_num, json_url_prefix, max_pages_to_crawl
                 )
-            )
+                return metadatas
 
-    def _web_driver_get_url(self, url: str) -> None:
-        """Gets the url with class web driver."""
-        self._web_driver.get(url)
-        time.sleep(self._PAGE_LOAD_WAIT_TIME)
-        if (self._web_driver.title != self._PAGE_TITLES[url]):
-            utils.log_and_raise(
-                _log, CannotAccessPageError,
-                'Page title ({}) at url ({}) does not match expected title '
-                '({})'.format(
-                    self._web_driver.title, self._web_driver.current_url,
-                    self._PAGE_TITLES[url]
-                )
-            )
+            page_num += 1
 
     def _crawl_summary_page(
-        self, page_url: str, show_more_clicks: int,
-        has_header_sections: bool, has_single_link_list_articles: bool
+        self, json_url_prefix: str, max_pages_to_crawl: int
     ) -> CrawlGenerator:
-        """Gets all not yet crawled articles from given summary page.
+        """Crawls all not yet crawled articles for a summary page.
 
         Args:
-            page_url: The url of the summary page.
-            show_more_clicks: Number of times to click the button for showing
-                more articles on the summary page before starting the crawl.
-            has_header_sections: Whether or not the summary page has header
-                sections for featured articles in addition to its article
-                summary list.
-            has_single_link_list_articles: Whether or not the list items in
-               the article list on the summary page always have a single link
-               in them.
+            json_url_prefix: Url prefix for the summary page JSON urls to
+                crawl. Will append a page number suffix to this url to make the
+                full urls to crawl.
+            max_pages_to_crawl: Max number of pages of the JSON for the summary
+                page to crawl. If the total available pages is less than this
+                number, will crawl all available pages.
 
         Returns:
-            A list of all of the not yet crawled articles linked to from the
-            summary page.
+            A generator that will yield the data for a not previously crawled
+            article from the summary page each call.
         """
-        self._web_driver_get_url(page_url)
-        self._click_show_more(show_more_clicks)
-
-        soup = BeautifulSoup(self._web_driver.page_source, 'html.parser')
-        metadatas = self._scrape_summary_page_article_metadatas(
-            soup, has_header_sections, has_single_link_list_articles
+        metadatas = self._crawl_summary_page_json(
+            json_url_prefix, max_pages_to_crawl
         )
         _log.debug(
-            'Found %s metadatas from %s page',
-            len(metadatas), self._web_driver.title
+            'Found %s metadatas from "%s" JSON urls',
+            len(metadatas), json_url_prefix
         )
 
         yield from self._crawl_uncrawled_articles(metadatas)
 
-    def crawl_most_recent(self, show_more_clicks: int = 0) -> CrawlGenerator:
+    def crawl_most_recent(self, pages_to_crawl: int = 1) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'Most Recent' page.
 
         Args:
-            show_more_clicks: Number of times to click the button for showing
-                more articles on the Most Recent page before starting the
-                crawl.
+            pages_to_crawl: Number of pages to crawl of the Most Recent
+                page. Each page is usually 20 articles.
 
-                Can only be clicked a maximum of
-                MAX_MOST_RECENT_SHOW_MORE_CLICKS times because the show more
-                button is removed from the Most Recent page after that many
-                clicks.
+                If this number is higher than the total number of pages
+                available to crawl, will crawl all available pages instead.
 
         Returns:
-            A list of all of the not yet crawled articles linked to from the
-            Most Recent page.
+            A generator that will yield the data for a not previously crawled
+            article from the Most Recent page each call.
         """
-        if show_more_clicks > self.MAX_MOST_RECENT_SHOW_MORE_CLICKS:
-            raise ValueError(
-                'The Most Recent page show more button can only be clicked '
-                'up to {} times, but show_more_clicks is {}'.format(
-                    self.MAX_MOST_RECENT_SHOW_MORE_CLICKS, show_more_clicks
-                )
-            )
-
         yield from self._crawl_summary_page(
-            self._MOST_RECENT_PAGE_URL, show_more_clicks, False, False
+            self._MOST_RECENT_JSON_URL_PREFIX, pages_to_crawl
         )
 
-    def crawl_douga(self, show_more_clicks: int = 0) -> CrawlGenerator:
+    def crawl_douga(self, pages_to_crawl: int = 1) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'Douga' page.
 
         Args:
-            show_more_clicks: Number of times to click the button for showing
-                more articles on the Douga page before starting the crawl.
+            pages_to_crawl: Number of pages to crawl of the Douga page. Each
+                page is usually 20 articles.
 
-                Can only be clicked a maximum of MAX_DOUGA_SHOW_MORE_CLICKS
-                times because the show more button is removed from the Douga
-                page after that many clicks.
+                If this number is higher than the total number of pages
+                available to crawl, will crawl all available pages instead.
 
         Returns:
-            A list of all of the not yet crawled articles linked to from the
-            Douga page.
+            A generator that will yield the data for a not previously crawled
+            article from the Douga page each call.
         """
-        if show_more_clicks > self.MAX_DOUGA_SHOW_MORE_CLICKS:
-            raise ValueError(
-                'The Douga page show more button can only be clicked '
-                'up to {} times, but show_more_clicks is {}'.format(
-                    self.MAX_DOUGA_SHOW_MORE_CLICKS, show_more_clicks
-                )
-            )
-
         yield from self._crawl_summary_page(
-            self._DOUGA_PAGE_URL, show_more_clicks, False, True
+            self._DOUGA_JSON_URL_PREFIX, pages_to_crawl
         )
 
-    def crawl_news_up(self, show_more_clicks: int = 0) -> CrawlGenerator:
+    def crawl_news_up(self, pages_to_crawl: int = 1) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'News Up' page.
 
         Args:
-            show_more_clicks: Number of times to click the button for showing
-                more articles on the News Up page before starting the crawl.
+            pages_to_crawl: Number of pages to crawl of the News Up page. Each
+                page is usually 20 articles.
+
+                If this number is higher than the total number of pages
+                available to crawl, will crawl all available pages instead.
 
         Returns:
-            A list of all of the not yet crawled articles linked to from the
-            News Up page.
+            A generator that will yield the data for a not previously crawled
+            article from the News Up page each call.
         """
         yield from self._crawl_summary_page(
-            self._NEWS_UP_PAGE_URL, show_more_clicks, True, True
+            self._NEWS_UP_JSON_URL_PREFIX, pages_to_crawl
         )
 
-    def crawl_tokushu(self, show_more_clicks: int = 0) -> CrawlGenerator:
+    def crawl_tokushu(self, pages_to_crawl: int = 1) -> CrawlGenerator:
         """Gets all not yet crawled articles from the 'Tokushu' page.
 
         Args:
-            show_more_clicks: Number of times to click the button for showing
-                more articles on the Tokushu page before starting the crawl.
+            pages_to_crawl: Number of pages to crawl of the Tokushu page. Each
+                page is usually 20 articles.
+
+                If this number is higher than the total number of pages
+                available to crawl, will crawl all available pages instead.
 
         Returns:
-            A list of all of the not yet crawled articles linked to from the
-            Tokushu page.
+            A generator that will yield the data for a not previously crawled
+            article from the Tokushu page each call.
         """
         yield from self._crawl_summary_page(
-            self._TOKUSHU_PAGE_URL, show_more_clicks, True, True
+            self._TOKUSHU_JSON_URL_PREFIX, pages_to_crawl
         )
 
     def get_crawls_for_most_recent(self) -> List[Crawl]:
@@ -589,11 +367,14 @@ class NhkNewsWebCrawler(CrawlerABC):
         crawls = []
         most_recent_crawl = Crawl(
             self.SOURCE_NAME, 'Most Recent',
-            self.crawl_most_recent(self.MAX_MOST_RECENT_SHOW_MORE_CLICKS)
+            self.crawl_most_recent(self.MAX_MOST_RECENT_PAGES)
         )
         crawls.append(most_recent_crawl)
 
-        douga_crawl = Crawl(self.SOURCE_NAME, 'Douga', self.crawl_douga(4))
+        douga_crawl = Crawl(
+            self.SOURCE_NAME, 'Douga',
+            self.crawl_douga(self.MAX_DOUGA_PAGES)
+        )
         crawls.append(douga_crawl)
 
         news_up_crawl = Crawl(
@@ -639,6 +420,6 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         # Ruby tags tend to mess up Japanese processing, so strip all of them
         # from the HTML document right away.
-        article_tag = utils.html.strip_ruby_tags(article_tags[0])
+        article_tag = html.strip_ruby_tags(article_tags[0])
 
         return self._parse_article(article_tag, article_metadata)

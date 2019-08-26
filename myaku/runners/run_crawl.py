@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import List
 
 import myaku.crawlers
-import myaku.utils as utils
+from myaku import utils
 from myaku.crawlers.abc import Crawl
 from myaku.database import DbAccessMode, MyakuCrawlDb
 from myaku.datatypes import JpnArticle, FoundJpnLexicalItem

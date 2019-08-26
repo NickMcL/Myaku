@@ -4,7 +4,7 @@ import logging
 import time
 from typing import List
 
-import myaku.utils as utils
+from myaku import utils
 from myaku.database import DbAccessMode, MyakuCrawlDb
 from myaku.scorer import MyakuArticleScorer
 

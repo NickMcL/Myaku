@@ -24,7 +24,7 @@ from pymongo.errors import DuplicateKeyError
 from pymongo.results import InsertManyResult
 
 import myaku
-import myaku.utils as utils
+from myaku import utils
 from myaku.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
                              JpnArticleBlog, JpnArticleMetadata,
                              JpnLexicalItemInterp, LexicalItemTextPosition,

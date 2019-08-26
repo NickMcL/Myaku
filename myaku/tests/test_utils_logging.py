@@ -9,7 +9,7 @@ from typing import Callable, NamedTuple
 import pytest
 
 import myaku
-import myaku.utils as utils
+from myaku import utils
 
 LOG_MESSAGE_TEMPLATE = '{0} LOG TEST'
 DEBUG_LOG_MESSAGE = LOG_MESSAGE_TEMPLATE.format('DEBUG')

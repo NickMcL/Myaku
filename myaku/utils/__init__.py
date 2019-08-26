@@ -5,6 +5,7 @@ import functools
 import inspect
 import logging
 import os
+import posixpath
 import sys
 import time
 import traceback
@@ -13,6 +14,7 @@ from logging.handlers import RotatingFileHandler
 from operator import itemgetter
 from random import random
 from typing import Any, Callable, List, Optional, Tuple, TypeVar
+from urllib.parse import urlsplit, urlunsplit
 
 import jaconv
 import pytz
@@ -272,18 +274,59 @@ def tuple_or_none(item: Any) -> Tuple:
     return tuple(item)
 
 
+def join_suffix_to_url_base(url_base: str, url_suffix: str) -> str:
+    """Joins a url suffix to a url base.
+
+    The url base must have the scheme and network location parts of the url,
+    and it may have a path part.
+
+    The url suffix may have a path, query, and/or fragment part of the url.
+
+    If both the base and suffix have a path, the suffix path will be posixpath
+    joined to the base path in the returned url.
+    """
+    base_split = urlsplit(url_base)
+    suffix_split = urlsplit(url_suffix)
+    return urlunsplit(
+        (
+            base_split.scheme, base_split.netloc,
+            posixpath.join(base_split.path, suffix_split.path),
+            suffix_split.query, suffix_split.fragment
+        )
+    )
+
+
+def join_path_to_url(url: str, path: str) -> str:
+    """Joins a path section to a full url.
+
+    The scheme, network location, query, and fragment of the returned url will
+    be the same as the given url. The only change in the returned url is that
+    the given path section will be posixpath joined to path section of the
+    given url.
+    """
+    url_split = urlsplit(url)
+    return urlunsplit(
+        (
+            url_split.scheme, url_split.netloc,
+            posixpath.join(url_split.path, path),
+            url_split.query, url_split.fragment
+        )
+    )
+
+
 def convert_jst_to_utc(dt: datetime) -> datetime:
     """Returns Japan Standard Time (JST) datetime converted to UTC.
 
     JST is always UTC+9:00. Japan does not do daylight savings time.
 
     Args:
-        dt: JST datetime to be converted. The tzinfo must not be set.
+        dt: JST datetime to be converted. The datetime is assumed to be naive.
 
     Returns:
-        New datetime with dt converted to UTC.
+        New naive datetime with the proper offset applied to make it UTC.
     """
-    local_dt = _JAPAN_TIMEZONE.localize(dt, is_dst=None)
+    notz_dt = dt.replace(tzinfo=None)
+    local_dt = _JAPAN_TIMEZONE.localize(notz_dt, is_dst=None)
     utc_dt = local_dt.astimezone(pytz.utc)
     return utc_dt.replace(tzinfo=None)
 

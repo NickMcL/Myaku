@@ -8,7 +8,7 @@ from typing import List, NamedTuple, TypeVar
 
 import pytest
 
-import myaku.utils as utils
+from myaku import utils
 from myaku.errors import EnvironmentNotSetError
 
 TEST_ENV_VAR = 'TEST_ENV_VAR'

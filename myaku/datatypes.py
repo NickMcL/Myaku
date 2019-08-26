@@ -8,9 +8,9 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from operator import attrgetter
-from typing import Any, Dict, List, NamedTuple, Tuple
+from typing import Dict, List, NamedTuple, Tuple
 
-import myaku.utils as utils
+from myaku import utils
 from myaku.errors import MissingDataError
 
 _log = logging.getLogger(__name__)

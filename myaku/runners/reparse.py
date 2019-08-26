@@ -1,6 +1,6 @@
 import time
 
-import myaku.utils as utils
+from myaku import utils
 from myaku.database import DbAccessMode, MyakuCrawlDb
 from myaku.japanese_analysis import JapaneseTextAnalyzer
 
