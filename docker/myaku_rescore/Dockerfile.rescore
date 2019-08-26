@@ -39,8 +39,8 @@ ENV RESCORE_CRON_SCHEDULE "0 0 * * *"
 
 # Intentionally insert the env variable name and not its value into the cron
 # file so that the cron schedule can be swapped in for it at run time.
-RUN echo "RESCORE_CRON_SCHEDULE root $PYTHON_BIN $RESCORE_PYTHON_SCRIPT" \
-    >> $CRON_FILE
+RUN echo "RESCORE_CRON_SCHEDULE root flock -n /tmp/rescore.lockfile" \
+    "$PYTHON_BIN $RESCORE_PYTHON_SCRIPT" >> $CRON_FILE
 
 WORKDIR $RESCORE_SRC_DIR
 

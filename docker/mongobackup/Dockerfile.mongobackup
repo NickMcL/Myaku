@@ -26,7 +26,8 @@ ENV DB_BACKUP_RUN_SCRIPT $SCRIPTS_DIR/run_mongo_backup.sh
 # Intentionally insert the DB_BACKUP_CRON_SCHEDULE env variable name and not
 # its value into the cron file so that the cron schedule can be swapped in for
 # it at run time.
-RUN echo "DB_BACKUP_CRON_SCHEDULE root $DB_BACKUP_RUN_SCRIPT" >> $CRON_FILE
+RUN echo "DB_BACKUP_CRON_SCHEDULE root" \
+    "flock -n /tmp/mongobackup.lockfile $DB_BACKUP_RUN_SCRIPT" >> $CRON_FILE
 
 
 FROM base AS dev
