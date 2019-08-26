@@ -1358,6 +1358,7 @@ class MyakuCrawlDb(object):
 
         return docs
 
+    @utils.skip_method_debug_logging
     def _convert_interp_pos_map_to_doc(
         self, fli: FoundJpnLexicalItem
     ) -> _Document:
