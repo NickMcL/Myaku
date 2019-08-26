@@ -154,10 +154,10 @@ def _require_write_permission(func: Callable) -> Callable:
     """
     @functools.wraps(func)
     def wrapper_require_write_permission(*args, **kwargs):
-        if args[0].access_mode.has_write_permission():
+        if not args[0].access_mode.has_write_permission():
             utils.log_and_raise(
                 _log, DbPermissionError,
-                'Write operation "{}" was attempted with only {}'
+                'Write operation "{}" was attempted with only {} '
                 'permission'.format(
                     utils.get_full_name(func), args[0].access_mode.name
                 )
@@ -182,7 +182,7 @@ def _require_update_permission(func: Callable) -> Callable:
         if not args[0].access_mode.has_update_permission():
             utils.log_and_raise(
                 _log, DbPermissionError,
-                'Update operation "{}" was attempted with only {}'
+                'Update operation "{}" was attempted with only {} '
                 'permission'.format(
                     utils.get_full_name(func), args[0].access_mode.name
                 )
