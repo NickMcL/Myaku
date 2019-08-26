@@ -9,6 +9,7 @@ from django.http import HttpResponse
 from django.http.request import HttpRequest
 from django.shortcuts import render
 
+import myaku
 from myaku.database import (DbAccessMode, JpnArticleQueryType,
                             JpnArticleSearchResult, MyakuCrawlDb)
 from myaku.datatypes import JpnArticle, LexicalItemTextPosition
@@ -26,6 +27,8 @@ _ARTICLE_LEN_GROUPS = [
 _ARTICLE_LEN_GROUP_MAX_NAME = 'Very long length'
 
 _VERY_RECENT_DAYS = 7
+
+myaku.utils.toggle_myaku_package_log()
 
 
 class QueryMatchType(Enum):
@@ -392,7 +395,7 @@ class QueryInstanceResult(object):
 
 
 def index(request: HttpRequest) -> HttpResponse:
-    """Search index page handler."""
+    """Search page handler."""
     if len(request.GET.get('q', '')) == 0:
         return render(request, 'search/start.html', {})
 

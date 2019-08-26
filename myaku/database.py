@@ -439,35 +439,6 @@ class MyakuCrawlDb(object):
         )
         return len(docs) > 0
 
-    def filter_to_unstored_articles(
-        self, articles: List[JpnArticle]
-    ) -> List[JpnArticle]:
-        """Returns new list with the articles not currently stored in the db.
-
-        Does not modify the given articles list.
-
-        Args:
-            articles: A list of articles to check for in the database.
-
-        Returns:
-            The articles from the given list that are not currently stored in
-            the database. Preserves ordering used in the given list.
-        """
-        article_hashes = [a.text_hash for a in articles]
-
-        # Since there is an index on text_hash and this query queries and
-        # returns only the text_hash field, it will be a covered query
-        # (i.e. it's fast!)
-        stored_docs = self._read_with_log(
-            'text_hash', article_hashes, self._article_collection,
-            {'text_hash': 1, '_id': 0}
-        )
-
-        unstored_articles = self._filter_to_unstored(
-            articles, stored_docs, ['text_hash']
-        )
-        return unstored_articles
-
     @utils.skip_method_debug_logging
     def _create_id_query(self, obj: Any) -> _Document:
         """Creates docs to query for obj and project its id fields.
@@ -627,17 +598,16 @@ class MyakuCrawlDb(object):
             False if the quality score for the article in the db was already
             the same as the given one, so no update was necessary.
         """
-        _log.debug(
-            'Will update the quality score for the article with _id "%s" to '
-            '%s', article.database_id, article.quality_score
-        )
         result = self._article_collection.update_one(
             {'_id': ObjectId(article.database_id)},
             {'$set': {'quality_score': article.quality_score}}
         )
-        _log.debug('Update result: %s', result.raw_result)
         if result.modified_count == 0:
             return False
+        _log.debug(
+            'Updated the quality score for the article with _id "%s" to '
+            '%s', article.database_id, article.quality_score
+        )
 
         _log.debug(
             'Will update the quality score for the found lexical items for '
@@ -861,6 +831,7 @@ class MyakuCrawlDb(object):
             )
             yield article_oid_map[doc['_id']]
 
+    @_require_write_permission
     def _write_blogs(
         self, blogs: JpnArticleBlog
     ) -> Dict[int, ObjectId]:
@@ -883,6 +854,7 @@ class MyakuCrawlDb(object):
 
         return blog_oid_map
 
+    @_require_write_permission
     def _write_articles(
         self, articles: JpnArticle
     ) -> Dict[int, ObjectId]:
@@ -945,11 +917,16 @@ class MyakuCrawlDb(object):
             '_id', object_ids, self._article_collection
         )
 
-        blog_oids = list(set(doc['blog_oid'] for doc in article_docs))
-        blog_docs = self._read_with_log(
-            '_id', blog_oids, self._blog_collection
+        blog_oids = list(
+            set(doc['blog_oid'] for doc in article_docs if doc['blog_oid'])
         )
-        oid_blog_map = self._convert_docs_to_blogs(blog_docs)
+        if len(blog_oids) > 0:
+            blog_docs = self._read_with_log(
+                '_id', blog_oids, self._blog_collection
+            )
+            oid_blog_map = self._convert_docs_to_blogs(blog_docs)
+        else:
+            oid_blog_map = {}
 
         oid_article_map = self._convert_docs_to_articles(
             article_docs, oid_blog_map
@@ -1045,6 +1022,7 @@ class MyakuCrawlDb(object):
 
         return base_form_map
 
+    @_require_write_permission
     def _delete_low_quality(
         self, excess_flis: List[FoundJpnLexicalItem]
     ) -> None:
@@ -1084,6 +1062,7 @@ class MyakuCrawlDb(object):
             self._found_lexical_item_collection.full_name, base_form
         )
 
+    @_require_write_permission
     def _delete_articles_with_no_found_lexical_items(self) -> None:
         """Deletes articles with no stored found lexical items from the db.
 
@@ -1161,6 +1140,7 @@ class MyakuCrawlDb(object):
 
         return docs
 
+    @_require_write_permission
     def _write_with_log(
         self, docs: List[_Document], collection: Collection
     ) -> InsertManyResult:
@@ -1177,6 +1157,7 @@ class MyakuCrawlDb(object):
 
         return result
 
+    @_require_write_permission
     def _replace_write_with_log(
         self, docs: List[_Document], collection: Collection,
         id_fields: List[str]
@@ -1220,6 +1201,7 @@ class MyakuCrawlDb(object):
         )
         return object_ids
 
+    @utils.skip_method_debug_logging
     def _convert_article_metadata_to_docs(
         self, metadatas: List[JpnArticleMetadata]
     ) -> List[_Document]:
@@ -1245,6 +1227,7 @@ class MyakuCrawlDb(object):
 
         return docs
 
+    @utils.skip_method_debug_logging
     def _convert_blogs_to_docs(
         self, blogs: List[JpnArticleBlog]
     ) -> List[_Document]:
@@ -1274,6 +1257,7 @@ class MyakuCrawlDb(object):
 
         return docs
 
+    @utils.skip_method_debug_logging
     def _convert_articles_to_docs(
         self, articles: List[JpnArticle], blog_oid_map: Dict[int, ObjectId]
     ) -> List[_Document]:
@@ -1378,6 +1362,7 @@ class MyakuCrawlDb(object):
 
         return interp_pos_map_doc
 
+    @utils.skip_method_debug_logging
     def _convert_found_lexical_items_to_docs(
         self, found_lexical_items: List[FoundJpnLexicalItem],
         article_oid_map: Dict[int, ObjectId]
@@ -1423,6 +1408,7 @@ class MyakuCrawlDb(object):
 
         return docs
 
+    @utils.skip_method_debug_logging
     def _convert_docs_to_blogs(
         self, docs: List[_Document]
     ) -> Dict[ObjectId, JpnArticleBlog]:
@@ -1456,6 +1442,7 @@ class MyakuCrawlDb(object):
 
         return oid_blog_map
 
+    @utils.skip_method_debug_logging
     def _convert_docs_to_articles(
         self, docs: List[_Document],
         oid_blog_map: Dict[ObjectId, JpnArticleBlog]
@@ -1550,6 +1537,7 @@ class MyakuCrawlDb(object):
 
         return found_positions
 
+    @utils.skip_method_debug_logging
     def _convert_docs_to_found_lexical_items(
         self, docs: List[_Document],
         oid_article_map: Dict[ObjectId, JpnArticle]
@@ -1589,6 +1577,7 @@ class MyakuCrawlDb(object):
 
         return found_lexical_items
 
+    @utils.skip_method_debug_logging
     def _convert_docs_to_search_results(
         self, docs: List[_Document],
         oid_article_map: Dict[ObjectId, JpnArticle]

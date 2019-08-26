@@ -65,20 +65,21 @@ def toggle_myaku_package_log(
         enable: If True, enables the logger; if False, disables the logger.
         filename_base: A name to prepend to the files written by the logger.
     """
+    package_log = logging.getLogger(__name__.split('.')[0])
+    for handler in package_log.handlers[:]:
+        package_log.removeHandler(handler)
+    if not enable:
+        return
+
     # Use UTC time for all logging timestamps
     logging.Formatter.converter = time.gmtime
 
     log_dir = os.environ.get(myaku.LOG_DIR_ENV_VAR)
     if log_dir is None:
         log_dir = os.getcwd()
+    else:
+        os.makedirs(log_dir, exist_ok=True)
     filepath_base = os.path.join(log_dir, filename_base)
-
-    package_log = logging.getLogger(__name__.split('.')[0])
-    for handler in package_log.handlers[:]:
-        package_log.removeHandler(handler)
-
-    if not enable:
-        return
 
     _add_logging_handlers(package_log, filepath_base)
 
