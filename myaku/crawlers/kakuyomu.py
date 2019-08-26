@@ -641,7 +641,7 @@ class KakuyomuCrawler(CrawlerABC):
             self.SOURCE_NAME, 'Nonfiction most recent',
             self.crawl_search_results(
                 KakuyomuGenre.NONFICTION,
-                KakuyomuSortOrder.LAST_EPISODE_PUBLISHED_AT, 1, 5
+                KakuyomuSortOrder.LAST_EPISODE_PUBLISHED_AT, 5
             )
         )
         return [nonfiction_crawl]
