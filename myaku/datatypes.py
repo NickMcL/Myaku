@@ -41,16 +41,30 @@ class InterpSource(enum.Enum):
 
 
 @dataclass
-class JpnArticleBlog(object):
+class Crawlable(object):
+    """An item that can be crawled by a Myaku crawler.
+
+    Attributes:
+        source_name: Human-readable name of the source website of the item.
+        source_url: Url of the item.
+        publication_datetime: UTC datetime when the item was first published.
+        last_updated_datetime: UTC datetime of the last update to the item.
+        last_crawled_datetime: UTC datetime when the item was last crawled.
+    """
+    source_name: str = None
+    source_url: str = None
+    publication_datetime: datetime = None
+    last_updated_datetime: datetime = None
+    last_crawled_datetime: datetime = None
+
+
+@dataclass
+class JpnArticleBlog(Crawlable):
     """Info for a blog of Japanese text articles.
 
     Attributes:
         title: Title of the blog.
         author: Name of the author of the blog.
-        source_name: Human-readable name of the source website of the blog.
-        source_url: Url of the blog homepage.
-        start_datetime: UTC datetime when the blog was started.
-        last_updated_time: UTC datetime when the blog was last updated.
         rating: Rating score of the blog (scale depends on source).
         rating_count: Number of users that have rated the blog.
         tags: Tags specified for the blog.
@@ -65,14 +79,9 @@ class JpnArticleBlog(object):
             True means more articles are expected to be published to the blog,
             and False means no more articles are expected to be published to
             the blog.
-        last_crawled_datetime: UTC datetime that the blog was last crawled.
     """
     title: str = None
     author: str = None
-    source_name: str = None
-    source_url: str = None
-    start_datetime: datetime = None
-    last_updated_datetime: datetime = None
     rating: float = None
     rating_count: int = None
     tags: List[str] = None
@@ -83,49 +92,25 @@ class JpnArticleBlog(object):
     comment_count: int = None
     follower_count: int = None
     in_serialization: bool = None
-    last_crawled_datetime: datetime = None
-
-    ID_FIELDS: Tuple[str, ...] = field(
-        default=(
-            'source_name',
-            'title',
-            'author',
-        ),
-        init=False,
-        repr=False
-    )
 
     def __str__(self) -> str:
         """Returns the title and author in string format."""
         return '{}|{}'.format(self.title, self.author)
 
-    def get_id(self) -> str:
-        """Returns the unique id for this blog."""
-        id_strs = []
-        for id_field in self.ID_FIELDS:
-            value = getattr(self, id_field)
-            if value is None:
-                id_strs.append('')
-            elif isinstance(value, datetime):
-                id_strs.append(value.timestamp())
-            else:
-                id_strs.append(str(value))
-
-        return '-'.join(id_strs)
-
 
 @dataclass
-class JpnArticleMetadata(object):
-    """The metadata for a Japanese text article.
+@utils.make_properties_work_in_dataclass
+class JpnArticle(Crawlable):
+    """The full text and metadata for a Japanese text article.
 
     Attributes:
         title: Title of the article.
         author: Author of the article.
-        source_url: Fully-qualified URL where the article was found.
-        source_name: Human-readable name of the source of the article.
+        full_text: The full text of the article. Includes the title.
+        alnum_count: The alphanumeric character count of full_text.
+        has_video: True if the article contains a video.
         blog: Blog the article was posted to. If None, the article was not
             posted as part of a blog.
-        blog_id: A unique id for the blog the article was posted to.
         blog_article_order_num: Overall number of this article in the ordering
             of the articles on the blog this article was posted on.
         blog_section_name: Name of the section of the blog this article was
@@ -135,64 +120,21 @@ class JpnArticleMetadata(object):
         blog_section_article_order_num: Number of this article in the ordering
             of the articles in the section of the blog this article was posted
             in.
-        publication_datetime: UTC datetime the article was published.
-        last_updated_datetime: UTC datetime of the last update to the article.
-        last_crawled_datetime: UTC datetime the article was last crawled.
-    """
+        database_id: The ID for this article in the Myaku database.
+        quality_score: Quality score for this article determined by Myaku.
+        text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
+            automatically lazily after changes to full_text. Read-only.
+        """
     title: str = None
     author: str = None
-    source_url: str = None
-    source_name: str = None
+    full_text: str = None
+    alnum_count: int = None
+    has_video: bool = None
     blog: JpnArticleBlog = None
-    blog_id: str = None
     blog_article_order_num: int = None
     blog_section_name: str = None
     blog_section_order_num: int = None
     blog_section_article_order_num: int = None
-    publication_datetime: datetime = None
-    last_updated_datetime: datetime = None
-    last_crawled_datetime: datetime = None
-
-    ID_FIELDS: Tuple[str, ...] = field(
-        default=(
-            'source_name',
-            'blog_id',
-            'title',
-            'author',
-            'publication_datetime',
-        ),
-        init=False,
-        repr=False
-    )
-
-    def __str__(self) -> str:
-        """Returns the title and publication time in string format."""
-        return '{}|{}|{}'.format(
-            self.title,
-            self.blog,
-            self.publication_datetime.isoformat()
-        )
-
-
-@dataclass
-@utils.make_properties_work_in_dataclass
-class JpnArticle(object):
-    """The full text and metadata for a Japanese text article.
-
-    Attributes:
-        full_text: The full text of the article. Includes the title.
-        alnum_count: The alphanumeric character count of full_text.
-        has_video: True if the article contains a video.
-        metadata: The source metadata for the article.
-        text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
-            automatically lazily after changes to full_text. Read-only.
-        database_id: The ID for this article in the Myaku database.
-        quality_score: Quality score for this article determined by Myaku.
-        """
-    full_text: str = None
-    alnum_count: int = None
-    has_video: bool = None
-    metadata: JpnArticleMetadata = None
     database_id: str = None
     quality_score: int = None
 
@@ -217,19 +159,25 @@ class JpnArticle(object):
     def text_hash(self) -> str:
         """See class docstring for text_hash documentation."""
         if self._text_hash_change:
-            self._text_hash = (
-                hashlib.sha256(self.full_text.encode('utf-8')).hexdigest()
-            )
+            if self.full_text:
+                self._text_hash = (
+                    hashlib.sha256(self.full_text.encode('utf-8')).hexdigest()
+                )
+            else:
+                self._text_hash = None
             self._text_hash_change = False
 
         return self._text_hash
 
     def __str__(self) -> str:
-        if self.metadata is None:
-            metadata_str = '<No article metadata>'
-        else:
-            metadata_str = str(self.metadata)
-        return '{}|{}'.format(metadata_str, self.quality_score)
+        """Returns the identifying data for the article in string format."""
+        return '|'.join([
+            self.title,
+            self.source_url,
+            str(self.blog),
+            self.publication_datetime.isoformat(),
+            str(self.quality_score)
+        ])
 
     def get_containing_sentence(
         self, item_pos: 'LexicalItemTextPosition'

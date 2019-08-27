@@ -60,8 +60,9 @@ def parse_script_args() -> Tuple[str, Optional[ObjectId]]:
     """
     if len(sys.argv) not in (2, 3):
         raise ScriptArgsError(
-            'run_crawl.py script given {} args instead of 2 or 3: {}',
-            len(sys.argv), sys.argv
+            'run_crawl.py script given {} args instead of 2 or 3: {}'.format(
+                len(sys.argv), sys.argv
+            )
         )
 
     if len(sys.argv) == 2:

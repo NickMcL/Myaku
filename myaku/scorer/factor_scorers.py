@@ -168,7 +168,7 @@ class PublicationRecencyScorer(ArticleFactorScorer):
             The score for the recency of the publication of the article.
         """
         multiplier = self._RECENCY_RANGE_MULTIPLIERS[
-            (datetime.utcnow() - article.metadata.last_updated_datetime).days
+            (datetime.utcnow() - article.last_updated_datetime).days
         ]
         return math.floor(_MAX_FACTOR_SCORE * multiplier)
 
@@ -199,13 +199,13 @@ class BlogArticleOrderScorer(ArticleFactorScorer):
         Returns:
             The score for the order position of the article in its blog.
         """
-        blog_order_num = article.metadata.blog_article_order_num
+        blog_order_num = article.blog_article_order_num
         if blog_order_num is not None and blog_order_num == 1:
             return math.floor(
                 _MAX_FACTOR_SCORE * self._BLOG_FIRST_ARTICLE_MULTIPLIER
             )
 
-        section_order_num = article.metadata.blog_section_order_num
+        section_order_num = article.blog_section_order_num
         if section_order_num is not None and section_order_num == 1:
             return math.floor(
                 _MAX_FACTOR_SCORE * self._SECTION_FIRST_ARTICLE_MULTIPLIER
@@ -246,7 +246,7 @@ class BlogRatingScorer(ArticleFactorScorer):
         Returns:
             The score for the rating of the blog for the article.
         """
-        source_name = article.metadata.source_name
+        source_name = article.source_name
         if source_name == NhkNewsWebCrawler.SOURCE_NAME:
             return math.floor(
                 _MAX_FACTOR_SCORE * self._NHK_NEWS_WEB_MULTIPLIER
@@ -269,7 +269,7 @@ class BlogRatingScorer(ArticleFactorScorer):
             article.
         """
         multiplier = self._KAKUYOMU_STAR_RANGE_MULTIPLIERS[
-            int(article.metadata.blog.rating)
+            int(article.blog.rating)
         ]
         return math.floor(_MAX_FACTOR_SCORE * multiplier)
 

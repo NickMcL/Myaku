@@ -365,7 +365,7 @@ class QueryArticleResult(object):
             tag_strs.append(_ARTICLE_LEN_GROUP_MAX_NAME)
 
         duration_since_update = (
-            datetime.utcnow() - article.metadata.last_updated_datetime
+            datetime.utcnow() - article.last_updated_datetime
         )
         if duration_since_update.days <= _VERY_RECENT_DAYS:
             tag_strs.append('Very recent')

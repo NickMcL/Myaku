@@ -11,7 +11,7 @@ from bs4.element import Tag
 
 from myaku import utils
 from myaku.crawlers.abc import Crawl, CrawlerABC, CrawlGenerator
-from myaku.datatypes import JpnArticle, JpnArticleBlog, JpnArticleMetadata
+from myaku.datatypes import JpnArticle, JpnArticleBlog
 from myaku.errors import HtmlParsingError
 from myaku.utils import html
 
@@ -92,7 +92,7 @@ class KakuyomuCrawler(CrawlerABC):
     _SERIES_INFO_LIST_CLASS = 'widget-credit'
     _INFO_LIST_HIDDEN_DATA_STRING = '作者の設定により非表示'
 
-    _START_DATETIME_TERM = '公開日'
+    _PUBLICATION_DATETIME_TERM = '公開日'
     _LAST_UPDATED_DATETIME_TERM = '最終更新日'
     _ARTICLE_COUNT_TERM = 'エピソード'
     _ARTICLE_COUNT_REGEX = re.compile(r'^([0-9,]+)話$')
@@ -349,11 +349,11 @@ class KakuyomuCrawler(CrawlerABC):
         )
         meta_info_list = info_lists[0]
 
-        start_datetime_dd = html.select_desc_list_data(
-            meta_info_list, self._START_DATETIME_TERM
+        publication_datetime_dd = html.select_desc_list_data(
+            meta_info_list, self._PUBLICATION_DATETIME_TERM
         )
-        series_blog.start_datetime = html.parse_time_descendant(
-            start_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
+        series_blog.publication_datetime = html.parse_time_descendant(
+            publication_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
         )
 
         last_updated_datetime_dd = html.select_desc_list_data(
@@ -486,7 +486,7 @@ class KakuyomuCrawler(CrawlerABC):
         self, episode_li_tag: Tag, series_blog: JpnArticleBlog,
         ep_order_num: int, section_name: str, section_order_num: int,
         section_ep_order_num: int
-    ) -> JpnArticleMetadata:
+    ) -> JpnArticle:
         """Parses the metadata for an episode from a series table of contents.
 
         Args:
@@ -494,9 +494,10 @@ class KakuyomuCrawler(CrawlerABC):
                 that will be parsed.
 
         Returns:
-            The metadata contained within the episode li tag.
+            An article object with the metadata contained within the episode li
+            tag.
         """
-        return JpnArticleMetadata(
+        return JpnArticle(
             title=html.parse_text_from_descendant_by_class(
                 episode_li_tag, self._EPISODE_TOC_TITLE_CLASS, 'span'
             ).strip(),
@@ -504,7 +505,6 @@ class KakuyomuCrawler(CrawlerABC):
             source_url=html.parse_link_descendant(episode_li_tag),
             source_name=self.SOURCE_NAME,
             blog=series_blog,
-            blog_id=series_blog.get_id(),
             blog_article_order_num=ep_order_num,
             blog_section_name=section_name,
             blog_section_order_num=section_order_num,
@@ -512,12 +512,11 @@ class KakuyomuCrawler(CrawlerABC):
             publication_datetime=html.parse_time_descendant(
                 episode_li_tag, self._TIME_TAG_DATETIME_FORMAT
             ),
-            last_crawled_datetime=datetime.utcnow(),
         )
 
     def _parse_series_episode_metadatas(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
-    ) -> List[JpnArticleMetadata]:
+    ) -> List[JpnArticle]:
         """Parse the episode metadatas for a series from its homepage.
 
         Args:
@@ -526,14 +525,14 @@ class KakuyomuCrawler(CrawlerABC):
             series_blog: Blog info for this series.
 
         Returns:
-            A list of the metadatas for all episodes listed on the series
-            homepage.
+            A list of the article metadatas for all episodes listed on the
+            series homepage.
         """
         table_of_contents_items = self._select_table_of_contents_items(
             series_page_soup
         )
 
-        metadatas = []
+        article_metas = []
         ep_order_num = 1
         section_order_num = 0
         section_ep_order_num = 1
@@ -544,11 +543,11 @@ class KakuyomuCrawler(CrawlerABC):
                 section_ep_order_num = 1
                 section_name = html.parse_valid_child_text(item).strip()
             elif self._is_episode_li(item):
-                metadata = self._parse_table_of_contents_episode(
+                article_meta = self._parse_table_of_contents_episode(
                     item, series_blog, ep_order_num, section_name,
                     section_order_num, section_ep_order_num
                 )
-                metadatas.append(metadata)
+                article_metas.append(article_meta)
                 ep_order_num += 1
                 section_ep_order_num += 1
             else:
@@ -558,7 +557,7 @@ class KakuyomuCrawler(CrawlerABC):
                     item, series_page_soup
                 )
 
-        return metadatas
+        return article_metas
 
     def crawl_blog(self, page_url: str) -> CrawlGenerator:
         """Crawls a series homepage.
@@ -572,11 +571,11 @@ class KakuyomuCrawler(CrawlerABC):
         """
         page_soup = self._get_url_html_soup(page_url)
         series_blog = self._parse_series_blog_info(page_soup, page_url)
-        metadatas = self._parse_series_episode_metadatas(
+        article_metas = self._parse_series_episode_metadatas(
             page_soup, series_blog
         )
 
-        yield from self._crawl_uncrawled_articles(metadatas)
+        yield from self._crawl_uncrawled_articles(article_metas)
 
     def _crawl_search_results_page(
         self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
@@ -640,7 +639,7 @@ class KakuyomuCrawler(CrawlerABC):
             self.SOURCE_NAME, 'Nonfiction most recent',
             self.crawl_search_results(
                 KakuyomuGenre.NONFICTION,
-                KakuyomuSortOrder.LAST_EPISODE_PUBLISHED_AT, 5
+                KakuyomuSortOrder.LAST_EPISODE_PUBLISHED_AT, 1
             )
         )
         return [nonfiction_crawl]
@@ -700,13 +699,13 @@ class KakuyomuCrawler(CrawlerABC):
         )
 
     def crawl_article(
-        self, article_url: str, article_metadata: JpnArticleMetadata
+        self, article_url: str, article_meta: JpnArticle
     ) -> JpnArticle:
         """Crawls a Kakuyomu episode article.
 
         Args:
             article_url: Url to a page containing a Kakuyomu episode.
-            article_metadata: Metadata for the article listed on its series
+            article_meta: Metadata for the article listed on its series
                 homepage.
 
         Returns:
@@ -718,16 +717,17 @@ class KakuyomuCrawler(CrawlerABC):
             HtmlParsingError: An error occurred while parsing the article.
         """
         episode_page_soup = self._get_url_html_soup(article_url)
-        article = JpnArticle(metadata=article_metadata, has_video=False)
 
+        article = article_meta
         article.full_text = self._parse_episode_text(episode_page_soup)
         article.alnum_count = utils.get_alnum_count(article.full_text)
+        article.has_video = False
 
         sidebar_url = utils.join_path_to_url(
             article_url, self._EPISODE_SIDEBAR_URL_SUFFIX
         )
         episode_sidebar_soup = self._get_url_html_soup(sidebar_url)
-        article.metadata.last_updated_datetime = (
+        article.last_updated_datetime = (
             self._parse_episode_last_updated_datetime(episode_sidebar_soup)
         )
 

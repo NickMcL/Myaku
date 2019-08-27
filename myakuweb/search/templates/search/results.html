@@ -39,17 +39,17 @@
         <div class="row mb-3 card shadow-sm">
           <div class="col-12 pt-3 px-3">
             <h4>
-              <a class="article-title" href="{{ result.article.metadata.source_url }}">
-                {{ result.article.metadata.title }}
+              <a class="article-title" href="{{ result.article.source_url }}">
+                {{ result.article.title }}
               </a>
             </h4>
 
             <div>
               <span class="article-info-text">
-                {{ result.article.metadata.source_name }}
-                - {{ result.article.metadata.publication_datetime|date:"M jS, Y" }} 
-                {% if result.article.metadata.publication_datetime != result.article.metadata.last_updated_datetime %}
-                  (Updated {{ result.article.metadata.last_updated_datetime|date:"M jS, Y" }})
+                {{ result.article.source_name }}
+                - {{ result.article.publication_datetime|date:"M jS, Y" }} 
+                {% if result.article.publication_datetime != result.article.last_updated_datetime %}
+                  (Updated {{ result.article.last_updated_datetime|date:"M jS, Y" }})
                 {% endif %}
               </span>
               <span class="article-info-text d-none d-md-inline">

@@ -14,7 +14,7 @@ from selenium.webdriver import firefox
 import myaku
 from myaku import utils
 from myaku.database import DbAccessMode, MyakuCrawlDb
-from myaku.datatypes import JpnArticle, JpnArticleBlog, JpnArticleMetadata
+from myaku.datatypes import Crawlable, JpnArticle, JpnArticleBlog
 
 _log = logging.getLogger(__name__)
 
@@ -77,17 +77,17 @@ class CrawlerABC(ABC):
 
     @abstractmethod
     def crawl_article(
-        self, article_url: str, article_metadata: JpnArticleMetadata
+        self, article_url: str, article_meta: JpnArticle
     ) -> JpnArticle:
-        """Crawls a single article from the source.
+        """Crawls a the article page for a single article from the source.
 
         Args:
-            article_url: Url for the article.
-            article_metadata: Metadata for the article from outside the article
-                page.
+            article_url: Url for the article page.
+            article_meta: Article object prepopulated with metadata for the
+                article from outside the article page.
 
         Returns:
-            A JpnArticle with the data from the crawled article + the given
+            A JpnArticle with the data from the article page + the given
             metadata.
         """
         return JpnArticle()
@@ -181,46 +181,65 @@ class CrawlerABC(ABC):
 
         return response
 
-    @utils.add_debug_logging
-    def _crawl_uncrawled_articles(
-        self, metadatas: List[JpnArticleMetadata]
-    ) -> CrawlGenerator:
-        """Crawls not yet crawled articles specified by the metadatas.
+    def _prep_uncrawled_items_for_crawl(
+        self, crawlable_items: List[Crawlable]
+    ) -> List[Crawlable]:
+        """Gets uncrawled items from the list and preps them for crawling.
 
         Args:
-            metadatas: List of metadatas whose articles to crawl if not
-                previous crawled.
+            crawlable_items: List of crawlable items.
+
+        Returns:
+            A new list with only the items from the given list that have not
+            previously been crawled.
+            Also updates the source_url of the returned items from a relative
+            url to a fully-qualified url.
+        """
+        if len(crawlable_items) == 0:
+            return []
+
+        for item in crawlable_items:
+            item.source_url = utils.join_suffix_to_url_base(
+                self._SOURCE_BASE_URL, item.source_url
+            )
+
+        with MyakuCrawlDb(DbAccessMode.READ) as db:
+            uncrawled_items = db.filter_crawlable_to_updated(crawlable_items)
+        _log.debug(
+            '%s found crawlable items of type %s have not been crawled',
+            len(uncrawled_items), type(crawlable_items[0])
+        )
+
+        return uncrawled_items
+
+    @utils.add_debug_logging
+    def _crawl_uncrawled_articles(
+        self, article_metas: List[JpnArticle]
+    ) -> CrawlGenerator:
+        """Crawls not yet crawled articles specified by the article metas.
+
+        Args:
+            article_metas: List of article metadatas whose articles to crawl if
+                not previous crawled. Must have at least the source_url attr
+                set.
 
         Returns:
             A generator that will yield a previously uncrawled JpnArticle from
-            the given metadatas each call.
+            the given list of article metadatas each call.
         """
-        with MyakuCrawlDb(DbAccessMode.READ) as db:
-            uncrawled_metadatas = db.filter_to_uncrawled_article_metadatas(
-                metadatas
-            )
-
-        _log.debug(
-            '%s found metadatas have not been crawled',
-            len(uncrawled_metadatas)
-        )
-        if len(uncrawled_metadatas) == 0:
+        uncrawled_metas = self._prep_uncrawled_items_for_crawl(article_metas)
+        if len(uncrawled_metas) == 0:
             return
 
-        for metadata in uncrawled_metadatas:
-            metadata.source_url = utils.join_suffix_to_url_base(
-                self._SOURCE_BASE_URL, metadata.source_url
-            )
-
         with MyakuCrawlDb(DbAccessMode.READ_WRITE) as db:
-            for i, metadata in enumerate(uncrawled_metadatas):
+            for i, meta in enumerate(uncrawled_metas):
                 _log.debug(
                     'Crawling uncrawled artcile %s / %s',
-                    i + 1, len(uncrawled_metadatas)
+                    i + 1, len(uncrawled_metas)
                 )
-                article = self.crawl_article(metadata.source_url, metadata)
-                yield article
-                db.write_crawled([article.metadata])
+                meta.last_crawled_datetime = datetime.utcnow()
+                yield self.crawl_article(meta.source_url, meta)
+                db.update_last_crawled(meta)
 
     @utils.add_debug_logging
     def _crawl_updated_blogs(
@@ -236,28 +255,15 @@ class CrawlerABC(ABC):
             A generator that will yield a previously uncrawled JpnArticle from
             one of the updated blogs each call.
         """
-        with MyakuCrawlDb(DbAccessMode.READ) as db:
-            updated_blogs = db.filter_to_updated_blogs(blogs)
-
-        _log.debug(
-            '%s found blogs have been updated since last crawled',
-            len(updated_blogs)
-        )
+        updated_blogs = self._prep_uncrawled_items_for_crawl(blogs)
         if len(updated_blogs) == 0:
             return
-
-        for blog in updated_blogs:
-            blog.source_url = utils.join_suffix_to_url_base(
-                self._SOURCE_BASE_URL, blog.source_url
-            )
 
         with MyakuCrawlDb(DbAccessMode.READ_WRITE) as db:
             for i, blog in enumerate(updated_blogs):
                 _log.debug(
-                    'Crawling updated blog %s / %s',
-                    i + 1, len(updated_blogs)
+                    'Crawling updated blog %s / %s', i + 1, len(updated_blogs)
                 )
-
                 blog.last_crawled_datetime = datetime.utcnow()
                 yield from self.crawl_blog(blog.source_url)
-                db.update_blog_last_crawled(blog)
+                db.update_last_crawled(blog)

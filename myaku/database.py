@@ -25,10 +25,9 @@ from pymongo.results import InsertManyResult
 
 import myaku
 from myaku import utils
-from myaku.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
-                             JpnArticleBlog, JpnArticleMetadata,
-                             JpnLexicalItemInterp, LexicalItemTextPosition,
-                             MecabLexicalItemInterp)
+from myaku.datatypes import (Crawlable, FoundJpnLexicalItem, InterpSource,
+                             JpnArticle, JpnArticleBlog, JpnLexicalItemInterp,
+                             LexicalItemTextPosition, MecabLexicalItemInterp)
 from myaku.errors import DbPermissionError
 
 _log = logging.getLogger(__name__)
@@ -299,12 +298,6 @@ class MyakuCrawlDb(object):
     _BLOG_COLL_NAME = 'blogs'
     _FOUND_LEXICAL_ITEM_COLL_NAME = 'found_lexical_items'
 
-    # Stores only metadata for previous crawled articles. Used to keep track of
-    # which articles have been crawled before so that crawlers don't try to
-    # crawl them again even after the article is deleted from the articles
-    # collection.
-    _CRAWLED_COLL_NAME = 'crawled'
-
     # The match stage at the start of the aggergate is necessary in order to
     # get a covered query that only scans the index for base_form.
     _BASE_FORM_COUNT_LIMIT = 1000
@@ -362,10 +355,14 @@ class MyakuCrawlDb(object):
         self._db = self._mongo_client[self._DB_NAME]
         self._article_collection = self._db[self._ARTICLE_COLL_NAME]
         self._blog_collection = self._db[self._BLOG_COLL_NAME]
-        self._crawled_collection = self._db[self._CRAWLED_COLL_NAME]
         self._found_lexical_item_collection = (
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
+
+        self._crawlable_coll_map = {
+            JpnArticle: self._article_collection,
+            JpnArticleBlog: self._blog_collection,
+        }
 
         self.access_mode = access_mode
         if access_mode.has_write_permission():
@@ -404,6 +401,12 @@ class MyakuCrawlDb(object):
         self._article_collection.create_index('blog_oid')
         self._found_lexical_item_collection.create_index('article_oid')
 
+        for crawlable_collection in self._crawlable_coll_map.values():
+            crawlable_collection.create_index([
+                ('source_url', pymongo.ASCENDING),
+                ('last_crawled_datetime', pymongo.ASCENDING),
+            ])
+
         for query_type in JpnArticleQueryType:
             query_field = self._QUERY_TYPE_QUERY_FIELD_MAP[query_type]
             score_field = self._QUERY_TYPE_SCORE_FIELD_MAP[query_type]
@@ -417,22 +420,8 @@ class MyakuCrawlDb(object):
                 name=query_field + '_search'
             )
 
-        crawled_id_index = []
-        for field in JpnArticleMetadata.ID_FIELDS:
-            crawled_id_index.append((field, pymongo.ASCENDING))
-        self._crawled_collection.create_index(
-            crawled_id_index, name='crawled_id_index'
-        )
-
-        blog_id_index = []
-        for field in JpnArticleBlog.ID_FIELDS:
-            blog_id_index.append((field, pymongo.ASCENDING))
-        self._blog_collection.create_index(
-            blog_id_index, name='blog_id_index'
-        )
-
-    def is_article_stored(self, article: JpnArticle) -> bool:
-        """Returns True if article is stored in the db, False otherwise."""
+    def is_article_text_stored(self, article: JpnArticle) -> bool:
+        """Returns True if an article with the same text is already stored."""
         docs = self._read_with_log(
             'text_hash', article.text_hash, self._article_collection,
             {'text_hash': 1, '_id': 0}
@@ -440,88 +429,60 @@ class MyakuCrawlDb(object):
         return len(docs) > 0
 
     @utils.skip_method_debug_logging
-    def _create_id_query(self, obj: Any) -> _Document:
-        """Creates docs to query for obj and project its id fields.
+    def filter_crawlable_to_updated(
+        self, crawlable_items: List[Crawlable]
+    ) -> List[Crawlable]:
+        """Returns new list with the items updated since last crawled.
 
-        Args:
-            obj: Object being queried for. It must define an ID_FIELDS list
-                with the field names that can be used to uniquely identify an
-                object of its type.
-
-        Returns:
-            (query doc, projection doc)
+        The new list includes items that have never been crawled as well.
         """
-        query_doc = {}
-        proj_doc = {'_id': 0}
-        for field in obj.ID_FIELDS:
-            query_doc[field] = getattr(obj, field)
-            proj_doc[field] = 1
-        return (query_doc, proj_doc)
+        if len(crawlable_items) == 0:
+            return []
 
-    def filter_to_uncrawled_article_metadatas(
-        self, metadatas: List[JpnArticleMetadata]
-    ) -> List[JpnArticleMetadata]:
-        """Returns new list with the metadatas for the uncrawled articles."""
-        unstored_metadatas = []
-        for metadata in metadatas:
-            query, proj = self._create_id_query(metadata)
-            if self._crawled_collection.find_one(query, proj) is None:
-                unstored_metadatas.append(metadata)
-
-        _log.debug(
-            'Filtered to %s unstored article metadatas',
-            len(unstored_metadatas)
+        cursor = self._crawlable_coll_map[type(crawlable_items[0])].find(
+            {'source_url': {'$in': [i.source_url for i in crawlable_items]}},
+            {'_id': -1, 'source_url': 1, 'last_crawled_datetime': 1}
         )
-        return unstored_metadatas
+        last_crawled_map = {
+            d['source_url']: d['last_crawled_datetime'] for d in cursor
+        }
 
-    def filter_to_updated_blogs(
-        self, blogs: List[JpnArticleBlog]
-    ) -> List[JpnArticleBlog]:
-        """Returns new list with the blogs updated since last crawled.
-
-        The new list includes blogs that have never been crawled as well.
-        """
-        updated_blogs = []
+        updated_items = []
         unstored_count = 0
         partial_stored_count = 0
         updated_count = 0
-        for blog in blogs:
-            query, proj = self._create_id_query(blog)
-            proj['last_crawled_datetime'] = 1
-            doc = self._blog_collection.find_one(query, proj)
-
-            if doc is None:
+        for item in crawlable_items:
+            item_url = item.source_url
+            if item_url not in last_crawled_map:
                 unstored_count += 1
-                updated_blogs.append(blog)
-            elif doc['last_crawled_datetime'] is None:
+                updated_items.append(item)
+            elif last_crawled_map[item_url] is None:
                 partial_stored_count += 1
-                updated_blogs.append(blog)
-            elif blog.last_updated_datetime > doc['last_crawled_datetime']:
+                updated_items.append(item)
+            elif (item.last_updated_datetime is not None
+                  and item.last_updated_datetime > last_crawled_map[item_url]):
                 updated_count += 1
-                updated_blogs.append(blog)
+                updated_items.append(item)
 
         _log.debug(
             'Filtered to %s unstored, %s partially stored, and %s updated '
-            'blogs', unstored_count, partial_stored_count, updated_count
+            'crawlable items of type %s',
+            unstored_count, partial_stored_count, updated_count,
+            type(crawlable_items[0])
         )
-        return updated_blogs
+        return updated_items
 
+    @utils.skip_method_debug_logging
     @_require_update_permission
-    def update_blog_last_crawled(self, blog: JpnArticleBlog) -> None:
-        """Updates the last crawled datetime of the blog in the db."""
-        query, proj = self._create_id_query(blog)
-
+    def update_last_crawled(self, item: Crawlable) -> None:
+        """Updates the last crawled datetime of the item in the db."""
         _log.debug(
-            'Updating the last crawled datetime in collection "%s" for blog '
-            '"%s"', self._blog_collection.full_name, blog
+            'Updating the last crawled datetime for item "%s" of type %s',
+            item, type(item)
         )
-        result = self._blog_collection.update_one(
-            query,
-            {
-                '$set': {
-                    'last_crawled_datetime': blog.last_crawled_datetime
-                }
-            }
+        result = self._crawlable_coll_map[type(item)].update_one(
+            {'source_url': item.source_url},
+            {'$set': {'last_crawled_datetime': item.last_crawled_datetime}}
         )
         _log.debug('Update result: %s', result.raw_result)
 
@@ -540,15 +501,11 @@ class MyakuCrawlDb(object):
             self, articles: List[JpnArticle]
     ) -> List[JpnArticleBlog]:
         """Gets the unique blogs referenced by the articles."""
-        articles_with_blog = [
-            a for a in articles if a.metadata and a.metadata.blog
-        ]
+        articles_with_blog = [a for a in articles if a.blog]
 
         # Many found lexical items can point to the same blog object in
         # memory, so dedupe using id() to get each blog object only once.
-        blog_id_map = {
-            id(a.metadata.blog): a.metadata.blog for a in articles_with_blog
-        }
+        blog_id_map = {id(a.blog): a.blog for a in articles_with_blog}
         return list(blog_id_map.values())
 
     @_require_write_permission
@@ -846,7 +803,7 @@ class MyakuCrawlDb(object):
         """
         blog_docs = self._convert_blogs_to_docs(blogs)
         object_ids = self._replace_write_with_log(
-            blog_docs, self._blog_collection, JpnArticleBlog.ID_FIELDS
+            blog_docs, self._blog_collection, 'source_url'
         )
         blog_oid_map = {
             id(b): oid for b, oid in zip(blogs, object_ids)
@@ -889,14 +846,14 @@ class MyakuCrawlDb(object):
             A mapping from the id() for each given article to the ObjectId that
             article is stored with.
         """
-        text_hashes = [a.text_hash for a in articles]
+        source_urls = [a.source_url for a in articles]
         docs = self._read_with_log(
-            'text_hash', text_hashes, self._article_collection,
-            {'text_hash': 1}
+            'source_url', source_urls, self._article_collection,
+            {'source_url': 1}
         )
-        hash_oid_map = {d['text_hash']: d['_id'] for d in docs}
+        source_url_oid_map = {d['source_url']: d['_id'] for d in docs}
         article_oid_map = {
-            id(a): hash_oid_map[a.text_hash] for a in articles
+            id(a): source_url_oid_map[a.source_url] for a in articles
         }
 
         return article_oid_map
@@ -932,12 +889,6 @@ class MyakuCrawlDb(object):
             article_docs, oid_blog_map
         )
         return oid_article_map
-
-    @_require_write_permission
-    def write_crawled(self, metadatas: List[JpnArticleMetadata]) -> None:
-        """Writes the article metadata to the crawled database."""
-        metadata_docs = self._convert_article_metadata_to_docs(metadatas)
-        self._write_with_log(metadata_docs, self._crawled_collection)
 
     @_require_write_permission
     def delete_article_found_lexical_items(self, article: JpnArticle) -> None:
@@ -1159,8 +1110,7 @@ class MyakuCrawlDb(object):
 
     @_require_write_permission
     def _replace_write_with_log(
-        self, docs: List[_Document], collection: Collection,
-        id_fields: List[str]
+        self, docs: List[_Document], collection: Collection, id_field: str
     ) -> List[ObjectId]:
         """Writes or replaces with docs with logging.
 
@@ -1171,8 +1121,8 @@ class MyakuCrawlDb(object):
         Args:
             docs: Documents to write or replace with.
             collection: Collection to perform writes and replaces on.
-            id_fields: List of fields from the docs that can be used together
-                to uniquely id a doc in the collection.
+            id_field: Field from the doc that can be used to uniquely id a doc
+                in the collection.
 
         Returns:
             The list of the ObjectIds stored for the given docs. The ObjectId
@@ -1185,12 +1135,8 @@ class MyakuCrawlDb(object):
 
         object_ids = []
         for doc in docs:
-            filter_doc = {}
-            for field in id_fields:
-                filter_doc[field] = doc[field]
-
             replacement_doc = collection.find_one_and_replace(
-                filter_doc, doc, upsert=True,
+                {id_field: doc[id_field]}, doc, upsert=True,
                 return_document=ReturnDocument.AFTER
             )
             object_ids.append(replacement_doc['_id'])
@@ -1200,32 +1146,6 @@ class MyakuCrawlDb(object):
             len(object_ids), collection.full_name
         )
         return object_ids
-
-    @utils.skip_method_debug_logging
-    def _convert_article_metadata_to_docs(
-        self, metadatas: List[JpnArticleMetadata]
-    ) -> List[_Document]:
-        """Converts article metadata to dicts for inserting into MongoDB."""
-        docs = []
-        for metadata in metadatas:
-            docs.append({
-                'title': metadata.title,
-                'author': metadata.author,
-                'source_url': metadata.source_url,
-                'source_name': metadata.source_name,
-                'blog_id': metadata.blog_id,
-                'blog_article_order_num': metadata.blog_article_order_num,
-                'blog_section_name': metadata.blog_section_name,
-                'blog_section_order_num': metadata.blog_section_order_num,
-                'blog_section_article_order_num':
-                    metadata.blog_section_article_order_num,
-                'publication_datetime': metadata.publication_datetime,
-                'last_updated_datetime': metadata.last_updated_datetime,
-                'last_crawled_datetime': metadata.last_crawled_datetime,
-                'myaku_version_info': self._version_doc,
-            })
-
-        return docs
 
     @utils.skip_method_debug_logging
     def _convert_blogs_to_docs(
@@ -1239,7 +1159,7 @@ class MyakuCrawlDb(object):
                 'author': blog.author,
                 'source_name': blog.source_name,
                 'source_url': blog.source_url,
-                'start_datetime': blog.start_datetime,
+                'publication_datetime': blog.publication_datetime,
                 'last_updated_datetime': blog.last_updated_datetime,
                 'rating': blog.rating,
                 'rating_count': blog.rating_count,
@@ -1266,23 +1186,19 @@ class MyakuCrawlDb(object):
         for article in articles:
             docs.append({
                 'full_text': article.full_text,
-                'title': article.metadata.title,
-                'author': article.metadata.author,
-                'source_url': article.metadata.source_url,
-                'source_name': article.metadata.source_name,
-                'blog_oid': blog_oid_map.get(id(article.metadata.blog)),
-                'blog_article_order_num':
-                    article.metadata.blog_article_order_num,
-                'blog_section_name': article.metadata.blog_section_name,
-                'blog_section_order_num':
-                    article.metadata.blog_section_order_num,
+                'title': article.title,
+                'author': article.author,
+                'source_url': article.source_url,
+                'source_name': article.source_name,
+                'blog_oid': blog_oid_map.get(id(article.blog)),
+                'blog_article_order_num': article.blog_article_order_num,
+                'blog_section_name': article.blog_section_name,
+                'blog_section_order_num': article.blog_section_order_num,
                 'blog_section_article_order_num':
-                    article.metadata.blog_section_article_order_num,
-                'publication_datetime': article.metadata.publication_datetime,
-                'last_updated_datetime':
-                    article.metadata.last_updated_datetime,
-                'last_crawled_datetime':
-                    article.metadata.last_crawled_datetime,
+                    article.blog_section_article_order_num,
+                'publication_datetime': article.publication_datetime,
+                'last_updated_datetime': article.last_updated_datetime,
+                'last_crawled_datetime': article.last_crawled_datetime,
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
                 'has_video': article.has_video,
@@ -1399,7 +1315,7 @@ class MyakuCrawlDb(object):
                 'quality_score_possible_mod': fli.quality_score_mod,
                 'article_quality_score': fli.article.quality_score,
                 'article_last_updated_datetime':
-                    fli.article.metadata.last_updated_datetime,
+                    fli.article.last_updated_datetime,
                 'quality_score_exact': quality_score,
                 'quality_score_definite': quality_score,
                 'quality_score_possible': quality_score,
@@ -1425,7 +1341,7 @@ class MyakuCrawlDb(object):
                 author=doc['author'],
                 source_name=doc['source_name'],
                 source_url=doc['source_url'],
-                start_datetime=doc['start_datetime'],
+                publication_datetime=doc['publication_datetime'],
                 last_updated_datetime=doc['last_updated_datetime'],
                 rating=doc['rating'],
                 rating_count=doc['rating_count'],
@@ -1456,27 +1372,25 @@ class MyakuCrawlDb(object):
         oid_article_map = {}
         for doc in docs:
             oid_article_map[doc['_id']] = JpnArticle(
+                title=doc['title'],
+                author=doc.get('author'),
+                source_url=doc['source_url'],
+                source_name=doc['source_name'],
                 full_text=doc['full_text'],
                 alnum_count=doc['alnum_count'],
                 has_video=doc['has_video'],
+                blog=oid_blog_map.get(doc.get('blog_oid')),
+                blog_article_order_num=doc.get('blog_article_order_num'),
+                blog_section_name=doc.get('blog_section_name'),
+                blog_section_order_num=doc.get('blog_section_order_num'),
+                blog_section_article_order_num=doc.get(
+                    'blog_section_article_order_num'
+                ),
+                publication_datetime=doc['publication_datetime'],
+                last_updated_datetime=doc.get('last_updated_datetime'),
+                last_crawled_datetime=doc['last_crawled_datetime'],
                 database_id=str(doc['_id']),
                 quality_score=doc['quality_score'],
-                metadata=JpnArticleMetadata(
-                    title=doc['title'],
-                    author=doc.get('author'),
-                    source_url=doc['source_url'],
-                    source_name=doc['source_name'],
-                    blog=oid_blog_map.get(doc.get('blog_oid')),
-                    blog_article_order_num=doc.get('blog_article_order_num'),
-                    blog_section_name=doc.get('blog_section_name'),
-                    blog_section_order_num=doc.get('blog_section_order_num'),
-                    blog_section_article_order_num=doc.get(
-                        'blog_section_article_order_num'
-                    ),
-                    publication_datetime=doc['publication_datetime'],
-                    last_updated_datetime=doc.get('last_updated_datetime'),
-                    last_crawled_datetime=doc['last_crawled_datetime'],
-                ),
             )
 
         return oid_article_map

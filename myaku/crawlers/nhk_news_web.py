@@ -10,7 +10,7 @@ from bs4.element import Tag
 
 from myaku import utils
 from myaku.crawlers.abc import Crawl, CrawlerABC, CrawlGenerator
-from myaku.datatypes import JpnArticle, JpnArticleMetadata
+from myaku.datatypes import JpnArticle
 from myaku.errors import HtmlParsingError
 from myaku.utils import html
 
@@ -150,34 +150,24 @@ class NhkNewsWebCrawler(CrawlerABC):
         return re.search(self._HAS_VIDEO_REGEX, article_json_text) is not None
 
     def _parse_article(
-        self, article_tag: Tag, article_metadata: JpnArticleMetadata
+        self, article_tag: Tag, article_meta: JpnArticle
     ) -> JpnArticle:
         """Parses data from NHK article HTML.
 
         Args:
             article_tag: Tag containing NHK article HTML.
-            article_metadata: Metadata for the article listed on the top level
+            article_meta: Metadata for the article listed on the top level
                 summary pages.
 
         Returns:
             Article object containing the parsed data from article_tag.
         """
-        article = JpnArticle()
-        article.metadata = JpnArticleMetadata(
-            title=html.parse_text_from_descendant_by_class(
-                article_tag, self._ARTICLE_TITLE_CLASS, 'span'
-            ),
-            source_url=article_metadata.source_url,
-            source_name=self.SOURCE_NAME,
-            publication_datetime=article_metadata.publication_datetime,
-            last_updated_datetime=article_metadata.publication_datetime,
-            last_crawled_datetime=datetime.utcnow(),
+        article = article_meta
+        article.title = html.parse_text_from_descendant_by_class(
+            article_tag, self._ARTICLE_TITLE_CLASS, 'span'
         )
-
         body_text = self._parse_body_text(article_tag)
-        article.full_text = '{}\n\n{}'.format(
-            article.metadata.title, body_text
-        )
+        article.full_text = '{}\n\n{}'.format(article.title, body_text)
         article.alnum_count = utils.get_alnum_count(article.full_text)
 
         return article
@@ -211,7 +201,7 @@ class NhkNewsWebCrawler(CrawlerABC):
 
     def _crawl_summary_page_json(
         self, json_url_prefix: str, max_pages_to_crawl
-    ) -> List[JpnArticleMetadata]:
+    ) -> List[JpnArticle]:
         """Crawls summary page JSON to get the article metadata for the page.
 
         Args:
@@ -234,7 +224,7 @@ class NhkNewsWebCrawler(CrawlerABC):
             for i, article in enumerate(json['channel']['item']):
                 pub_datetime_str = article['pubDate']
                 pub_datetime = self._parse_json_datetime_str(pub_datetime_str)
-                metadata = JpnArticleMetadata(
+                metadata = JpnArticle(
                     title=article['title'],
                     publication_datetime=pub_datetime,
                     last_updated_datetime=pub_datetime,
@@ -386,13 +376,13 @@ class NhkNewsWebCrawler(CrawlerABC):
         return crawls
 
     def crawl_article(
-        self, article_url: str, article_metadata: JpnArticleMetadata
+        self, article_url: str, article_meta: JpnArticle
     ) -> JpnArticle:
         """Crawls an NHK News Web article.
 
         Args:
             article_url: Url to a page containing an NHK News Web article.
-            article_metadata: Metadata for the article listed on the top level
+            article_meta: Metadata for the article listed on the top level
                 summary pages.
 
         Returns:
@@ -412,7 +402,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         # from the HTML document right away.
         article_tag = html.strip_ruby_tags(article_tag)
 
-        article = self._parse_article(article_tag, article_metadata)
-        article.metadata.has_video = self._has_news_video(soup)
+        article = self._parse_article(article_tag, article_meta)
+        article.has_video = self._has_news_video(soup)
 
         return article

@@ -148,8 +148,9 @@ def parse_crawler_types_arg() -> List[abc.ABCMeta]:
     """Parses the crawler types from the argument given to this script."""
     if len(sys.argv) != 2:
         raise ScriptArgsError(
-            'run_crawl.py script given {} args instead of 2: {}',
-            len(sys.argv), sys.argv
+            'run_crawl.py script given {} args instead of 2: {}'.format(
+                len(sys.argv), sys.argv
+            )
         )
 
     crawler_types = []
@@ -179,7 +180,7 @@ def crawl_most_recent(
             stats.add_crawl(crawl)
 
             for article in crawl.crawl_gen:
-                if db.is_article_stored(article):
+                if db.is_article_text_stored(article):
                     _log.info('Article %s already stored!', article)
                     continue
 
