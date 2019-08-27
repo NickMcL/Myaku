@@ -365,28 +365,14 @@ class NhkNewsWebCrawler(CrawlerABC):
     def get_crawls_for_most_recent(self) -> List[Crawl]:
         """Gets a list of Crawls for the most recent NHK News Web articles.
 
-        The crawls cover the latest 200 articles posted to the site. NHK News
-        Web typically posts that many articles in 36-48 hours.
-
-        Additionally, the latest 100 video articles, 20 News Up articles, and
-        20 Tokushu articles are also covered by the crawls.
-
         An article will not be crawled again if it has been previously crawled
         during any previous crawl recorded in the MyakuDb.
+
+        Only crawls the News Up and Tokushu sections of the site because
+        articles in the Most Recent and Douga sections are often removed from
+        the site as soon as 1-2 weeks later, so they can't be stored for long.
         """
         crawls = []
-        most_recent_crawl = Crawl(
-            self.SOURCE_NAME, 'Most Recent',
-            self.crawl_most_recent(self.MAX_MOST_RECENT_PAGES)
-        )
-        crawls.append(most_recent_crawl)
-
-        douga_crawl = Crawl(
-            self.SOURCE_NAME, 'Douga',
-            self.crawl_douga(self.MAX_DOUGA_PAGES)
-        )
-        crawls.append(douga_crawl)
-
         news_up_crawl = Crawl(
             self.SOURCE_NAME, 'News Up', self.crawl_news_up()
         )

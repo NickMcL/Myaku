@@ -18,11 +18,21 @@ from urllib.parse import urlsplit, urlunsplit
 
 import jaconv
 import pytz
+import requests
 
 import myaku
 from myaku.errors import EnvironmentNotSetError
 
 _log = logging.getLogger(__name__)
+
+# Exceptions raised by the requests module that could be due to transient
+# issues, so it is worth retrying a request after one of these exceptions.
+REQUEST_RETRY_EXCEPTIONS = [
+    requests.RequestException,
+    requests.ConnectionError,
+    requests.HTTPError,
+    requests.Timeout
+]
 
 _JAPAN_TIMEZONE = pytz.timezone('Japan')
 

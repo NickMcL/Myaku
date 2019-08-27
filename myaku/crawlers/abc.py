@@ -25,12 +25,6 @@ CrawlGenerator = Generator[JpnArticle, None, None]
 _REQUEST_MIN_WAIT_TIME = 1.5
 _REQUSET_MAX_WAIT_TIME = 3
 _REQUEST_MAX_RETRIES = 8
-_REQUEST_RETRY_EXCEPTIONS = [
-    requests.RequestException,
-    requests.ConnectionError,
-    requests.HTTPError,
-    requests.Timeout
-]
 
 
 class Crawl(NamedTuple):
@@ -175,7 +169,9 @@ class CrawlerABC(ABC):
         return BeautifulSoup(response.content, 'html.parser')
 
     @utils.rate_limit(_REQUEST_MIN_WAIT_TIME, _REQUSET_MAX_WAIT_TIME)
-    @utils.retry_on_exception(_REQUEST_MAX_RETRIES, _REQUEST_RETRY_EXCEPTIONS)
+    @utils.retry_on_exception(
+        _REQUEST_MAX_RETRIES, utils.REQUEST_RETRY_EXCEPTIONS
+    )
     def _make_get_request(self, url: str) -> requests.Response:
         """Makes a GET request to given url and returns the response."""
         _log.debug('Making GET request to url "%s"', url)

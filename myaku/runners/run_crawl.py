@@ -1,3 +1,11 @@
+"""Scripts for running Myaku crawls.
+
+Usage: run_crawl.py <crawler_list>
+
+<crawler_list>: A comma-separated list of the crawlers whose most recent crawls
+    to run. Possible values are listed in VALID_CRAWLER_NAMES.
+"""
+
 import abc
 import logging
 import math
