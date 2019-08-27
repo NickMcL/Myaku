@@ -1,9 +1,11 @@
 """Crawler for the NHK News Web website."""
 
 import logging
+import re
 from datetime import datetime
 from typing import List, Optional
 
+from bs4 import BeautifulSoup
 from bs4.element import Tag
 
 from myaku import utils
@@ -42,7 +44,7 @@ class NhkNewsWebCrawler(CrawlerABC):
 
     _NHK_JSON_DATETIME_FORMAT = '%a, %d %b %Y %H:%M:%S %z'
 
-    _NEWS_VIDEO_ID = 'news_video'
+    _HAS_VIDEO_REGEX = re.compile(r"^\s*video\s*:\s*'.+',?\s*$", re.M)
 
     _ARTICLE_TAG_CLASS = 'detail-no-js'
     _ARTICLE_TITLE_CLASS = 'contentTitle'
@@ -129,12 +131,23 @@ class NhkNewsWebCrawler(CrawlerABC):
 
         return '\n\n'.join(body_text_sections)
 
-    def _contains_news_video(self, tag: Tag) -> bool:
-        """Returns True if an NHK news video is in the tag's descendants."""
-        video_tag = tag.find(id=self._NEWS_VIDEO_ID)
-        if video_tag is None or not video_tag.string:
-            return False
-        return True
+    def _has_news_video(self, article_page_soup: BeautifulSoup) -> bool:
+        """Returns True if there is a news video on the article page."""
+        main_tag = html.select_descendants_by_tag(
+            article_page_soup, 'main', 1
+        )[0]
+        article_json_tag = html.select_descendants_by_tag(
+            main_tag, 'script', 1
+        )[0]
+
+        article_json_text = article_json_tag.string
+        if article_json_text is None:
+            utils.log_and_raise(
+                _log, HtmlParsingError,
+                'No text in article JSON script tag in: "{}"'.format(main_tag)
+            )
+
+        return re.search(self._HAS_VIDEO_REGEX, article_json_text) is not None
 
     def _parse_article(
         self, article_tag: Tag, article_metadata: JpnArticleMetadata
@@ -149,8 +162,8 @@ class NhkNewsWebCrawler(CrawlerABC):
         Returns:
             Article object containing the parsed data from article_tag.
         """
-        article_data = JpnArticle()
-        article_data.metadata = JpnArticleMetadata(
+        article = JpnArticle()
+        article.metadata = JpnArticleMetadata(
             title=html.parse_text_from_descendant_by_class(
                 article_tag, self._ARTICLE_TITLE_CLASS, 'span'
             ),
@@ -162,15 +175,12 @@ class NhkNewsWebCrawler(CrawlerABC):
         )
 
         body_text = self._parse_body_text(article_tag)
-        article_data.full_text = '{}\n\n{}'.format(
-            article_data.metadata.title, body_text
+        article.full_text = '{}\n\n{}'.format(
+            article.metadata.title, body_text
         )
-        article_data.alnum_count = utils.get_alnum_count(
-            article_data.full_text
-        )
-        article_data.has_video = self._contains_news_video(article_tag)
+        article.alnum_count = utils.get_alnum_count(article.full_text)
 
-        return article_data
+        return article
 
     @utils.skip_method_debug_logging
     def _get_summary_json_url(self, url_prefix: str, page_num: int) -> str:
@@ -408,18 +418,15 @@ class NhkNewsWebCrawler(CrawlerABC):
             HtmlParsingError: An error occurred while parsing the article.
         """
         soup = self._get_url_html_soup(article_url)
-        article_tags = soup.find_all(
-            'section', class_=self._ARTICLE_TAG_CLASS
-        )
-        if len(article_tags) != 1:
-            utils.log_and_raise(
-                _log, HtmlParsingError,
-                'Found %s article sections instead of 1 for url "%s"',
-                len(article_tags), article_url
-            )
+        article_tag = html.select_descendants_by_class(
+            soup, self._ARTICLE_TAG_CLASS, 'section', 1
+        )[0]
 
         # Ruby tags tend to mess up Japanese processing, so strip all of them
         # from the HTML document right away.
-        article_tag = html.strip_ruby_tags(article_tags[0])
+        article_tag = html.strip_ruby_tags(article_tag)
 
-        return self._parse_article(article_tag, article_metadata)
+        article = self._parse_article(article_tag, article_metadata)
+        article.metadata.has_video = self._has_news_video(soup)
+
+        return article
