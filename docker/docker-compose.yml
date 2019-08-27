@@ -10,7 +10,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.3.1
+    image: friedrice2/myaku_crawler:1.3.2
     deploy:
       restart_policy:
         condition: any
