@@ -481,6 +481,7 @@ class KakuyomuCrawler(CrawlerABC):
             return False
         return self._EPISODE_LI_CLASS in li_tag.attrs['class']
 
+    @utils.skip_method_debug_logging
     def _parse_table_of_contents_episode(
         self, episode_li_tag: Tag, series_blog: JpnArticleBlog,
         ep_order_num: int, section_name: str, section_order_num: int,
