@@ -3,6 +3,7 @@
 import enum
 import logging
 import re
+import os
 from datetime import datetime
 from typing import List, Optional
 
@@ -16,6 +17,8 @@ from myaku.errors import HtmlParsingError
 from myaku.utils import html
 
 _log = logging.getLogger(__name__)
+
+_PAGES_TO_CRAWL_ENV_VAR = 'KAKUYOMU_CRAWLER_PAGE_TO_CRAWL'
 
 
 @enum.unique
@@ -59,13 +62,14 @@ class KakuyomuCrawler(CrawlerABC):
     SOURCE_NAME = 'Kakuyomu'
     __SOURCE_BASE_URL = 'https://kakuyomu.jp'
 
+    _PAGES_TO_CRAWL_DEFAULT = 1
+
     _SEARCH_PAGE_URL_TEMPLATE = (
         __SOURCE_BASE_URL +
         '/search?genre_name={genre}&order={sort_order}&page={page_num}'
     )
 
     _EPISODE_SIDEBAR_URL_SUFFIX = 'episode_sidebar'
-    _EPISODE_SIDEBAR_LOAD_WAIT_TIME = 2  # In seconds
 
     _TIME_TAG_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
     _SEARCH_RESULT_DATETIME_FORMAT = '%Y年%m月%d日 %H:%M 更新'
@@ -194,7 +198,9 @@ class KakuyomuCrawler(CrawlerABC):
             series_blog.title = html.parse_valid_child_text(
                 title_link_tag
             ).strip()
-            series_blog.source_url = title_link_tag['href']
+            series_blog.source_url = utils.strip_url_query_and_frag(
+                title_link_tag['href']
+            )
 
             series_blog.author = html.parse_text_from_descendant_by_class(
                 series_tile, self._SEARCH_RESULT_AUTHOR_CLASS, 'a'
@@ -502,7 +508,9 @@ class KakuyomuCrawler(CrawlerABC):
                 episode_li_tag, self._EPISODE_TOC_TITLE_CLASS, 'span'
             ).strip(),
             author=series_blog.author,
-            source_url=html.parse_link_descendant(episode_li_tag),
+            source_url=utils.strip_url_query_and_frag(
+                html.parse_link_descendant(episode_li_tag)
+            ),
             source_name=self.SOURCE_NAME,
             blog=series_blog,
             blog_article_order_num=ep_order_num,
@@ -635,11 +643,17 @@ class KakuyomuCrawler(CrawlerABC):
 
         Only crawls for articles in the non-fiction section of Kakuyomu.
         """
+        pages_to_crawl_str = os.environ.get(_PAGES_TO_CRAWL_ENV_VAR)
+        if pages_to_crawl_str is None:
+            pages_to_crawl = self._PAGES_TO_CRAWL_DEFAULT
+        else:
+            pages_to_crawl = int(pages_to_crawl_str)
+
         nonfiction_crawl = Crawl(
             self.SOURCE_NAME, 'Nonfiction most recent',
             self.crawl_search_results(
                 KakuyomuGenre.NONFICTION,
-                KakuyomuSortOrder.LAST_EPISODE_PUBLISHED_AT, 1
+                KakuyomuSortOrder.LAST_EPISODE_PUBLISHED_AT, pages_to_crawl
             )
         )
         return [nonfiction_crawl]

@@ -40,6 +40,7 @@ services:
       # A cron schedule of "#" will comment out the line for the crawl job in
       # the crontab file so that it will not run while doing development.
       CRAWL_CRON_SCHEDULE: "#"  
+      KAKUYOMU_CRAWLER_PAGE_TO_CRAWL: 1
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   rescore:

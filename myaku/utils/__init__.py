@@ -324,6 +324,14 @@ def join_path_to_url(url: str, path: str) -> str:
     )
 
 
+def strip_url_query_and_frag(url: str) -> str:
+    """Strips the query and fragment from the url."""
+    url_split = urlsplit(url)
+    return urlunsplit(
+        (url_split.scheme, url_split.netloc, url_split.path, '', '')
+    )
+
+
 def convert_jst_to_utc(dt: datetime) -> datetime:
     """Returns Japan Standard Time (JST) datetime converted to UTC.
 

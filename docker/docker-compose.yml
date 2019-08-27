@@ -27,6 +27,7 @@ services:
     environment:
       CRAWL_CRON_SCHEDULE: "0 1,4,7,10,13,16,19,22 * * *"
       CRAWLER_LIST: "Kakuyomu"
+      KAKUYOMU_CRAWLER_PAGE_TO_CRAWL: 5
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
