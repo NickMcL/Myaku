@@ -29,6 +29,7 @@ LOG_NAME = 'crawl'
 
 # Valid crawlers for the list of crawlers given to this script
 VALID_CRAWLER_NAMES = {
+    'Asahi',
     'Kakuyomu',
     'NhkNewsWeb',
 }

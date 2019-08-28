@@ -109,6 +109,7 @@ class JpnArticle(Crawlable):
         full_text: The full text of the article. Includes the title.
         alnum_count: The alphanumeric character count of full_text.
         has_video: True if the article contains a video.
+        tags: Tags specified for the article. Vary based on article source.
         blog: Blog the article was posted to. If None, the article was not
             posted as part of a blog.
         blog_article_order_num: Overall number of this article in the ordering
@@ -130,6 +131,7 @@ class JpnArticle(Crawlable):
     full_text: str = None
     alnum_count: int = None
     has_video: bool = None
+    tags: List[str] = None
     blog: JpnArticleBlog = None
     blog_article_order_num: int = None
     blog_section_name: str = None

@@ -194,7 +194,7 @@ class KakuyomuCrawler(CrawlerABC):
 
             title_link_tag = html.select_descendants_by_class(
                 series_tile, self._SEARCH_RESULT_TITLE_CLASS, 'a', 1
-            )[0]
+            )
             series_blog.title = html.parse_valid_child_text(
                 title_link_tag
             ).strip()
@@ -466,7 +466,7 @@ class KakuyomuCrawler(CrawlerABC):
         """
         table_of_contents_tag = html.select_descendants_by_class(
             series_page_soup, self._SERIES_EPISODE_TOC_LIST_CLASS, 'ol', 1
-        )[0]
+        )
         table_of_contents_items = html.select_descendants_by_tag(
             table_of_contents_tag, 'li'
         )
@@ -677,7 +677,7 @@ class KakuyomuCrawler(CrawlerABC):
 
         body_text_div = html.select_descendants_by_class(
             episode_page_soup, self._EPISODE_TEXT_DIV_CLASS, 'div', 1
-        )[0]
+        )
         body_text_paras = html.select_descendants_by_tag(body_text_div, 'p')
 
         for body_text_para in body_text_paras:

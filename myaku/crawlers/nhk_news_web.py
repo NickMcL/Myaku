@@ -135,10 +135,10 @@ class NhkNewsWebCrawler(CrawlerABC):
         """Returns True if there is a news video on the article page."""
         main_tag = html.select_descendants_by_tag(
             article_page_soup, 'main', 1
-        )[0]
+        )
         article_json_tag = html.select_descendants_by_tag(
             main_tag, 'script', 1
-        )[0]
+        )
 
         article_json_text = article_json_tag.string
         if article_json_text is None:
@@ -396,7 +396,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         soup = self._get_url_html_soup(article_url)
         article_tag = html.select_descendants_by_class(
             soup, self._ARTICLE_TAG_CLASS, 'section', 1
-        )[0]
+        )
 
         # Ruby tags tend to mess up Japanese processing, so strip all of them
         # from the HTML document right away.

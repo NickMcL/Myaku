@@ -19,7 +19,7 @@ _RUBY_TAG_REGEX = re.compile(r'</?ruby.*?>')
 _RT_CONTENT_REGEX = re.compile(r'<rt.*?>.*?</rt>')
 _RP_CONTENT_REGEX = re.compile(r'<rp.*?>.*?</rp>')
 _ALLOWABLE_HTML_TAGS_IN_TEXT = {
-    'a', 'b', 'blockquote', 'br', 'em', 'i', 'span', 'strong', 'sup'
+    'a', 'b', 'blockquote', 'br', 'em', 'i', 'img', 'span', 'strong', 'sup'
 }
 
 
@@ -67,9 +67,7 @@ def parse_valid_child_text(
 
     if not any(isinstance(d, NavigableString) for d in parent.descendants):
         if raise_on_no_text:
-            _raise_parsing_error(
-                'No child text found in: "{}"'.format(descendant, parent)
-            )
+            _raise_parsing_error('No child text found in: "{}"'.format(parent))
         else:
             return None
 
@@ -162,6 +160,55 @@ def parse_text_from_descendant_by_id(parent: Tag, tag_id: str) -> str:
         _raise_parsing_error(
             'Unable to determine text from "{}" in: "{}"'.format(
                 found_tags[0], parent
+            )
+        )
+
+    return text
+
+
+def parse_text_from_descendant_by_tag(
+    parent: Tag, tag_name: str = '', tag_index: int = 0,
+    expected_tag_count: int = 1
+) -> str:
+    """Parses the text from a tag_name descendant of parent.
+
+    Args:
+        parent: Tag whose descendants to search.
+        tag_name: Type of tag to parse the text from (e.g. span).
+        tag_index: Ordinal index of the tag to parse out of the list of
+            tag_name descendants (i.e. 0 would parse the first tag_name
+            descendant, 1 would parse the second, etc.).
+
+            The indexing starts at 0 and proceeds in depth-first order from the
+            parent.
+        expected_tag_count: Expected number of tag_name descendants. If the
+            total tag_name descendants is not equal to this amount, an
+            HtmlParsingError will be raised.
+
+            If None, will not raise an exception as long as the total matched
+            tag descendants is >= tag_index.
+
+    Returns:
+        The parsed text.
+
+    Raises:
+        HtmlParsingError: There was an issue parsing text from a tag_name
+            descendant from the given parent.
+    """
+    found_tags = parent.select(tag_name)
+    if (expected_tag_count is not None
+            and len(found_tags) != expected_tag_count):
+        _raise_parsing_error(
+            'Found {} "{}" tags instead of {} in: "{}"'.format(
+                len(found_tags), tag_name, expected_tag_count, parent
+            )
+        )
+
+    text = parse_valid_child_text(found_tags[tag_index], False)
+    if text is None:
+        _raise_parsing_error(
+            'Unable to determine text from "{}" tag "{}" in: "{}"'.format(
+                tag_name, found_tags[tag_index], parent
             )
         )
 
@@ -363,7 +410,7 @@ def select_desc_list_data(desc_list: Tag, term_text: str) -> str:
 def select_descendants_by_class(
     parent: Tag, classes: Union[str, List[str]], tag_name: str = '',
     expected_tag_count: int = None
-) -> List[Tag]:
+) -> Union[Tag, List[Tag]]:
     """Selects tag_name descendant(s) with classes within parent.
 
     Args:
@@ -378,7 +425,8 @@ def select_descendants_by_class(
             If None, no error will be raised if at least one tag is selected.
 
     Returns:
-        The found tag_name descendant tag(s).
+        The found tag_name descendant tag(s). If expected_tag_count == 1, will
+        not return the tag in a list.
 
     Raises:
         HtmlParsingError: There was an issue parsing the html for the given
@@ -403,18 +451,19 @@ def select_descendants_by_class(
             )
         )
 
+    if expected_tag_count == 1:
+        return tags[0]
     return tags
 
 
 def select_descendants_by_tag(
     parent: Tag, tag_name: str, expected_tag_count: int = None
-) -> List[Tag]:
+) -> Union[Tag, List[Tag]]:
     """Selects tag_name descendant(s) within parent.
 
     Args:
         parent: Tag whose descendants to search.
-        tag_name: Type of tag to search for (e.g. span). An empty
-            string will match any tag.
+        tag_name: Type of tag to search for (e.g. span).
         expected_tag_count: Expected number of selected tags. If the total
             selected tags is not equal to this amount, an HtmlParsingError
             will be raised.
@@ -422,7 +471,8 @@ def select_descendants_by_tag(
             If None, no error will be raised if at least one tag is selected.
 
     Returns:
-        The found tag_name descendant tag(s).
+        The found tag_name descendant tag(s). If expected_tag_count == 1, will
+        not return the tag in a list.
 
     Raises:
         HtmlParsingError: There was an issue parsing the html for the given
@@ -441,6 +491,8 @@ def select_descendants_by_tag(
             'Found 0 "{}" tags in: "{}"'.format(tag_name, parent)
         )
 
+    if expected_tag_count == 1:
+        return tags[0]
     return tags
 
 

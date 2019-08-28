@@ -1202,6 +1202,7 @@ class MyakuCrawlDb(object):
                 'text_hash': article.text_hash,
                 'alnum_count': article.alnum_count,
                 'has_video': article.has_video,
+                'tags': article.tags,
                 'quality_score': article.quality_score,
                 'myaku_version_info': self._version_doc,
             })
@@ -1379,15 +1380,16 @@ class MyakuCrawlDb(object):
                 full_text=doc['full_text'],
                 alnum_count=doc['alnum_count'],
                 has_video=doc['has_video'],
-                blog=oid_blog_map.get(doc.get('blog_oid')),
-                blog_article_order_num=doc.get('blog_article_order_num'),
-                blog_section_name=doc.get('blog_section_name'),
-                blog_section_order_num=doc.get('blog_section_order_num'),
-                blog_section_article_order_num=doc.get(
+                tags=doc['tags'],
+                blog=oid_blog_map.get(doc['blog_oid']),
+                blog_article_order_num=doc['blog_article_order_num'],
+                blog_section_name=doc['blog_section_name'],
+                blog_section_order_num=doc['blog_section_order_num'],
+                blog_section_article_order_num=doc[
                     'blog_section_article_order_num'
-                ),
+                ],
                 publication_datetime=doc['publication_datetime'],
-                last_updated_datetime=doc.get('last_updated_datetime'),
+                last_updated_datetime=doc['last_updated_datetime'],
                 last_crawled_datetime=doc['last_crawled_datetime'],
                 database_id=str(doc['_id']),
                 quality_score=doc['quality_score'],

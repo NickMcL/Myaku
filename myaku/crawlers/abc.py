@@ -3,8 +3,9 @@
 import logging
 import os
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, Generator, List, NamedTuple, Tuple
+from typing import Any, Dict, Generator, List, Tuple
 
 import requests
 from bs4 import BeautifulSoup
@@ -27,7 +28,8 @@ _REQUSET_MAX_WAIT_TIME = 3
 _REQUEST_MAX_RETRIES = 8
 
 
-class Crawl(NamedTuple):
+@dataclass
+class Crawl(object):
     """Data for a crawl run of a website for Japanese articles.
 
     Attributes:
@@ -238,7 +240,9 @@ class CrawlerABC(ABC):
                     i + 1, len(uncrawled_metas)
                 )
                 meta.last_crawled_datetime = datetime.utcnow()
-                yield self.crawl_article(meta.source_url, meta)
+                article = self.crawl_article(meta.source_url, meta)
+                if article is not None:
+                    yield article
                 db.update_last_crawled(meta)
 
     @utils.add_debug_logging

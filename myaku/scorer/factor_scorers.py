@@ -217,7 +217,10 @@ class BlogArticleOrderScorer(ArticleFactorScorer):
 class BlogRatingScorer(ArticleFactorScorer):
     """Scores based on the rating of the blog for an article."""
 
-    _NHK_NEWS_WEB_MULTIPLIER = 0.25
+    _FIXED_SOURCE_MULTIPLIER_MAP = {
+        'NHK News Web': 0.25,
+        'Asahi': 0.25,
+    }
 
     _KAKUYOMU_STAR_RANGE_MULTIPLIERS = ValueRangeMultipliers([
         (5, -0.5),
@@ -237,8 +240,8 @@ class BlogRatingScorer(ArticleFactorScorer):
         different scheme is used for each source, but generally, articles with
         higher rated blogs score higher.
 
-        Sources without a blog concept such as news site get a constant score
-        for all articles.
+        Sources without a blog concept such as news site get a fixed score for
+        all articles.
 
         Args:
             article: The article to be scored.
@@ -246,16 +249,16 @@ class BlogRatingScorer(ArticleFactorScorer):
         Returns:
             The score for the rating of the blog for the article.
         """
-        source_name = article.source_name
-        if source_name == NhkNewsWebCrawler.SOURCE_NAME:
+        if article.source_name in self._FIXED_SOURCE_MULTIPLIER_MAP:
             return math.floor(
-                _MAX_FACTOR_SCORE * self._NHK_NEWS_WEB_MULTIPLIER
+                _MAX_FACTOR_SCORE *
+                self._FIXED_SOURCE_MULTIPLIER_MAP[article.source_name]
             )
-        elif source_name == KakuyomuCrawler.SOURCE_NAME:
-            return self._score_kakuyomu_article(article)
+        elif article.source_name == KakuyomuCrawler.SOURCE_NAME:
+            return self._score_kakuyomu_article(article.score_name)
         else:
             raise ValueError(
-                'Unrecoginzed article source: {}'.format(source_name)
+                'Unrecoginzed article source: {}'.format(article.source_name)
             )
 
     def _score_kakuyomu_article(self, article: JpnArticle) -> int:
