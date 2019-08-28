@@ -274,10 +274,12 @@ class CrawlerABC(ABC):
                     'Crawling uncrawled artcile %s / %s',
                     i + 1, len(uncrawled_metas)
                 )
-                meta.last_crawled_datetime = datetime.utcnow()
+                last_crawled_datetime = datetime.utcnow()
                 article = self.crawl_article(meta.source_url, meta)
                 if article is not None:
                     yield article
+
+                meta.last_crawled_datetime = last_crawled_datetime
                 db.update_last_crawled(meta)
 
     @utils.add_debug_logging

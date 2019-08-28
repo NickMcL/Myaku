@@ -281,7 +281,7 @@ class AsahiCrawler(CrawlerABC):
         stop_date = date(2019, 12, 31)
         while current_date != stop_date:
             crawls.append(Crawl(
-                self.SOURCE_NAME, 'Daily news %s'.format(current_date),
+                self.SOURCE_NAME, 'Daily news {}'.format(current_date),
                 self.crawl_news_daily(current_date)
             ))
             current_date += timedelta(days=1)
