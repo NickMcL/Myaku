@@ -2,7 +2,7 @@
 
 import logging
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 
 from bs4 import BeautifulSoup
@@ -23,7 +23,7 @@ class AsahiCrawler(CrawlerABC):
     Only crawls for articles in the non-fiction and essay sections of Kakuyomu.
     """
 
-    SOURCE_NAME = 'Asahi'
+    SOURCE_NAME = 'Asahi Shinbun'
     __SOURCE_BASE_URL = 'https://www.asahi.com'
 
     _NEWS_MOST_RECENT_URL = __SOURCE_BASE_URL + '/news/'
@@ -215,9 +215,7 @@ class AsahiCrawler(CrawlerABC):
 
         article_metas = []
         for tab_id in self._EDITORIAL_ARCHIVE_MONTH_TAB_IDS:
-            tab_article_metas = self._parse_editorial_summary_page_tab(
-                soup, tab_id
-            )
+            tab_article_metas = self._parse_editorial_archive_tab(soup, tab_id)
             article_metas.extend(tab_article_metas)
 
         yield from self._crawl_uncrawled_articles(article_metas)
@@ -278,6 +276,15 @@ class AsahiCrawler(CrawlerABC):
             self.crawl_editorial_archive()
         )
         crawls.append(editorial_archive_crawl)
+
+        current_date = date(2019, 1, 1)
+        stop_date = date(2019, 12, 31)
+        while current_date != stop_date:
+            crawls.append(Crawl(
+                self.SOURCE_NAME, 'Daily news %s'.format(current_date),
+                self.crawl_news_daily(current_date)
+            ))
+            current_date += timedelta(days=1)
 
         return crawls
 
