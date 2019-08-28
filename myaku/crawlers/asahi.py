@@ -364,11 +364,13 @@ class AsahiCrawler(CrawlerABC):
         body_text_strs = [article.title]
         for body_text_tag in body_text_div.children:
             if body_text_tag.name not in self._ARTICLE_BODY_TEXT_TAGS:
-                _log.debug(
-                    'Skipping body text "%s" tag: "%s"',
-                    body_text_tag.name, body_text_tag
-                )
+                if body_text_tag.name is not None:
+                    _log.debug(
+                        'Skipping body text "%s" tag: "%s"',
+                        body_text_tag.name, body_text_tag
+                    )
                 continue
+
             tag_text = html.parse_valid_child_text(body_text_tag, False)
             if tag_text:
                 body_text_strs.append(tag_text)
@@ -391,17 +393,17 @@ class AsahiCrawler(CrawlerABC):
                 page.
 
         Returns:
-            If the page was not partially behind a paywall, returns article
-            object with the parsed data from the article + the given metadata.
+            If the page was not partially behind a paywall, returns the given
+            article object with the parsed data from the article added to it.
             If the page was partially behind a paywall, returns None instead.
 
         Raises:
             HTTPError: An error occurred making a GET request to url.
             HtmlParsingError: An error occurred while parsing the article.
         """
-        page_soup = self._get_url_html_soup(article_url)
+        page_soup = self._get_url_html_soup(article_url, raise_on_404=False)
 
-        if self._is_paywall_article_page(page_soup):
+        if page_soup is None or self._is_paywall_article_page(page_soup):
             return None
 
         article = article_meta

@@ -154,33 +154,68 @@ class CrawlerABC(ABC):
         return response.json()
 
     @utils.add_debug_logging
-    def _get_url_html_soup(self, url: str) -> BeautifulSoup:
+    def _get_url_html_soup(
+        self, url: str, raise_on_404: bool = True
+    ) -> BeautifulSoup:
         """Makes a GET request and returns a BeautifulSoup of the contents.
 
         Args:
             url: Url to make the GET request to.
+            raise_on_404: If True, will raise an HTTPError on a 404 status code
+                in addition to all other status code >= 400.
+
+                If False, will not raise on a 404 and will return None instead,
+                but will still raise on all other status codes >= 400.
 
         Returns:
             A BeautifulSoup initialized to the content of the reponse for the
-            request.
+            request, or None if the response was a 404 and raise_on_404 is
+            False.
 
         Raises:
             HTTPError: The response for the GET request had a code >= 400.
         """
-        response = self._make_get_request(url)
+        response = self._make_get_request(url, raise_on_404)
+        if response is None:
+            return None
         return BeautifulSoup(response.content, 'html.parser')
 
     @utils.rate_limit(_REQUEST_MIN_WAIT_TIME, _REQUSET_MAX_WAIT_TIME)
     @utils.retry_on_exception(
         _REQUEST_MAX_RETRIES, utils.REQUEST_RETRY_EXCEPTIONS
     )
-    def _make_get_request(self, url: str) -> requests.Response:
-        """Makes a GET request to given url and returns the response."""
+    def _make_get_request(
+        self, url: str, raise_on_404: bool = True
+    ) -> requests.Response:
+        """Makes a GET request to given url and returns the response.
+
+        Args:
+            url: Url to make the GET request to.
+            raise_on_404: If True, will raise an HTTPError on a 404 status code
+                in addition to all other status code >= 400.
+
+                If False, will not raise on a 404 and will return None instead,
+                but will still raise on all other status codes >= 400.
+
+        Returns:
+            The reponse for the request, or None if the response was a 404 and
+            raise_on_404 is False.
+
+        Raises:
+            HTTPError: The response for the GET request had a code >= 400.
+        """
         _log.debug('Making GET request to url "%s"', url)
         response = self._session.get(url, timeout=self._timeout)
+
+        if not raise_on_404 and response.status_code == 404:
+            _log.warning(
+                'Response received with code 404 for url "%s", but no error '
+                'will be raised', url
+            )
+            return None
+
         _log.debug('Response received with code %s', response.status_code)
         response.raise_for_status()
-
         return response
 
     def _prep_uncrawled_items_for_crawl(
