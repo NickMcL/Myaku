@@ -105,10 +105,20 @@ a {
   padding-right: 0;
 }
 
-.form-control:focus{
+.form-control:focus {
   border-color: #cccccc;
   -webkit-box-shadow: none;
   box-shadow: none;
+}
+
+.myaku-logo-sm {
+  height: 42px;
+  width: 163px;
+}
+
+.myaku-logo {
+  height: 65px;
+  width: 250px;
 }
 
 @media (max-width: 991.98px) {

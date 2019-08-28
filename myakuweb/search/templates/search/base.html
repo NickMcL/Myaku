@@ -33,10 +33,10 @@
       <div class="container search-top">
         <nav class="navbar d-flex align-items-start">
           <a class="navbar-brand" href="/">
-            <img class="img-fluid d-none d-md-block"
-                src="{% static "images/myaku_logo.png" %}"/>
-            <img class="img-fluid d-block d-md-none"
-                src="{% static "images/myaku_logo_small.png" %}"/>
+            <img class="img-fluid myaku-logo d-none d-md-block"
+                src="{% static "images/myaku_logo.svg" %}"/>
+            <img class="img-fluid myaku-logo-sm d-block d-md-none"
+                src="{% static "images/myaku_logo.svg" %}"/>
           </a>
           <ul class="navbar-nav align-top">
             <li class="nav-item">
@@ -49,9 +49,12 @@
           <div class="col-12 col-md-9 col-lg-7">
             <form class="" action="/" method="get">
               <div class="input-group">
-                <input class="form-control" id="query" type="text" name="q"
+                <input class="form-control d-none d-sm-block" id="query" type="text" name="q"
                     value="{% firstof query request.GET.q "" %}"
                     placeholder="Japanese word, set phrase, idiom, etc.">
+                <input class="form-control d-block d-sm-none" id="query" type="text" name="q"
+                    value="{% firstof query request.GET.q "" %}"
+                    placeholder="Japanese word, phrase, idiom, etc.">
                 <!--
                 <div class="input-group-append">
                   <select class="form-control" name="match_type">
