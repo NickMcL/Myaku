@@ -219,7 +219,7 @@ class BlogRatingScorer(ArticleFactorScorer):
 
     _FIXED_SOURCE_MULTIPLIER_MAP = {
         'NHK News Web': 0.25,
-        'Asahi': 0.25,
+        'Asahi Shinbun': 0.25,
     }
 
     _KAKUYOMU_STAR_RANGE_MULTIPLIERS = ValueRangeMultipliers([
