@@ -36,6 +36,14 @@ a {
   border-color: #0f326a;
 }
 
+.search-clear {
+  background-color: #fff;
+}
+
+.search-clear:focus {
+  outline: none;
+}
+
 /* Add color to ol numbers */
 .myaku-color-ol {
   list-style: none;

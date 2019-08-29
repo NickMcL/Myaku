@@ -47,9 +47,9 @@
 
         <div class="row pb-2 pb-md-3 mb-3">
           <div class="col-12 col-md-9 col-lg-7">
-            <form class="" action="/" method="get">
+            <form class="search-form" action="/" method="get">
               <div class="input-group">
-                <input class="form-control" id="query" type="text" name="q"
+                <input class="form-control border-right-0 pr-0" id="query" type="text" name="q"
                     value="{% firstof query request.GET.q "" %}"
                     placeholder="Japanese word, phrase, idiom, etc.">
                 <!--
@@ -74,7 +74,12 @@
                     >Include other forms (ambig)</option>
                   </select>
                 </div>
-                -->
+               -->
+                <div class="input-group-append border-left-0">
+                  <button type="button" class="input-group-text search-clear">
+                    <i class="fa fa-times"></i>
+                  </button>
+                </div>
                 <div class="input-group-append">
                   <button type="submit" class="btn search-button">
                     <i class="fa fa-search"></i>
