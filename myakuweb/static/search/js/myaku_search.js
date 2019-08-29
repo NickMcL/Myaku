@@ -16,7 +16,7 @@ updateSearchPlaceholder();
 $(window).resize(updateSearchPlaceholder);
 
 $('.search-clear').click(function () {
-    $(this).closest('.search-form').find('#query').val('');
+    $(this).closest('.search-form').find('#search-input').val('');
 });
 
 $('.extra-sample-instances').on('show.bs.collapse', function () {
