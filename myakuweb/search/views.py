@@ -17,7 +17,7 @@ from myaku.datatypes import JpnArticle, LexicalItemTextPosition
 # If a found article for a query has many instances of the query in its text,
 # the max number of instance sentences to show on the results page for that
 # article.
-MAX_ARTICLE_INSTANCE_SAMPLES = 3
+_MAX_ARTICLE_INSTANCE_SAMPLES = 3
 
 _ARTICLE_LEN_GROUPS = [
     (700, 'Short length'),
@@ -29,6 +29,48 @@ _ARTICLE_LEN_GROUP_MAX_NAME = 'Very long length'
 _VERY_RECENT_DAYS = 7
 
 myaku.utils.toggle_myaku_package_log()
+
+
+def is_very_recent(dt: datetime) -> bool:
+    """Returns True if the datetime is considered very recent."""
+    days_since_dt = (datetime.utcnow() - dt).days
+    return days_since_dt <= _VERY_RECENT_DAYS
+
+
+def get_day_ordinal_suffix(day: int) -> str:
+    """Gets the ordinal suffix for a day (e.g. 1 -> st, 2 -> nd, ...)."""
+    if not (1 <= day <= 31):
+        raise ValueError('Not a valid day of the month: {}'.format(day))
+
+    if 4 <= day <= 20 or 24 <= day <= 30:
+        return 'th'
+    return ['st', 'nd', 'rd'][(day % 10) - 1]
+
+
+def humanize_date(dt: datetime) -> str:
+    """Converts the datetime to a string with a nice human-readable date.
+
+    Args:
+        dt: datetime to convert.
+
+    Returns:
+        If the datetime is within a week of now, a string stating how many
+        days ago the datetime was (i.e. today, yesterday, 2 days ago, ...).
+        If the datetime is not within a week, a formatted date string in the
+        form "Jan 1st, 2019".
+    """
+    days_since_dt = (datetime.utcnow() - dt).days
+    if days_since_dt == 0:
+        return 'today'
+    elif days_since_dt == 1:
+        return 'yesterday'
+    elif days_since_dt < 7:
+        return '{} days ago'.format(days_since_dt)
+    else:
+        return '{month} {day}{ordinal}, {year}'.format(
+            month=dt.strftime('%b'), day=str(dt.day),
+            ordinal=get_day_ordinal_suffix(dt.day), year=str(dt.year)
+        )
 
 
 class QueryMatchType(Enum):
@@ -70,14 +112,14 @@ class SearchResultMatchingSentence(object):
 
     Attributes:
         sentence_len: Total length of the sample sentence.
-        article_pos_percent: Percentage (between 0-100) of the total characters
-            in the article that are ahead of the start of the sample sentence.
+        article_pos_humanized: Human-readable string of the position of the
+            matching sentence in the article.
         match_instance_count: How many instances of the searched query are in
             this sample sentence.
         segments: Segments that make up the sample sentence.
     """
     sentence_len: int
-    article_pos_percent: int
+    article_pos_humanized: str
     match_instance_count: int
     segments: List[SearchResultMatchingSentenceSegment]
 
@@ -265,24 +307,81 @@ class QueryArticleResult(object):
         self.matched_base_forms = search_result.matched_base_forms
         self.quality_score = search_result.quality_score
         self.instance_count = len(search_result.found_positions)
+        self.publication_date_str = humanize_date(
+            search_result.article.publication_datetime
+        )
+        self.last_updated_date_str = humanize_date(
+            search_result.article.last_updated_datetime
+        )
+        self.display_last_updated_date = (
+            self._should_display_last_updated_datetime(search_result.article)
+        )
         self.tags = self._get_tags(search_result.article)
 
         matching_sentences = self._get_result_matching_sentences(
-            search_result, MAX_ARTICLE_INSTANCE_SAMPLES
+            search_result, _MAX_ARTICLE_INSTANCE_SAMPLES
         )
         self.main_matching_sentence = matching_sentences[0]
         self.more_matching_sentences = matching_sentences[
-            1:MAX_ARTICLE_INSTANCE_SAMPLES
+            1:_MAX_ARTICLE_INSTANCE_SAMPLES
         ]
 
+    def _should_display_last_updated_datetime(
+        self, article: JpnArticle
+    ) -> bool:
+        """Determines if last updated datetime should be displayed for article.
+
+        The last updated datetime is not worth displaying if it's close to the
+        publication date.
+
+        Additionally, if the publication date is older, the amount of time
+        between publication and the update must be greater in order for the
+        update to be worth displaying.
+
+        Args:
+            article: Article to determine if its last updated datetime should
+                be displayed.
+
+        Returns:
+            True if the last updated datetime should be displayed, or False if
+            it shouldn't be displayed.
+        """
+        days_since_update = (
+            (article.last_updated_datetime - article.publication_datetime).days
+        )
+        days_since_publish = (
+            (datetime.utcnow() - article.publication_datetime).days
+        )
+
+        if (days_since_update < 1
+                or is_very_recent(article.publication_datetime)):
+            return False
+
+        if (is_very_recent(article.last_updated_datetime)
+                or days_since_publish < 180 and days_since_update > 30
+                or days_since_publish < 365 and days_since_update > 90
+                or days_since_publish < 365 * 2 and days_since_update > 180
+                or days_since_update > 365):
+            return True
+
+        return False
+
+    def _humanize_index_position(self, index: int, article: JpnArticle) -> str:
+        """Gets a human-readable string of an index position in the article."""
+        if index < len(article.title):
+            return 'Article title'
+
+        percent_pos = round((index / len(article.full_text)) * 100)
+        return '{}% into article'.format(percent_pos)
+
     def _create_matching_sentence(
-        self, article_text: str, sentence_start_index: int,
+        self, article: JpnArticle, sentence_start_index: int,
         sentence_end_index: int, found_positions: LexicalItemTextPosition
     ) -> SearchResultMatchingSentence:
         """Creates a matching sentence object from article and sentence data.
 
         Args:
-            article_text: Full text of the article containing the sentence
+            article: Article containing the sentence
             sentence_text: Full text of the matching sentence.
             sentence_start_index: Starting index of the matching sentence in
                 the article text.
@@ -294,7 +393,7 @@ class QueryArticleResult(object):
         """
         matching_sentence = SearchResultMatchingSentence(
             sentence_start_index - sentence_end_index + 1,
-            round(((sentence_start_index + 1) / len(article_text)) * 100),
+            self._humanize_index_position(sentence_start_index, article),
             len(found_positions),
             []
         )
@@ -302,18 +401,18 @@ class QueryArticleResult(object):
         last_end_index = sentence_start_index - 1
         for pos in found_positions:
             if last_end_index != pos.index - 1:
-                segment_text = article_text[last_end_index + 1:pos.index]
+                segment_text = article.full_text[last_end_index + 1:pos.index]
                 matching_sentence.segments.append(
                     SearchResultMatchingSentenceSegment(False, segment_text)
                 )
                 last_end_index += len(segment_text)
-            match_text = article_text[pos.slice()]
+            match_text = article.full_text[pos.slice()]
             matching_sentence.segments.append(
                 SearchResultMatchingSentenceSegment(True, match_text)
             )
             last_end_index += pos.len
 
-        end_text = article_text[
+        end_text = article.full_text[
             last_end_index + 1: sentence_end_index + 1
         ]
         if len(end_text) > 0:
@@ -349,7 +448,7 @@ class QueryArticleResult(object):
         matching_sentences = []
         for sentence_group in sorted_groups[:max_count]:
             matching_sentences.append(self._create_matching_sentence(
-                result.article.full_text, *sentence_group
+                result.article, *sentence_group
             ))
 
         return matching_sentences
@@ -364,34 +463,12 @@ class QueryArticleResult(object):
         else:
             tag_strs.append(_ARTICLE_LEN_GROUP_MAX_NAME)
 
-        duration_since_update = (
-            datetime.utcnow() - article.last_updated_datetime
-        )
-        if duration_since_update.days <= _VERY_RECENT_DAYS:
+        if is_very_recent(article.last_updated_datetime):
             tag_strs.append('Very recent')
 
         if article.has_video:
             tag_strs.append('Video')
         return tag_strs
-
-
-class QueryInstanceResult(object):
-    """A single found lexical item instance of a query of the Myaku db."""
-
-    def __init__(
-        self, pos: LexicalItemTextPosition, article: JpnArticle
-    ) -> None:
-        """Populates instance result data using given position in article."""
-        sentence, start = article.get_containing_sentence(pos)
-
-        self.pos_percent = round((pos.index / len(article.full_text)) * 100)
-        self.sentence_start_text = sentence[:pos.index - start].lstrip()
-        self.instance_text = sentence[
-            pos.index - start: pos.index + pos.len - start
-        ]
-        self.sentence_end_text = sentence[
-            pos.index + pos.len - start:
-        ].rstrip()
 
 
 def index(request: HttpRequest) -> HttpResponse:

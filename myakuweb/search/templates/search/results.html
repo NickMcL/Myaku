@@ -36,7 +36,7 @@
   <div class="col col-lg-9">
     <div class="mr-lg-3">
       {% for result in query_result_set.ranked_article_results %}
-        <div class="row mb-3 card shadow-sm">
+        <div class="row mb-3 card shadow-sm result-tile">
           <div class="col-12 pt-3 px-3">
             <h4>
               <a class="article-title" href="{{ result.article.source_url }}">
@@ -47,15 +47,24 @@
             <div>
               <span class="article-info-text">
                 {{ result.article.source_name }}
-                - {{ result.article.publication_datetime|date:"M jS, Y" }} 
-                {% if result.article.publication_datetime != result.article.last_updated_datetime %}
-                  (Updated {{ result.article.last_updated_datetime|date:"M jS, Y" }})
-                {% endif %}
+                - {{ result.publication_date_str|capfirst }} 
               </span>
+              {% if result.display_last_updated_date %}
+                <span class="article-info-text d-none d-md-inline">
+                  (Updated {{ result.last_updated_date_str }})
+                </span>
+              {% endif %}
               <span class="article-info-text d-none d-md-inline">
                 - {{ result.instance_count|intcomma }} instance{{ result.instance_count|pluralize }}
               </span>
             </div>
+            {% if result.display_last_updated_date %}
+              <div class="d-md-none">
+                  <span class="article-info-text">
+                    Updated {{ result.last_updated_date_str }}
+                  </span>
+              </div>
+            {% endif %}
             <div class="d-md-none">
               <span class="article-info-text">
                 {{ result.instance_count|intcomma }} instance{{ result.instance_count|pluralize }}
@@ -80,11 +89,11 @@
                 {% endfor %}
               </p>
               <footer class="blockquote-footer">
-                  {{ result.main_matching_sentence.article_pos_percent }}% into article
+                {{ result.main_matching_sentence.article_pos_humanized }}
               </footer>
             </blockquote>
             {% if result.more_matching_sentences %}
-              <div id="more-samples-{{ forloop.counter }}" class="collapse">
+              <div id="more-samples-{{ forloop.counter }}" class="collapse extra-sample-instances">
                 <ul class="list-unstyled mb-3 article-sample-text">
                 {% for matching_sentence in result.more_matching_sentences %}
                   <li>
@@ -99,7 +108,7 @@
                         {% endfor %}
                       </p>
                       <footer class="blockquote-footer">
-                        {{ matching_sentence.article_pos_percent }}% into article
+                        {{ matching_sentence.article_pos_humanized }}
                       </footer>
                     </blockquote>
                   </li>
@@ -111,8 +120,8 @@
           {% if result.more_matching_sentences %}
             <div class="col-12 px-0">
               <div class="card-footer text-center py-0">
-                <button class="btn btn-link text-muted" type="button" data-toggle="collapse"
-                    data-target="#more-samples-{{ forloop.counter }}">
+                <button class="btn btn-link text-muted show-more-button" type="button"
+                    data-toggle="collapse" data-target="#more-samples-{{ forloop.counter }}">
                   Show more {{ query }} instances from this article
                 </button>
               </div>

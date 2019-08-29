@@ -24,7 +24,7 @@
     <!-- Fonts from Google Fonts API -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Sans+JP:400,500,700|Noto+Sans:400,700&display=swap&subset=japanese,latin-ext">
 
-    <link rel="stylesheet" href="{% static "search/base.css" %}">
+    <link rel="stylesheet" href="{% static "search/css/base.css" %}">
 
     <title>{% block title %}Myaku{% endblock %}</title>
   </head>
@@ -49,10 +49,7 @@
           <div class="col-12 col-md-9 col-lg-7">
             <form class="" action="/" method="get">
               <div class="input-group">
-                <input class="form-control d-none d-sm-block" id="query" type="text" name="q"
-                    value="{% firstof query request.GET.q "" %}"
-                    placeholder="Japanese word, set phrase, idiom, etc.">
-                <input class="form-control d-block d-sm-none" id="query" type="text" name="q"
+                <input class="form-control" id="query" type="text" name="q"
                     value="{% firstof query request.GET.q "" %}"
                     placeholder="Japanese word, phrase, idiom, etc.">
                 <!--
@@ -100,5 +97,7 @@
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+    <script src="{% static "search/js/base.js" %}"></script> 
   </body>
 </html>
