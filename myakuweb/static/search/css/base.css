@@ -44,6 +44,11 @@ a {
   outline: none;
 }
 
+.search-options-toggle {
+  color: #5272a6;
+  /*color: #3d5d93;*/
+}
+
 /* Add color to ol numbers */
 .myaku-color-ol {
   list-style: none;

@@ -49,9 +49,10 @@
           <div class="col-12 col-md-9 col-lg-7">
             <form class="search-form" action="/" method="get">
               <div class="input-group">
-                <input class="form-control border-right-0 pr-0" id="query" type="text" name="q"
-                    value="{% firstof query request.GET.q "" %}"
-                    placeholder="Japanese word, phrase, idiom, etc.">
+                <!-- Placeholder set by js based on viewport size -->
+                <input class="form-control border-right-0 pr-0" id="search-input" 
+                    type="text" name="q" value="{% firstof query request.GET.q "" %}"
+                    placeholder="Japanese word, phrase, etc.">
                 <!--
                 <div class="input-group-append">
                   <select class="form-control" name="match_type">
@@ -89,7 +90,9 @@
             </form>
           </div>
           <div class="col-12 col-md-3 col-lg-5">
-            <button class="btn btn-link px-0">Show search options</button>
+            <button class="btn btn-link px-0 search-options-toggle">
+              Show search options
+            </button>
           </div>
         </div>
       </div>
