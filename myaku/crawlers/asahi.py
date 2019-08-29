@@ -190,6 +190,11 @@ class AsahiCrawler(CrawlerABC):
         """
         month_tab_div = html.select_descendant_by_id(page_soup, tab_id)
 
+        # Sometimes a monthly tab is present with no articles listed under it.
+        # In this case, there will be no li tags in the month tab div.
+        if month_tab_div.find('li') is None:
+            return []
+
         tab_article_metas = []
         article_dd_tags = html.select_descendants_by_tag(month_tab_div, 'dd')
         for dd_tag in article_dd_tags:
@@ -214,7 +219,7 @@ class AsahiCrawler(CrawlerABC):
         soup = self._get_url_html_soup(self._EDITORIAL_ARCHIVE_URL)
 
         article_metas = []
-        for tab_id in self._EDITORIAL_ARCHIVE_MONTH_TAB_IDS:
+        for i, tab_id in enumerate(self._EDITORIAL_ARCHIVE_MONTH_TAB_IDS):
             tab_article_metas = self._parse_editorial_archive_tab(soup, tab_id)
             article_metas.extend(tab_article_metas)
 
@@ -277,7 +282,7 @@ class AsahiCrawler(CrawlerABC):
         )
         crawls.append(editorial_archive_crawl)
 
-        current_date = date(2019, 1, 1)
+        current_date = date(2019, 9, 1)
         stop_date = date(2019, 12, 31)
         while current_date != stop_date:
             crawls.append(Crawl(
