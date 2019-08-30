@@ -20,6 +20,9 @@ _MAX_ACCEPTABLE_SAMPLE_LEN = 100
 _MAX_PREVIEW_ARTICLE_SAMPLES = 3
 _MAX_PREVIEW_ARTICLE_PERCENT = 0.15
 
+_TRIMMED_INDICATOR_STR = '...'
+_MIN_CHARS_BETWEEN_MATCH_AND_TRIM = 8
+
 _WHITESPACE_REGEX = re.compile(r'\s+')
 
 
@@ -119,9 +122,6 @@ class SearchResultArticlePreview(object):
             appropriate to have additional sample texts for this preview.
     """
 
-    _TRIMMED_INDICATOR_STR = '...'
-    _MIN_CHARS_BETWEEN_MATCH_AND_TRIM = 8
-
     def __init__(self, search_result: JpnArticleSearchResult) -> None:
         """Creates an article preview for the given search result."""
         self._article = search_result.article
@@ -166,15 +166,15 @@ class SearchResultArticlePreview(object):
                 continue
             preview_texts.append(self._create_sample_text(*sentence_group))
 
-            if len(preview_texts) >= _MAX_PREVIEW_ARTICLE_SAMPLES:
-                break
-
             total_preview_len = sum(pt.text_len for pt in preview_texts)
             preview_article_percent = total_preview_len / article_len
             if (len(preview_texts) > 1
                     and (preview_article_percent
                          > _MAX_PREVIEW_ARTICLE_PERCENT)):
                 preview_texts.pop()
+                break
+
+            if len(preview_texts) >= _MAX_PREVIEW_ARTICLE_SAMPLES:
                 break
 
         return preview_texts
@@ -329,7 +329,7 @@ class SearchResultArticlePreview(object):
                 ]
             ))
         sub_segs.append(PreviewSampleTextSegment(
-            False, self._TRIMMED_INDICATOR_STR
+            False, _TRIMMED_INDICATOR_STR
         ))
 
         return len(sub_segs[0].text)
@@ -368,7 +368,7 @@ class SearchResultArticlePreview(object):
             ))
             left_added_chars = len(sub_segs[0].text)
         sub_segs.appendleft(PreviewSampleTextSegment(
-            False, self._TRIMMED_INDICATOR_STR
+            False, _TRIMMED_INDICATOR_STR
         ))
 
         return left_added_chars
@@ -406,14 +406,14 @@ class SearchResultArticlePreview(object):
         ))
         left_added_chars = len(sub_segs[0].text)
         sub_segs.appendleft(PreviewSampleTextSegment(
-            False, self._TRIMMED_INDICATOR_STR
+            False, _TRIMMED_INDICATOR_STR
         ))
 
         sub_segs.append(PreviewSampleTextSegment(
             False, next_seg_text[:remaining_chars // 2]
         ))
         sub_segs.append(PreviewSampleTextSegment(
-            False, self._TRIMMED_INDICATOR_STR
+            False, _TRIMMED_INDICATOR_STR
         ))
 
         return left_added_chars
@@ -440,13 +440,13 @@ class SearchResultArticlePreview(object):
         if trimmed_len >= _MAX_ACCEPTABLE_SAMPLE_LEN:
             left_added_chars = 0
         elif (trimmed_len + chars_from_start
-                + self._MIN_CHARS_BETWEEN_MATCH_AND_TRIM
+                + _MIN_CHARS_BETWEEN_MATCH_AND_TRIM
                 <= _MAX_ACCEPTABLE_SAMPLE_LEN):
             left_added_chars = self._append_segments_full_left_remainder_right(
                 segs, trimmed_segs, max_match_start, max_match_end
             )
         elif (trimmed_len + chars_to_end
-                + self._MIN_CHARS_BETWEEN_MATCH_AND_TRIM
+                + _MIN_CHARS_BETWEEN_MATCH_AND_TRIM
                 <= _MAX_ACCEPTABLE_SAMPLE_LEN):
             left_added_chars = self._append_segments_full_right_remainder_left(
                 segs, trimmed_segs, max_match_start, max_match_end
@@ -701,7 +701,7 @@ class SearchResultArticlePreview(object):
             if _segments_len(segs) >= _MAX_ACCEPTABLE_SAMPLE_LEN:
                 if excess_chars > 0:
                     segs.appendleft(PreviewSampleTextSegment(
-                        False, self._TRIMMED_INDICATOR_STR
+                        False, _TRIMMED_INDICATOR_STR
                     ))
                 break
 
@@ -747,7 +747,7 @@ class SearchResultArticlePreview(object):
             if _segments_len(segs) >= _MAX_ACCEPTABLE_SAMPLE_LEN:
                 if excess_chars > 0:
                     segs.append(PreviewSampleTextSegment(
-                        False, self._TRIMMED_INDICATOR_STR
+                        False, _TRIMMED_INDICATOR_STR
                     ))
                 break
 

@@ -282,12 +282,6 @@ class AsahiCrawler(CrawlerABC):
         )
         crawls.append(editorial_archive_crawl)
 
-        daily_crawl = Crawl(
-            self.SOURCE_NAME, 'Daily news 12-31',
-            self.crawl_news_daily(date(2019, 12, 31))
-        )
-        crawls.append(daily_crawl)
-
         return crawls
 
     def _is_paywall_article_page(self, page_soup: BeautifulSoup) -> bool:
