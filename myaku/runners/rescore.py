@@ -48,48 +48,19 @@ def rescore_articles(
     """
     timer = Timer('article rescore')
 
-    current_article = 1
-    updated_article_ids = []
     article_count = db.get_article_count()
     article_gen = db.read_all_articles()
-    for article in article_gen:
+    updated_count = 0
+    for i, article in enumerate(article_gen):
+        if i % 100 == 0:
+            _log.info('Rescored %s / %s articles', i, article_count)
+
         scorer.score_article(article)
         updated = db.update_article_score(article)
         if updated:
-            updated_article_ids.append(article.database_id)
+            updated_count += 1
 
-        if current_article % 100 == 0:
-            _log.info(
-                'Rescored %s / %s articles', current_article, article_count
-            )
-        current_article += 1
-
-    _log.info(
-        '{} articles had their quality score updated'.format(
-            len(updated_article_ids)
-        )
-    )
-    timer.stop()
-    return updated_article_ids
-
-
-def recalculate_found_lexical_item_scores(
-    db: MyakuCrawlDb, updated_article_ids: List[str]
-) -> None:
-    """Recalculate found lexical items scores if necessary.
-
-    Found lexical items whose article quality score was updated will need to
-    have their composite quality score updated.
-    """
-    timer = Timer('found lexical item recalculation')
-    recalculated_count = db.recalculate_found_lexical_item_scores(
-        updated_article_ids
-    )
-    _log.info(
-        '{} found lexical items had their quality score recalculated'.format(
-            recalculated_count
-        )
-    )
+    _log.info('%s articles had their quality score updated', updated_count)
     timer.stop()
 
 
@@ -99,9 +70,7 @@ def main() -> None:
 
     scorer = MyakuArticleScorer()
     with MyakuCrawlDb(DbAccessMode.READ_UPDATE) as db:
-        updated_article_ids = rescore_articles(db, scorer)
-        if len(updated_article_ids) > 0:
-            recalculate_found_lexical_item_scores(db, updated_article_ids)
+        rescore_articles(db, scorer)
 
     timer.stop()
 
