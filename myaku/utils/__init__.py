@@ -631,7 +631,7 @@ def make_properties_work_in_dataclass(cls: T = None, **kwargs) -> T:
     As of Python 3.7, properties with default values and read-only properties
     will not init properly with dataclasses because the dataclass init will try
     to set the property with the property object itself during init. This
-    decorator will do some magic to fix this so that properties in the
+    decorator will do some setup to fix this so that properties in the
     dataclass with default values and read-only properties will init properly.
 
     Args:

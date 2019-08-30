@@ -98,6 +98,25 @@ class JpnArticleBlog(Crawlable):
         return '{}|{}'.format(self.title, self.author)
 
 
+class ArticleTextPosition(NamedTuple):
+    """The index and length of a segment of text in an article.
+
+    The segment can be retrieved from its containing article text with the
+    slice [index:index + len].
+
+    Attributes:
+        index: The index of the first character of the text segment in the
+            article text.
+        len: The length of the text segment.
+    """
+    index: int
+    len: int
+
+    def slice(self) -> slice:
+        """Returns slice for getting the text segment from its article text."""
+        return slice(self.index, self.index + self.len)
+
+
 @dataclass
 @utils.make_properties_work_in_dataclass
 class JpnArticle(Crawlable):
@@ -182,7 +201,7 @@ class JpnArticle(Crawlable):
         ])
 
     def get_containing_sentence(
-        self, item_pos: 'LexicalItemTextPosition'
+        self, item_pos: ArticleTextPosition
     ) -> Tuple[str, int]:
         """Gets the sentence containing the lexical item at item_pos.
 
@@ -209,17 +228,16 @@ class JpnArticle(Crawlable):
         return (self.full_text[start:end + 1], start)
 
     def group_text_positions_by_sentence(
-        self, text_positions: List['LexicalItemTextPosition']
-    ) -> List[Tuple[str, int, Tuple['LexicalItemTextPosition', ...]]]:
+        self, text_positions: List[ArticleTextPosition]
+    ) -> List[Tuple[ArticleTextPosition, Tuple[ArticleTextPosition, ...]]]:
         """Groups a list of text positions by their containing sentences.
 
         Args:
             text_positions: List of of text positions in this article.
 
         Returns:
-            A list of (sentence start index, sentence end index,
-            contained text positions) tuples. The tuples are sorted by
-            sentence start index.
+            A list of (sentence position, contained text positions) tuples. The
+            tuples are sorted by sentence start index.
         """
         sentence_groups = defaultdict(list)
         end = -1
@@ -231,13 +249,13 @@ class JpnArticle(Crawlable):
                 end = utils.find_jpn_sentence_end(
                     self.full_text, pos.index + pos.len
                 )
-            sentence_groups[(start, end)].append(pos)
+            sentence_groups[
+                ArticleTextPosition(start, end - start + 1)
+            ].append(pos)
 
         group_tuples = []
-        for sentence_bounds, pos_list in sentence_groups.items():
-            group_tuples.append(
-                (sentence_bounds[0], sentence_bounds[1], tuple(pos_list))
-            )
+        for sentence_pos, text_pos_list in sentence_groups.items():
+            group_tuples.append((sentence_pos, tuple(text_pos_list)))
 
         return group_tuples
 
@@ -280,30 +298,6 @@ class MecabLexicalItemInterp(NamedTuple):
     conjugated_form: str = None
 
 
-class LexicalItemTextPosition(NamedTuple):
-    """The index and length of a lexical item in a body of text.
-
-    The lexical item can be retrieved from its containing body of text with the
-    slice [index:index + len].
-
-    Attributes:
-        index: The index of the first character of the lexical item in
-            its containing body of text.
-        len: The length of the lexical item.
-    """
-    index: int
-    len: int
-
-    def slice(self) -> slice:
-        """Returns slice for getting the lexical item from its containing text.
-
-        If "text" is a variable with the containing text for the lexical item
-        and "obj" is a LexicalItemTextPosition object, can be called like
-        "text[obj.slice()]" to get the lexical item from the text.
-        """
-        return slice(self.index, self.index + self.len)
-
-
 @dataclass
 @utils.make_properties_work_in_dataclass
 class FoundJpnLexicalItem(object):
@@ -340,16 +334,16 @@ class FoundJpnLexicalItem(object):
     """
     base_form: str = None
     article: JpnArticle = None
-    found_positions: List[LexicalItemTextPosition] = None
+    found_positions: List[ArticleTextPosition] = None
     possible_interps: List[JpnLexicalItemInterp] = None
     interp_position_map: (
-        Dict[JpnLexicalItemInterp, List[LexicalItemTextPosition]]
+        Dict[JpnLexicalItemInterp, List[ArticleTextPosition]]
     ) = field(default_factory=dict)
     quality_score_mod: int = None
     database_id: str = None
 
     _base_form: str = field(init=False, repr=False)
-    _surface_form_cache: Dict[LexicalItemTextPosition, str] = (
+    _surface_form_cache: Dict[ArticleTextPosition, str] = (
         field(default_factory=dict, init=False, repr=False)
     )
 
@@ -381,7 +375,7 @@ class FoundJpnLexicalItem(object):
         return surface_form
 
     def cache_surface_form(
-        self, surface_form: str, text_pos: LexicalItemTextPosition
+        self, surface_form: str, text_pos: ArticleTextPosition
     ) -> None:
         """Adds surface form to a cache for quick retrieval later."""
         self._surface_form_cache[text_pos] = surface_form

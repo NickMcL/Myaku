@@ -80,35 +80,35 @@
             <hr>
             <blockquote class="mb-3 article-sample-text">
               <p class="mb-0">
-                {% for segment in result.main_matching_sentence.segments %}
+                {% for segment in result.preview.main_sample_text.segments %}
                   {% if segment.is_query_match %}
-                    <span class="article-sample-instance">{{ segment.segment_text }}</span>
+                    <span class="article-sample-instance">{{ segment.text }}</span>
                   {% else %}
-                    {{ segment.segment_text }}
+                    {{ segment.text }}
                   {% endif %}
                 {% endfor %}
               </p>
               <footer class="blockquote-footer">
-                {{ result.main_matching_sentence.article_pos_humanized }}
+                {{ result.preview.main_sample_text.get_humanized_text_position }}
               </footer>
             </blockquote>
-            {% if result.more_matching_sentences %}
+            {% if result.preview.extra_sample_texts %}
               <div id="more-samples-{{ forloop.counter }}" class="collapse extra-sample-instances">
                 <ul class="list-unstyled mb-3 article-sample-text">
-                {% for matching_sentence in result.more_matching_sentences %}
+                {% for sample_text in result.preview.extra_sample_texts %}
                   <li>
                     <blockquote>
                       <p class="mb-0">
-                        {% for segment in matching_sentence.segments %}
+                        {% for segment in sample_text.segments %}
                           {% if segment.is_query_match %}
-                            <span class="article-sample-instance">{{ segment.segment_text }}</span>
+                            <span class="article-sample-instance">{{ segment.text }}</span>
                           {% else %}
-                            {{ segment.segment_text }}
+                            {{ segment.text }}
                           {% endif %}
                         {% endfor %}
                       </p>
                       <footer class="blockquote-footer">
-                        {{ matching_sentence.article_pos_humanized }}
+                        {{ sample_text.get_humanized_text_position }}
                       </footer>
                     </blockquote>
                   </li>
@@ -117,7 +117,7 @@
               </div>
             {% endif %}
           </div>
-          {% if result.more_matching_sentences %}
+          {% if result.preview.extra_sample_texts %}
             <div class="col-12 px-0">
               <div class="card-footer text-center py-0">
                 <button class="btn btn-link text-muted show-more-button" type="button"

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Generic, List, Tuple, TypeVar
 
-from myaku.crawlers import KakuyomuCrawler, NhkNewsWebCrawler
+from myaku.crawlers import KakuyomuCrawler
 from myaku.datatypes import FoundJpnLexicalItem, JpnArticle
 
 T = TypeVar('T')
@@ -255,7 +255,7 @@ class BlogRatingScorer(ArticleFactorScorer):
                 self._FIXED_SOURCE_MULTIPLIER_MAP[article.source_name]
             )
         elif article.source_name == KakuyomuCrawler.SOURCE_NAME:
-            return self._score_kakuyomu_article(article.score_name)
+            return self._score_kakuyomu_article(article)
         else:
             raise ValueError(
                 'Unrecoginzed article source: {}'.format(article.source_name)

@@ -12,7 +12,8 @@ from django.shortcuts import render
 import myaku
 from myaku.database import (DbAccessMode, JpnArticleQueryType,
                             JpnArticleSearchResult, MyakuCrawlDb)
-from myaku.datatypes import JpnArticle, LexicalItemTextPosition
+from myaku.datatypes import JpnArticle
+from search.article_preview import SearchResultArticlePreview
 
 # If a found article for a query has many instances of the query in its text,
 # the max number of instance sentences to show on the results page for that
@@ -307,6 +308,9 @@ class QueryArticleResult(object):
         self.matched_base_forms = search_result.matched_base_forms
         self.quality_score = search_result.quality_score
         self.instance_count = len(search_result.found_positions)
+        self.tags = self._get_tags(search_result.article)
+        self.preview = SearchResultArticlePreview(search_result)
+
         self.publication_date_str = humanize_date(
             search_result.article.publication_datetime
         )
@@ -316,15 +320,6 @@ class QueryArticleResult(object):
         self.display_last_updated_date = (
             self._should_display_last_updated_datetime(search_result.article)
         )
-        self.tags = self._get_tags(search_result.article)
-
-        matching_sentences = self._get_result_matching_sentences(
-            search_result, _MAX_ARTICLE_INSTANCE_SAMPLES
-        )
-        self.main_matching_sentence = matching_sentences[0]
-        self.more_matching_sentences = matching_sentences[
-            1:_MAX_ARTICLE_INSTANCE_SAMPLES
-        ]
 
     def _should_display_last_updated_datetime(
         self, article: JpnArticle
@@ -365,93 +360,6 @@ class QueryArticleResult(object):
             return True
 
         return False
-
-    def _humanize_index_position(self, index: int, article: JpnArticle) -> str:
-        """Gets a human-readable string of an index position in the article."""
-        if index < len(article.title):
-            return 'Article title'
-
-        percent_pos = round((index / len(article.full_text)) * 100)
-        return '{}% into article'.format(percent_pos)
-
-    def _create_matching_sentence(
-        self, article: JpnArticle, sentence_start_index: int,
-        sentence_end_index: int, found_positions: LexicalItemTextPosition
-    ) -> SearchResultMatchingSentence:
-        """Creates a matching sentence object from article and sentence data.
-
-        Args:
-            article: Article containing the sentence
-            sentence_text: Full text of the matching sentence.
-            sentence_start_index: Starting index of the matching sentence in
-                the article text.
-            found_positions: Positions where the text matching the search was
-                found in the article.
-
-        Returns:
-            A SearchResultMatchingSentence object created from the given data.
-        """
-        matching_sentence = SearchResultMatchingSentence(
-            sentence_start_index - sentence_end_index + 1,
-            self._humanize_index_position(sentence_start_index, article),
-            len(found_positions),
-            []
-        )
-
-        last_end_index = sentence_start_index - 1
-        for pos in found_positions:
-            if last_end_index != pos.index - 1:
-                segment_text = article.full_text[last_end_index + 1:pos.index]
-                matching_sentence.segments.append(
-                    SearchResultMatchingSentenceSegment(False, segment_text)
-                )
-                last_end_index += len(segment_text)
-            match_text = article.full_text[pos.slice()]
-            matching_sentence.segments.append(
-                SearchResultMatchingSentenceSegment(True, match_text)
-            )
-            last_end_index += pos.len
-
-        end_text = article.full_text[
-            last_end_index + 1: sentence_end_index + 1
-        ]
-        if len(end_text) > 0:
-            matching_sentence.segments.append(
-                SearchResultMatchingSentenceSegment(False, end_text)
-            )
-
-        matching_sentence.trim_whitespace()
-        return matching_sentence
-
-    def _get_result_matching_sentences(
-        self, result: JpnArticleSearchResult, max_count: int
-    ) -> List[SearchResultMatchingSentence]:
-        """Gets a list of the matching sentences for the search result.
-
-        Args:
-            search_result: The search result to get the matching sentences for.
-            max_count: Maximum number of matching sentences to return.
-
-        Returns:
-            A ranked list by sentence length of the matching sentences of the
-            article for the search result.
-        """
-        sentence_groups = result.article.group_text_positions_by_sentence(
-            result.found_positions
-        )
-
-        # Sort by sentence length (end_index - start_index + 1)
-        sorted_groups = sorted(
-            sentence_groups, key=lambda t: t[1] - t[0] + 1, reverse=True
-        )
-
-        matching_sentences = []
-        for sentence_group in sorted_groups[:max_count]:
-            matching_sentences.append(self._create_matching_sentence(
-                result.article, *sentence_group
-            ))
-
-        return matching_sentences
 
     def _get_tags(self, article: JpnArticle) -> List[str]:
         """Gets the tags applicable for the article."""

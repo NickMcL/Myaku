@@ -16,8 +16,8 @@ import MeCab
 
 import myaku
 from myaku import utils
-from myaku.datatypes import (FoundJpnLexicalItem, InterpSource, JpnArticle,
-                             JpnLexicalItemInterp, LexicalItemTextPosition,
+from myaku.datatypes import (ArticleTextPosition, FoundJpnLexicalItem,
+                             InterpSource, JpnArticle, JpnLexicalItemInterp,
                              MecabLexicalItemInterp,
                              reduce_found_lexical_items)
 from myaku.errors import (ResourceLoadError, ResourceNotReadyError,
@@ -342,7 +342,7 @@ class JapaneseTextAnalyzer(object):
 
             lexical_item = FoundJpnLexicalItem(
                 base_form=entry.text_form,
-                found_positions=[LexicalItemTextPosition(
+                found_positions=[ArticleTextPosition(
                     base_decomp[0].found_positions[0].index, len(surface_form)
                 )],
                 possible_interps=[
@@ -1073,7 +1073,7 @@ class MecabTagger:
         """Creates a found lexical item from the tags, interp, and offset."""
         found_lexical_item = FoundJpnLexicalItem(
             base_form=parsed_token_tags[2],
-            found_positions=[LexicalItemTextPosition(
+            found_positions=[ArticleTextPosition(
                 offset, len(parsed_token_tags[0])
             )],
             possible_interps=[interp]

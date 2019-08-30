@@ -2,7 +2,7 @@
 
 import logging
 import re
-from datetime import date, timedelta
+from datetime import date
 from typing import List, Optional
 
 from bs4 import BeautifulSoup
@@ -282,14 +282,11 @@ class AsahiCrawler(CrawlerABC):
         )
         crawls.append(editorial_archive_crawl)
 
-        current_date = date(2019, 9, 1)
-        stop_date = date(2019, 12, 31)
-        while current_date != stop_date:
-            crawls.append(Crawl(
-                self.SOURCE_NAME, 'Daily news {}'.format(current_date),
-                self.crawl_news_daily(current_date)
-            ))
-            current_date += timedelta(days=1)
+        daily_crawl = Crawl(
+            self.SOURCE_NAME, 'Daily news 12-31',
+            self.crawl_news_daily(date(2019, 12, 31))
+        )
+        crawls.append(daily_crawl)
 
         return crawls
 

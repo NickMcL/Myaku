@@ -25,9 +25,10 @@ from pymongo.results import InsertManyResult
 
 import myaku
 from myaku import utils
-from myaku.datatypes import (Crawlable, FoundJpnLexicalItem, InterpSource,
-                             JpnArticle, JpnArticleBlog, JpnLexicalItemInterp,
-                             LexicalItemTextPosition, MecabLexicalItemInterp)
+from myaku.datatypes import (ArticleTextPosition, Crawlable,
+                             FoundJpnLexicalItem, InterpSource, JpnArticle,
+                             JpnArticleBlog, JpnLexicalItemInterp,
+                             MecabLexicalItemInterp)
 from myaku.errors import DbPermissionError
 
 _log = logging.getLogger(__name__)
@@ -278,7 +279,7 @@ class JpnArticleSearchResult(object):
     """
     article: JpnArticle
     matched_base_forms: List[str]
-    found_positions: List[LexicalItemTextPosition]
+    found_positions: List[ArticleTextPosition]
     quality_score: int
 
 
@@ -1247,7 +1248,7 @@ class MyakuCrawlDb(object):
 
     @utils.skip_method_debug_logging
     def _convert_found_positions_to_docs(
-        self, found_positions: List[LexicalItemTextPosition]
+        self, found_positions: List[ArticleTextPosition]
     ) -> List[_Document]:
         """Converts found positions to dicts for inserting into MongoDB."""
         docs = []
@@ -1442,11 +1443,11 @@ class MyakuCrawlDb(object):
     @utils.skip_method_debug_logging
     def _convert_docs_to_found_positions(
         self, docs: List[_Document]
-    ) -> List[LexicalItemTextPosition]:
+    ) -> List[ArticleTextPosition]:
         """Converts MongoDB docs to found positions."""
         found_positions = []
         for doc in docs:
-            found_positions.append(LexicalItemTextPosition(
+            found_positions.append(ArticleTextPosition(
                 index=doc['index'],
                 len=doc['len'],
             ))
