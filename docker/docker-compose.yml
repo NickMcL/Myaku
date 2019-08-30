@@ -89,7 +89,7 @@ services:
     networks:
       - web_net
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy:1.1.3
+    image: friedrice2/myaku_nginx.reverseproxy:1.1.4
     deploy:
       restart_policy:
         condition: any
