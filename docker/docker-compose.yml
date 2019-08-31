@@ -1,21 +1,12 @@
-# Production stack configuration for Myaku.
-# Image versions are all the versions that are currently deployed in
-# production.
+# Base stack configuration for Myaku.
 #
-# Run docker stack deploy pasing just this file as an -f arg to run the Myaku
-# stack configured for production, or pass both this file and the
-# docker-compose.dev.yml file as -f args to run the Myaku stack configured for
-# development.
+# Should be run with one of the dev, test, or prod docker-compose files to
+# apply the approriate overrides for the environment the stack is being run in.
 
 version: "3.7"
 services:
   crawler:
     image: friedrice2/myaku_crawler:1.4.5
-    deploy:
-      restart_policy:
-        condition: any
-        max_attempts: 3
-        window: 10s
     volumes:
       - type: volume
         source: crawler_log
@@ -25,7 +16,9 @@ services:
         source: crawler_appdata
         target: /crawler/appdata
     environment:
-      CRAWL_CRON_SCHEDULE: "0 1,4,7,10,13,16,19,22 * * *"
+      # A cron schedule of "#" will comment out the line for the crawl job in
+      # the crontab file so that it will not run during testing.
+      CRAWL_CRON_SCHEDULE: "#"  
       CRAWLER_LIST: "Asahi,Kakuyomu"
       KAKUYOMU_CRAWLER_PAGE_TO_CRAWL: 5
       MYAKU_CRAWLDB_HOST: crawldb
@@ -39,18 +32,15 @@ services:
     networks:
       - crawler_net
   rescore:
-    image: friedrice2/myaku_rescore:1.0.4
-    deploy:
-      restart_policy:
-        condition: any
-        max_attempts: 3
-        window: 10s
+    image: friedrice2/myaku_rescore:1.1.0
     volumes:
       - type: volume
         source: rescore_log
         target: /rescore/log
     environment:
-      RESCORE_CRON_SCHEDULE: "0 9 * * *"
+      # A cron schedule of "#" will comment out the line for the rescore job in
+      # the crontab file so that it will not run during testing.
+      RESCORE_CRON_SCHEDULE: "#"  
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
@@ -63,11 +53,6 @@ services:
       - crawler_net
   web:
     image: friedrice2/myaku_web:1.5.1
-    deploy:
-      restart_policy:
-        condition: any
-        max_attempts: 3
-        window: 10s
     volumes:
       - type: volume
         source: web_log
@@ -90,11 +75,6 @@ services:
       - web_net
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:1.1.4
-    deploy:
-      restart_policy:
-        condition: any
-        max_attempts: 3
-        window: 10s
     volumes:
       - type: volume
         source: reverseproxy_log
@@ -113,11 +93,6 @@ services:
       - web_net
   crawldb:
     image: friedrice2/myaku_mongo.crawldb:1.1.0
-    deploy:
-      restart_policy:
-        condition: any
-        max_attempts: 3
-        window: 10s
     volumes:
       - type: volume
         source: crawldb_datadb
@@ -151,21 +126,18 @@ services:
       - crawler_net
   crawldb_backup:
     image: friedrice2/mongobackup:1.0.2_4.2.0
-    deploy:
-      restart_policy:
-        condition: any
-        max_attempts: 3
-        window: 10s
     volumes:
       - type: volume
         source: crawldb_backups
         target: /backups
     environment:
+      # A cron schedule of "#" will comment out the line for the backup job in
+      # the crontab file so that it will not run while doing development.
+      DB_BACKUP_CRON_SCHEDULE: "#"
       DB_HOST: crawldb
       DB_USERNAME_FILE: /run/secrets/crawldb_backup_username
       DB_PASSWORD_FILE: /run/secrets/crawldb_backup_password
       DB_MAX_ALLOWED_BACKUPS: 7
-      DB_BACKUP_CRON_SCHEDULE: "0 6 * * *"
     secrets:
       - crawldb_backup_username
       - crawldb_backup_password
@@ -184,27 +156,27 @@ volumes:
 
 configs:
   myakuweb_allowed_hosts:
-    file: ./myakuweb_allowed_hosts.txt
+    file: ./dev_configs/myakuweb_allowed_hosts_DEVUSEONLY.txt
 
 secrets:
   crawldb_root_username:
-    external: true
+    file: ./dev_secrets/crawldb_root_username_DEVUSEONLY.txt
   crawldb_root_password:
-    external: true
+    file: ./dev_secrets/crawldb_root_password_DEVUSEONLY.txt
   crawldb_backup_username:
-    external: true
+    file: ./dev_secrets/crawldb_backup_username_DEVUSEONLY.txt
   crawldb_backup_password:
-    external: true
+    file: ./dev_secrets/crawldb_backup_password_DEVUSEONLY.txt
   crawldb_crawler_username:
-    external: true
+    file: ./dev_secrets/crawldb_crawler_username_DEVUSEONLY.txt
   crawldb_crawler_password:
-    external: true
+    file: ./dev_secrets/crawldb_crawler_password_DEVUSEONLY.txt
   crawldb_web_username:
-    external: true
+    file: ./dev_secrets/crawldb_web_username_DEVUSEONLY.txt
   crawldb_web_password:
-    external: true
+    file: ./dev_secrets/crawldb_web_password_DEVUSEONLY.txt
   web_django_secret_key:
-    external: true
+    file: ./dev_secrets/web_django_secret_key_DEVUSEONLY.txt
 
 networks:
   web_net:

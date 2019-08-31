@@ -1,15 +1,15 @@
-# Development overrides for the Myaku stack
+# Development overrides for the Myaku stack.
 #
-# Overrides the image for all services with the dev tagged version.
+# Uses the images tagged "dev" for each service.
 # 
 # The dev tagged version of the image for each service is built using the same
 # Dockerfile as the prod versions, but the dev target is used instead of the
 # prod target.
 #
 # The dev target builds the image expecting binds from the host to supply all
-# needed files from the host instead of copying the needed files directly into
-# the image. This means changes to the host files are then automatically
-# reflected in the service containers without having to rebuild images.
+# needed files instead of copying the needed files directly into the image.
+# This means changes to the host files are then automatically reflected in the
+# service containers without having to rebuild images.
 #
 # The dev tagged images are not publicly published and must be built locally
 # using build_image.sh. Run build_image.sh with no args for usage details.
@@ -21,9 +21,6 @@ version: "3.7"
 services:
   crawler:
     image: friedrice2/myaku_crawler:dev
-    deploy:
-      restart_policy:
-        condition: none
     volumes:
       - type: volume
         source: crawler_devdata
@@ -37,32 +34,20 @@ services:
         source: ./myaku_crawler
         target: /crawler/src/scripts
     environment:
-      # A cron schedule of "#" will comment out the line for the crawl job in
-      # the crontab file so that it will not run while doing development.
-      CRAWL_CRON_SCHEDULE: "#"  
       KAKUYOMU_CRAWLER_PAGE_TO_CRAWL: 1
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   rescore:
     image: friedrice2/myaku_rescore:dev
-    deploy:
-      restart_policy:
-        condition: none
     volumes:
       - type: bind
         source: ../myaku
         target: /rescore/src/myaku
     environment:
-      # A cron schedule of "#" will comment out the line for the rescore job in
-      # the crontab file so that it will not run while doing development.
-      RESCORE_CRON_SCHEDULE: "#"  
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
   web:
     image: friedrice2/myaku_web:dev
-    deploy:
-      restart_policy:
-        condition: none
     volumes:
       - type: bind
         source: ../myaku
@@ -85,9 +70,6 @@ services:
     tty: true
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:dev
-    deploy:
-      restart_policy:
-        condition: none
     volumes:
       - type: bind
         source: ./myaku_nginx-reverseproxy
@@ -102,9 +84,6 @@ services:
         mode: host
   crawldb:
     image: friedrice2/myaku_mongo.crawldb:dev
-    deploy:
-      restart_policy:
-        condition: none
     volumes:
       - type: bind
         source: ./myaku_mongo-crawldb/initdb.d
@@ -114,41 +93,10 @@ services:
         target: /run_files
   crawldb_backup:
     image: friedrice2/mongobackup:dev
-    deploy:
-      restart_policy:
-        condition: none
     volumes:
       - type: bind
         source: ./mongobackup
         target: /run_files
-    environment:
-      # A cron schedule of "#" will comment out the line for the backup job in
-      # the crontab file so that it will not run while doing development.
-      DB_BACKUP_CRON_SCHEDULE: "#"
 
 volumes:
   crawler_devdata:
-
-configs:
-  myakuweb_allowed_hosts:
-    file: ./dev_configs/myakuweb_allowed_hosts_DEVUSEONLY.txt
-
-secrets:
-  crawldb_root_username:
-    file: ./dev_secrets/crawldb_root_username_DEVUSEONLY.txt
-  crawldb_root_password:
-    file: ./dev_secrets/crawldb_root_password_DEVUSEONLY.txt
-  crawldb_backup_username:
-    file: ./dev_secrets/crawldb_backup_username_DEVUSEONLY.txt
-  crawldb_backup_password:
-    file: ./dev_secrets/crawldb_backup_password_DEVUSEONLY.txt
-  crawldb_crawler_username:
-    file: ./dev_secrets/crawldb_crawler_username_DEVUSEONLY.txt
-  crawldb_crawler_password:
-    file: ./dev_secrets/crawldb_crawler_password_DEVUSEONLY.txt
-  crawldb_web_username:
-    file: ./dev_secrets/crawldb_web_username_DEVUSEONLY.txt
-  crawldb_web_password:
-    file: ./dev_secrets/crawldb_web_password_DEVUSEONLY.txt
-  web_django_secret_key:
-    file: ./dev_secrets/web_django_secret_key_DEVUSEONLY.txt

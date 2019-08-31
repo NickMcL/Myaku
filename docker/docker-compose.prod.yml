@@ -1,0 +1,94 @@
+# Production override for the Myaku stack.
+#
+# Sets the swarm deploy settings, service cron schedules, and production
+# secrets and configs.
+#
+# Run docker stack deploy passing both the docker-compose.yml file and this
+# file as -f args to run the Myaku stack configured for production.
+
+version: "3.7"
+services:
+  crawler:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == crawler
+    environment:
+      CRAWL_CRON_SCHEDULE: "0 1,4,7,10,13,16,19,22 * * *"
+  rescore:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == crawler
+    environment:
+      RESCORE_CRON_SCHEDULE: "0 9 * * *"
+  web:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == web
+  reverseproxy:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == web
+  crawldb:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == web
+  crawldb_backup:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == web
+    environment:
+      DB_BACKUP_CRON_SCHEDULE: "0 6 * * *"
+
+configs:
+  myakuweb_allowed_hosts:
+    file: ./myakuweb_allowed_hosts.txt
+
+secrets:
+  crawldb_root_username:
+    external: true
+  crawldb_root_password:
+    external: true
+  crawldb_backup_username:
+    external: true
+  crawldb_backup_password:
+    external: true
+  crawldb_crawler_username:
+    external: true
+  crawldb_crawler_password:
+    external: true
+  crawldb_web_username:
+    external: true
+  crawldb_web_password:
+    external: true
+  web_django_secret_key:
+    external: true
