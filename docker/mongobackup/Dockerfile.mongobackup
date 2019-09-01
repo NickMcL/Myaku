@@ -5,7 +5,7 @@
 # secrets to be set in order to connect to the MongoDB instance and to AWS.
 # See the mongo_backup_to_s3.py script for details on these needed paramaters.
 
-FROM friedrice2/ubuntu.cron:1.0.1_18.04 AS base
+FROM friedrice2/ubuntu.cron:1.0.2_18.04 AS base
 
 # Needed packages for adding the official MongoDB repo to apt in the next step.
 RUN apt-get update && apt-get install -y gnupg ca-certificates wget
