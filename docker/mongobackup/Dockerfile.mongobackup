@@ -60,4 +60,4 @@ VOLUME ["$SCRIPTS_DIR"]
 
 FROM base AS prod
 
-COPY ./docker/mongobackup/mongo_backup_to_s3.py $DB_BACKUP_SCRIPT
+COPY ./docker/mongobackup/mongo_backup_to_s3.py $DB_BACKUP_PYTHON_SCRIPT
