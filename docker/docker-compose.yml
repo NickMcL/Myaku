@@ -128,7 +128,7 @@ services:
     image: friedrice2/mongobackup:2.0.0_4.2.0
     volumes:
       - type: volume
-        source: crawldb_backup_logs
+        source: crawldb_backup_log
         target: /mongobackup/log
     environment:
       # A cron schedule of "#" will comment out the line for the backup job in
@@ -157,7 +157,7 @@ volumes:
   reverseproxy_log:
   crawldb_datadb:
   crawldb_configdb:
-  crawldb_backup_logs:
+  crawldb_backup_log:
 
 configs:
   myakuweb_allowed_hosts:

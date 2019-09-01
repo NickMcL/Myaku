@@ -32,4 +32,4 @@ done
 # Cron file must end with an empty line to be valid.
 echo >> $CRON_FILE
 
-cron -f
+exec cron -f
