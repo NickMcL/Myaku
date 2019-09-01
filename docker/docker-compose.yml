@@ -125,7 +125,7 @@ services:
       - web_net
       - crawler_net
   crawldb_backup:
-    image: friedrice2/mongobackup:1.0.2_4.2.0
+    image: friedrice2/mongobackup:2.0.0_4.2.0
     volumes:
       - type: volume
         source: crawldb_backup_logs
@@ -134,8 +134,6 @@ services:
       # A cron schedule of "#" will comment out the line for the backup job in
       # the crontab file so that it will not run while doing development.
       DB_BACKUP_CRON_SCHEDULE: "#"
-      DB_HOST: crawldb
-      DB_MAX_ALLOWED_BACKUPS: 7
       DB_USERNAME_FILE: /run/secrets/crawldb_backup_username
       DB_PASSWORD_FILE: /run/secrets/crawldb_backup_password
       AWS_ACCESS_KEY_ID_FILE: /run/secrets/aws_access_key_id
@@ -165,8 +163,7 @@ configs:
   myakuweb_allowed_hosts:
     file: ./dev_configs/myakuweb_allowed_hosts_DEVUSEONLY.txt
   mongo_backup_to_s3.yml:
-    file: ../mongo_backup_to_s3.yml
-    #file: ./dev_configs/mongo_backup_to_s3_DEVUSEONLY.yml
+    file: ./dev_configs/mongo_backup_to_s3_DEVUSEONLY.yml
 
 secrets:
   crawldb_root_username:
@@ -188,11 +185,9 @@ secrets:
   web_django_secret_key:
     file: ./dev_secrets/web_django_secret_key_DEVUSEONLY.txt
   aws_access_key_id:
-    external: true
-    #file: ./dev_secrets/aws_access_key_id_DEVUSEONLY.txt
+    file: ./dev_secrets/aws_access_key_id_DEVUSEONLY.txt
   aws_secret_access_key:
-    external: true
-    #file: ./dev_secrets/aws_secret_access_key_DEVUSEONLY.txt
+    file: ./dev_secrets/aws_secret_access_key_DEVUSEONLY.txt
 
 networks:
   web_net:

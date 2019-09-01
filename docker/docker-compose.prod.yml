@@ -71,9 +71,9 @@ services:
 
 configs:
   myakuweb_allowed_hosts:
-    file: ./myakuweb_allowed_hosts.txt
+    file: ./configs/myakuweb_allowed_hosts.txt
   mongo_backup_to_s3.yml:
-    file: ./mongo_backup_to_s3.yml
+    file: ./configs/mongo_backup_to_s3.yml
 
 secrets:
   crawldb_root_username:
