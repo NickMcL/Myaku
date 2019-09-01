@@ -72,6 +72,8 @@ services:
 configs:
   myakuweb_allowed_hosts:
     file: ./myakuweb_allowed_hosts.txt
+  mongo_backup_to_s3.yml:
+    file: ./mongo_backup_to_s3.yml
 
 secrets:
   crawldb_root_username:
@@ -91,4 +93,8 @@ secrets:
   crawldb_web_password:
     external: true
   web_django_secret_key:
+    external: true
+  aws_access_key_id:
+    external: true
+  aws_secret_access_key:
     external: true

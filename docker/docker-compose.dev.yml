@@ -96,7 +96,7 @@ services:
     volumes:
       - type: bind
         source: ./mongobackup
-        target: /run_files
+        target: /mongobackup/scripts
 
 volumes:
   crawler_devdata:

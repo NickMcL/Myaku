@@ -1,4 +1,9 @@
-# Makes routine data backups of a full MongoDB mongod instance.
+# Makes routine data backups of a full MongoDB instance and stores the backups
+# in AWS S3.
+# 
+# Requires a yaml file to be supplied as a docker config and several docker
+# secrets to be set in order to connect to the MongoDB instance and to AWS.
+# See the mongo_backup_to_s3.py script for details on these needed paramaters.
 
 FROM friedrice2/ubuntu.cron:1.0.1_18.04 AS base
 
@@ -13,21 +18,38 @@ RUN echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/\
 mongodb-org/4.2 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.2.list
 RUN apt-get update && apt-get install -y mongodb-org-tools=4.2.0
 
-ENV SCRIPTS_DIR /run_files
-ENV BACKUPS_DIR /backups
-VOLUME ["$BACKUPS_DIR"]
+# Set up deadsnakes ppa for installing newer Python versions
+RUN apt-get install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update
+RUN apt-get install -y python3.7 python3-pip
+
+# Set python binary that should be used in the container
+ENV PYTHON_BIN python3.7
+
+# Get latest pip
+RUN $PYTHON_BIN -m pip install -U pip
+
+# Install boto3 for AWS S3 operations
+RUN $PYTHON_BIN -m pip install boto3==1.9.220
+RUN $PYTHON_BIN -m pip install pyyaml==5.1.2
+
+ENV BACKUPS_BASE_DIR /mongobackup
+ENV SCRIPTS_DIR $BACKUPS_BASE_DIR/scripts
+ENV LOG_DIR $BACKUPS_BASE_DIR/log
+VOLUME ["$LOG_DIR"]
 
 # Can be overriden at run time to use a different schedule.
 ENV DB_BACKUP_CRON_SCHEDULE "0 0 * * *"
 
-ENV DB_BACKUP_SCRIPT $SCRIPTS_DIR/mongo_backup.sh
-ENV DB_BACKUP_RUN_SCRIPT $SCRIPTS_DIR/run_mongo_backup.sh
+ENV DB_BACKUP_PYTHON_SCRIPT $SCRIPTS_DIR/mongo_backup_to_s3.py
 
 # Intentionally insert the DB_BACKUP_CRON_SCHEDULE env variable name and not
 # its value into the cron file so that the cron schedule can be swapped in for
 # it at run time.
 RUN echo "DB_BACKUP_CRON_SCHEDULE root" \
-    "flock -n /tmp/mongobackup.lockfile $DB_BACKUP_RUN_SCRIPT" >> $CRON_FILE
+    "flock -n /tmp/mongobackup.lockfile" \
+    "$PYTHON_BIN $DB_BACKUP_PYTHON_SCRIPT" >> $CRON_FILE
 
 
 FROM base AS dev
@@ -38,6 +60,4 @@ VOLUME ["$SCRIPTS_DIR"]
 
 FROM base AS prod
 
-COPY ./docker/mongobackup/mongo_backup.sh $DB_BACKUP_SCRIPT
-COPY ./docker/mongobackup/run_mongo_backup.sh $DB_BACKUP_RUN_SCRIPT
-RUN chmod +x $DB_BACKUP_RUN_SCRIPT
+COPY ./docker/mongobackup/mongo_backup_to_s3.py $DB_BACKUP_SCRIPT
