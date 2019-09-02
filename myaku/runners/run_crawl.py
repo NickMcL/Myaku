@@ -36,6 +36,9 @@ VALID_CRAWLER_NAMES = {
 
 CRAWLER_ARG_LIST_SPLITTER = ','
 
+MAX_ALLOWED_ARTICLE_LEN = 2**16  # 65,536 characters
+MAX_ALLOWED_ARTICLE_FLIS = 2**16  # 65,536 found lexical items
+
 
 @dataclass
 class CrawlCounts(object):
@@ -184,12 +187,24 @@ def crawl_most_recent(
                 if db.is_article_text_stored(article):
                     _log.info('Article %s already stored!', article)
                     continue
+                if len(article.full_text) > MAX_ALLOWED_ARTICLE_LEN:
+                    _log.info(
+                        'Article %s is too long to store (%s chars)',
+                        article, len(article.full_text)
+                    )
+                    continue
+
+                flis = jta.find_article_lexical_items(article)
+                if len(flis) > MAX_ALLOWED_ARTICLE_FLIS:
+                    _log.info(
+                        'Article %s has too many lexical items to store (%s)',
+                        article, len(flis)
+                    )
+                    continue
 
                 scorer.score_article(article)
-                flis = jta.find_article_lexical_items(article)
                 for fli in flis:
                     scorer.score_fli_modifier(fli)
-
                 db.write_found_lexical_items(flis)
                 stats.update_crawl(crawl, article, flis)
 
