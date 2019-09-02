@@ -75,9 +75,6 @@ def copy_db_data(
             src, dest, MyakuCrawlDb._FOUND_LEXICAL_ITEM_COLL_NAME,
             {'article_oid': article_new_id_map}
         )
-        _copy_db_collection_data(
-            src, dest, MyakuCrawlDb._CRAWLED_COLL_NAME
-        )
 
 
 def _copy_db_collection_data(
