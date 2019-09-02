@@ -6,7 +6,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.4.6
+    image: friedrice2/myaku_crawler:1.4.7
     volumes:
       - type: volume
         source: crawler_log
