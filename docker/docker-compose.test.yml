@@ -24,6 +24,11 @@ services:
     deploy:
       restart_policy:
         condition: none
+  first-page-cache:
+    image: friedrice2/myaku_redis.first-page-cache:test
+    deploy:
+      restart_policy:
+        condition: none
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:test
     deploy:

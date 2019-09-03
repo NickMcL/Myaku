@@ -6,7 +6,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.4.7
+    image: friedrice2/myaku_crawler:1.5.0
     volumes:
       - type: volume
         source: crawler_log
@@ -35,7 +35,7 @@ services:
     networks:
       - crawler_net
   rescore:
-    image: friedrice2/myaku_rescore:1.1.1
+    image: friedrice2/myaku_rescore:1.2.0
     volumes:
       - type: volume
         source: rescore_log
@@ -58,7 +58,7 @@ services:
     networks:
       - crawler_net
   web:
-    image: friedrice2/myaku_web:1.5.1
+    image: friedrice2/myaku_web:1.6.0
     volumes:
       - type: volume
         source: web_log
@@ -96,7 +96,7 @@ services:
       - crawler_net
       - web_net
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy:1.1.4
+    image: friedrice2/myaku_nginx.reverseproxy:1.1.5
     volumes:
       - type: volume
         source: reverseproxy_log
@@ -114,7 +114,7 @@ services:
     networks:
       - web_net
   crawldb:
-    image: friedrice2/myaku_mongo.crawldb:1.1.0
+    image: friedrice2/myaku_mongo.crawldb:1.1.1
     volumes:
       - type: volume
         source: crawldb_datadb
@@ -147,7 +147,7 @@ services:
       - web_net
       - crawler_net
   crawldb_backup:
-    image: friedrice2/mongobackup:2.0.1_4.2.0
+    image: friedrice2/mongobackup:2.0.2_4.2.0
     volumes:
       - type: volume
         source: crawldb_backup_log
@@ -212,7 +212,7 @@ secrets:
   aws_secret_access_key:
     file: ./dev_secrets/aws_secret_access_key_DEVUSEONLY.txt
   first_page_cache_password:
-    file: ./dev_secrets/search_result_cache_password_DEVUSEONLY.txt
+    file: ./dev_secrets/first_page_cache_password_DEVUSEONLY.txt
 
 networks:
   web_net:

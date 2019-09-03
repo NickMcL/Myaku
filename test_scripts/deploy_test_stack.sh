@@ -83,14 +83,19 @@ if [ $use_existing_images -eq 0 ]; then
         -f "../docker/myaku_web/Dockerfile.myakuweb" \
         -t "friedrice2/myaku_web:test" .. > /dev/null
 
+    echo "Building friedrice2/myaku_redis.first-page-cache:test image..." >&2
+    sudo docker build --target prod \
+        -f "../docker/myaku_redis.first-page-cache/Dockerfile.redis.first-page-cache" \
+        -t "friedrice2/myaku_redis.first-page-cache:test" .. > /dev/null
+
     echo "Building friedrice2/myaku_nginx.reverseproxy:test image..." >&2
     sudo docker build --target prod \
-        -f "../docker/myaku_nginx-reverseproxy/Dockerfile.nginx.reverseproxy" \
+        -f "../docker/myaku_nginx.reverseproxy/Dockerfile.nginx.reverseproxy" \
         -t "friedrice2/myaku_nginx.reverseproxy:test" .. > /dev/null
 
     echo "Building friedrice2/myaku_mongo.crawldb:test image..." >&2
     sudo docker build --target prod \
-        -f "../docker/myaku_mongo-crawldb/Dockerfile.mongo.crawldb" \
+        -f "../docker/myaku_mongo.crawldb/Dockerfile.mongo.crawldb" \
         -t "friedrice2/myaku_mongo.crawldb:test" .. > /dev/null
 
     echo "Building friedrice2/mongobackup:test image..." >&2
