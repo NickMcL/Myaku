@@ -19,7 +19,7 @@ RUN touch $CRON_FILE \
 # Must write the env vars set by docker to the env file in an entrypoint script
 # instead of in the image so that any env vars set in the compose file also get
 # included in the env file.
-COPY ./docker/ubuntu-cron/cron_entrypoint.sh /
+COPY ./docker/ubuntu.cron/cron_entrypoint.sh /
 
 # Must run script with bash and not sh in order for declare to work.
 ENTRYPOINT ["/bin/bash", "/cron_entrypoint.sh"]

@@ -18,7 +18,7 @@ import myaku.crawlers
 from myaku import utils
 from myaku.crawlers.abc import Crawl
 from myaku.datastore import DataAccessMode
-from myaku.datastore.database import MyakuCrawlDb
+from myaku.datastore.database import CrawlDb
 from myaku.datatypes import JpnArticle, FoundJpnLexicalItem
 from myaku.errors import ScriptArgsError
 from myaku.japanese_analysis import JapaneseTextAnalyzer
@@ -36,9 +36,6 @@ VALID_CRAWLER_NAMES = {
 }
 
 CRAWLER_ARG_LIST_SPLITTER = ','
-
-MAX_ALLOWED_ARTICLE_LEN = 2**16  # 65,536 characters
-MAX_ALLOWED_ARTICLE_FLIS = 2**16  # 65,536 found lexical items
 
 
 @dataclass
@@ -178,40 +175,28 @@ def crawl_most_recent(
 ) -> None:
     """Runs the most recent articles crawl for the given crawler type."""
     read_write_access = DataAccessMode.READ_WRITE
-    with MyakuCrawlDb(read_write_access) as db, crawler_type() as crawler:
+    with CrawlDb(read_write_access, True) as db, crawler_type() as crawler:
         stats.add_crawl_source(crawler.SOURCE_NAME)
         crawls = crawler.get_crawls_for_most_recent()
         for crawl in crawls:
             stats.add_crawl(crawl)
 
             for article in crawl.crawl_gen:
-                if db.is_article_text_stored(article):
-                    _log.info('Article %s already stored!', article)
-                    continue
-                if len(article.full_text) > MAX_ALLOWED_ARTICLE_LEN:
-                    _log.info(
-                        'Article %s is too long to store (%s chars)',
-                        article, len(article.full_text)
-                    )
+                # Don't waste time running Japanese analysis on articles that
+                # can't be stored in the crawl db anyway.
+                if not db.can_store_article(article):
                     continue
 
                 flis = jta.find_article_lexical_items(article)
-                if len(flis) > MAX_ALLOWED_ARTICLE_FLIS:
-                    _log.info(
-                        'Article %s has too many lexical items to store (%s)',
-                        article, len(flis)
-                    )
-                    continue
-
                 scorer.score_article(article)
                 for fli in flis:
                     scorer.score_fli_modifier(fli)
+
                 db.write_found_lexical_items(flis)
                 stats.update_crawl(crawl, article, flis)
 
             stats.finish_crawl(crawl)
         stats.finish_crawl_source(crawler.SOURCE_NAME)
-        db.update_search_result_cache()
 
 
 def main() -> None:

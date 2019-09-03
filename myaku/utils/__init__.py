@@ -48,12 +48,17 @@ _JPN_SENTENCE_ENDERS = [
 _DEBUG_LOG_MAX_SIZE_ENV_VAR = 'DEBUG_LOG_MAX_SIZE'
 _INFO_LOG_MAX_SIZE_ENV_VAR = 'INFO_LOG_MAX_SIZE'
 
-_LOG_ROTATING_BACKUP_COUNT = 10
+_LOG_ROTATING_BACKUP_COUNT = 9
 _LOGGING_FORMAT = (
     '%(asctime)s:%(name)s:%(levelname)s: %(message)s'
 )
 
 T = TypeVar('T')
+
+
+def _get_root_package_logger() -> logging.Logger:
+    """Gets the root logger for the myaku package."""
+    return logging.getLogger(__name__.split('.')[0])
 
 
 def toggle_myaku_package_log(
@@ -77,7 +82,7 @@ def toggle_myaku_package_log(
         enable: If True, enables the logger; if False, disables the logger.
         filename_base: A name to prepend to the files written by the logger.
     """
-    package_log = logging.getLogger(__name__.split('.')[0])
+    package_log = _get_root_package_logger()
     for handler in package_log.handlers[:]:
         package_log.removeHandler(handler)
     if not enable:
@@ -93,6 +98,7 @@ def toggle_myaku_package_log(
         os.makedirs(log_dir, exist_ok=True)
     filepath_base = os.path.join(log_dir, filename_base)
 
+    package_log.setLevel(logging.DEBUG)
     _add_logging_handlers(package_log, filepath_base)
 
 
@@ -101,7 +107,6 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
 
     Adds the handlers specified in the docstring of toggle_myaku_package_log.
     """
-    logger.setLevel(logging.DEBUG)
     log_formatter = logging.Formatter(_LOGGING_FORMAT)
     debug_log_max_size = int(os.environ.get(_DEBUG_LOG_MAX_SIZE_ENV_VAR, 0))
     info_log_max_size = int(os.environ.get(_INFO_LOG_MAX_SIZE_ENV_VAR, 0))
@@ -113,7 +118,7 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
 
     debug_file_handler = RotatingFileHandler(
         filepath_base + '.debug.log',
-        maxBytes=debug_log_max_size // _LOG_ROTATING_BACKUP_COUNT,
+        maxBytes=debug_log_max_size // (_LOG_ROTATING_BACKUP_COUNT + 1),
         backupCount=_LOG_ROTATING_BACKUP_COUNT
     )
     debug_file_handler.setLevel(logging.DEBUG)
@@ -126,7 +131,7 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
 
     info_file_handler = RotatingFileHandler(
         filepath_base + '.info.log',
-        maxBytes=info_log_max_size // _LOG_ROTATING_BACKUP_COUNT,
+        maxBytes=info_log_max_size // (_LOG_ROTATING_BACKUP_COUNT + 1),
         backupCount=_LOG_ROTATING_BACKUP_COUNT
     )
     info_file_handler.setLevel(logging.INFO)
@@ -137,6 +142,40 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
     info_stream_handler.setLevel(logging.INFO)
     info_stream_handler.setFormatter(log_formatter)
     logger.addHandler(info_stream_handler)
+
+
+def is_package_log_enabled() -> bool:
+    """Returns True if the package log is currently enabled."""
+    return len(_get_root_package_logger().handlers) > 0
+
+
+def set_package_log_level(log_level: int) -> Callable:
+    """Decorator for changing the package log level for a single function.
+
+    The package log level will be changed before the decorated function starts,
+    and then the package log level will be restored to its previous value after
+    the decorated function exits.
+
+    Does not do anything if the package log is disabled.
+    """
+    def decorator_set_package_log_level(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper_set_package_log_level(*args, **kwargs):
+            if is_package_log_enabled():
+                package_log = _get_root_package_logger()
+                before_func_level = package_log.getEffectiveLevel()
+
+                package_log.setLevel(log_level)
+                try:
+                    value = func(*args, **kwargs)
+                finally:
+                    package_log.setLevel(before_func_level)
+            else:
+                value = func(*args, **kwargs)
+
+            return value
+        return wrapper_set_package_log_level
+    return decorator_set_package_log_level
 
 
 def log_and_raise(log: logging.Logger, exc: Exception, error_msg: str) -> None:

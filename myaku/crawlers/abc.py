@@ -15,7 +15,7 @@ from selenium.webdriver import firefox
 import myaku
 from myaku import utils
 from myaku.datastore import DataAccessMode
-from myaku.datastore.database import MyakuCrawlDb
+from myaku.datastore.database import CrawlDb
 from myaku.datatypes import Crawlable, JpnArticle, JpnArticleBlog
 
 _log = logging.getLogger(__name__)
@@ -241,7 +241,7 @@ class CrawlerABC(ABC):
                 self._SOURCE_BASE_URL, item.source_url
             )
 
-        with MyakuCrawlDb(DataAccessMode.READ) as db:
+        with CrawlDb(DataAccessMode.READ) as db:
             uncrawled_items = db.filter_crawlable_to_updated(crawlable_items)
         _log.debug(
             '%s found crawlable items of type %s have not been crawled',
@@ -269,7 +269,7 @@ class CrawlerABC(ABC):
         if len(uncrawled_metas) == 0:
             return
 
-        with MyakuCrawlDb(DataAccessMode.READ_WRITE) as db:
+        with CrawlDb(DataAccessMode.READ_WRITE) as db:
             for i, meta in enumerate(uncrawled_metas):
                 _log.debug(
                     'Crawling uncrawled artcile %s / %s',
@@ -301,7 +301,7 @@ class CrawlerABC(ABC):
         if len(updated_blogs) == 0:
             return
 
-        with MyakuCrawlDb(DataAccessMode.READ_WRITE) as db:
+        with CrawlDb(DataAccessMode.READ_WRITE) as db:
             for i, blog in enumerate(updated_blogs):
                 _log.debug(
                     'Crawling updated blog %s / %s', i + 1, len(updated_blogs)

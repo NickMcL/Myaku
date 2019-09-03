@@ -6,7 +6,7 @@ from typing import List
 
 from myaku import utils
 from myaku.datastore import DataAccessMode
-from myaku.datastore.database import MyakuCrawlDb
+from myaku.datastore.database import CrawlDb
 from myaku.scorer import MyakuArticleScorer
 
 _log = logging.getLogger(__name__)
@@ -34,9 +34,7 @@ class Timer(object):
         )
 
 
-def rescore_articles(
-    db: MyakuCrawlDb, scorer: MyakuArticleScorer
-) -> List[str]:
+def rescore_articles(db: CrawlDb, scorer: MyakuArticleScorer) -> List[str]:
     """Rescores all articles in the Myaku db.
 
     Args:
@@ -70,12 +68,8 @@ def main() -> None:
     timer = Timer('rescore')
 
     scorer = MyakuArticleScorer()
-    with MyakuCrawlDb(DataAccessMode.READ_UPDATE) as db:
+    with CrawlDb(DataAccessMode.READ_UPDATE, True) as db:
         rescore_articles(db, scorer)
-
-        cache_update_timer = Timer('update search result cache')
-        db.update_search_result_cache()
-        cache_update_timer.stop()
 
     timer.stop()
 

@@ -14,22 +14,22 @@ import redis
 from bson.objectid import ObjectId
 
 from myaku import utils
-from myaku.datastore import DataAccessMode, JpnArticleSearchResult
+from myaku.datastore import JpnArticleSearchResult
 from myaku.datatypes import ArticleTextPosition, JpnArticle
 from myaku.errors import DataAccessError
 
 _log = logging.getLogger(__name__)
 
-_CACHE_HOST_ENV_VAR = 'MYAKU_SEARCH_RESULT_CACHE_HOST'
+_CACHE_HOST_ENV_VAR = 'MYAKU_FIRST_PAGE_CACHE_HOST'
 _CACHE_PORT = 6379
 _CACHE_DB_NUMBER = 0
 
-_CACHE_PASSWORD_FILE_ENV_VAR = 'MYAKU_SEARCH_RESULT_CACHE_PASSWORD_FILE'
+_CACHE_PASSWORD_FILE_ENV_VAR = 'MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE'
 
 
 @utils.add_method_debug_logging
-class MyakuSearchResultCache(object):
-    """Caches article search result data for fast retrieval."""
+class FirstPageCache(object):
+    """Caches the first page of queries for articles crawled by Mayku."""
 
     # Gzip compress level to use when compressing serialized bytes to store in
     # the cache.
@@ -37,11 +37,8 @@ class MyakuSearchResultCache(object):
 
     _CACHE_LAST_BUILT_DATETIME_KEY = 'cache_last_built_time'
 
-    def __init__(
-        self, access_mode: DataAccessMode = DataAccessMode.READ
-    ) -> None:
+    def __init__(self) -> None:
         """Init client connection to the cache."""
-        self.access_mode = access_mode
         self._redis_client = self._init_redis_client()
 
     def _init_redis_client(self) -> redis.Redis:
@@ -67,13 +64,13 @@ class MyakuSearchResultCache(object):
         )
         return redis_client
 
-    def set_cache_built_marker(self) -> None:
+    def set_built_marker(self) -> None:
         """Set the marker indicating the cache has been fully built."""
         self._redis_client.set(
             self._CACHE_LAST_BUILT_DATETIME_KEY, datetime.utcnow().isoformat()
         )
 
-    def has_cache_been_built(self) -> bool:
+    def is_built(self) -> bool:
         """Returns True if the cache has been fully built previously."""
         last_built_time = self._redis_client.get(
             self._CACHE_LAST_BUILT_DATETIME_KEY
@@ -168,7 +165,6 @@ class MyakuSearchResultCache(object):
 
         return article_bytes
 
-    @utils.skip_method_debug_logging
     def _cache_serialized_search_results(
         self, query: str, search_results: List[JpnArticleSearchResult],
         compress_level: int
@@ -205,13 +201,14 @@ class MyakuSearchResultCache(object):
             zlib.compress(b''.join(results_bytes), compress_level)
         )
 
-    @utils.skip_method_debug_logging
-    def cache_search_results(
-        self, query: str, search_results: List[JpnArticleSearchResult]
+    def set(
+        self, query: str,
+        first_page_search_results: List[JpnArticleSearchResult]
     ) -> None:
-        """Caches the search results for the given query."""
+        """Caches the first page of search results for the given query."""
         self._cache_serialized_search_results(
-            query, search_results, self._SERIALIZED_BYTES_COMPRESS_LEVEL
+            query, first_page_search_results,
+            self._SERIALIZED_BYTES_COMPRESS_LEVEL
         )
 
     @utils.skip_method_debug_logging
@@ -367,17 +364,17 @@ class MyakuSearchResultCache(object):
 
         return search_results
 
-    def get_search_results(
+    def get(
         self, query: str
     ) -> Optional[List[JpnArticleSearchResult]]:
-        """Gets the cached search results for the given query.
+        """Gets the cached first page of search results for the given query.
 
         Args:
-            query: Query to get the cached search results for.
+            query: Query to get the cached first page of search results for.
 
         Returns:
-            A list of the cached search results if they exist in the cache, or
-            None if no search results exist in the cache for query.
+            A list of the cached first page search results if they exist in the
+            cache, or None if no search results exist in the cache for query.
         """
         cached_results = self._redis_client.get(f'query:{query}')
         if cached_results is None:

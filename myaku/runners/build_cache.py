@@ -3,11 +3,11 @@
 import logging
 
 from myaku import utils
-from myaku.datastore.database import MyakuCrawlDb
+from myaku.datastore.database import CrawlDb
 
 
 def main() -> None:
-    with MyakuCrawlDb() as db:
+    with CrawlDb() as db:
         db.build_search_result_cache()
 
 

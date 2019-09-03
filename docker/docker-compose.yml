@@ -24,14 +24,14 @@ services:
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
-      MYAKU_SEARCH_RESULT_CACHE_HOST: search_result_cache
-      MYAKU_SEARCH_RESULT_CACHE_PASSWORD_FILE: /run/secrets/search_result_cache_password
-      DEBUG_LOG_MAX_SIZE: 200000000  # 200m
-      INFO_LOG_MAX_SIZE: 20000000 # 20m
+      MYAKU_FIRST_PAGE_CACHE_HOST: first-page-cache
+      MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
+      DEBUG_LOG_MAX_SIZE: 209715200  # 200mb
+      INFO_LOG_MAX_SIZE: 20971520 # 20mb
     secrets:
       - crawldb_crawler_username
       - crawldb_crawler_password
-      - search_result_cache_password
+      - first_page_cache_password
     networks:
       - crawler_net
   rescore:
@@ -47,14 +47,14 @@ services:
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
-      MYAKU_SEARCH_RESULT_CACHE_HOST: search_result_cache
-      MYAKU_SEARCH_RESULT_CACHE_PASSWORD_FILE: /run/secrets/search_result_cache_password
-      DEBUG_LOG_MAX_SIZE: 200000000  # 200m
-      INFO_LOG_MAX_SIZE: 20000000 # 20m
+      MYAKU_FIRST_PAGE_CACHE_HOST: first-page-cache
+      MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
+      DEBUG_LOG_MAX_SIZE: 209715200  # 200mb
+      INFO_LOG_MAX_SIZE: 20971520 # 20mb
     secrets:
       - crawldb_crawler_username
       - crawldb_crawler_password
-      - search_result_cache_password
+      - first_page_cache_password
     networks:
       - crawler_net
   web:
@@ -67,31 +67,31 @@ services:
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_web_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_web_password
-      MYAKU_SEARCH_RESULT_CACHE_HOST: search_result_cache
-      MYAKU_SEARCH_RESULT_CACHE_PASSWORD_FILE: /run/secrets/search_result_cache_password
+      MYAKU_FIRST_PAGE_CACHE_HOST: first-page-cache
+      MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
       MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts
       DJANGO_SECRET_KEY_FILE: /run/secrets/web_django_secret_key
-      DEBUG_LOG_MAX_SIZE: 200000000  # 200m
-      INFO_LOG_MAX_SIZE: 20000000 # 20m
+      DEBUG_LOG_MAX_SIZE: 209715200  # 200mb
+      INFO_LOG_MAX_SIZE: 20971520 # 20mb
     configs:
       - myakuweb_allowed_hosts
     secrets:
       - crawldb_web_username
       - crawldb_web_password
       - web_django_secret_key
-      - search_result_cache_password
+      - first_page_cache_password
     networks:
       - web_net
-  search_result_cache:
-    image: friedrice2/myaku_redis.search_result_cache:1.0.0
+  first-page-cache:
+    image: friedrice2/myaku_redis.first-page-cache:1.0.0
     volumes:
       - type: volume
-        source: search_result_cache_data
+        source: first_page_cache_data
         target: /data
     environment:
-      MYAKU_SEARCH_RESULT_CACHE_PASSWORD_FILE: /run/secrets/search_result_cache_password
+      MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
     secrets:
-      - search_result_cache_password
+      - first_page_cache_password
     networks:
       - crawler_net
       - web_net
@@ -176,7 +176,7 @@ volumes:
   crawler_appdata:
   rescore_log:
   web_log:
-  search_result_cache_data:
+  first_page_cache_data:
   reverseproxy_log:
   crawldb_datadb:
   crawldb_configdb:
@@ -211,7 +211,7 @@ secrets:
     file: ./dev_secrets/aws_access_key_id_DEVUSEONLY.txt
   aws_secret_access_key:
     file: ./dev_secrets/aws_secret_access_key_DEVUSEONLY.txt
-  search_result_cache_password:
+  first_page_cache_password:
     file: ./dev_secrets/search_result_cache_password_DEVUSEONLY.txt
 
 networks:

@@ -25,7 +25,7 @@ from myaku import utils
 from myaku.datastore import (DataAccessMode, JpnArticleQueryType,
                              JpnArticleSearchResult, require_update_permission,
                              require_write_permission)
-from myaku.datastore.cache import MyakuSearchResultCache
+from myaku.datastore.cache import FirstPageCache
 from myaku.datatypes import (ArticleTextPosition, Crawlable,
                              FoundJpnLexicalItem, InterpSource, JpnArticle,
                              JpnArticleBlog, JpnLexicalItemInterp,
@@ -47,7 +47,7 @@ def copy_db_data(
     src_host: str, src_username: str, src_password: str,
     dest_host: str, dest_username: str, dest_password: str
 ) -> None:
-    """Copies all Myaku data from one MyakuCrawlDb to another.
+    """Copies all Myaku data from one CrawlDb to another.
 
     The source database data must not change during the duration of the copy.
 
@@ -65,14 +65,14 @@ def copy_db_data(
 
     with closing(src_client) as src, closing(dest_client) as dest:
         blog_new_id_map = _copy_db_collection_data(
-            src, dest, MyakuCrawlDb._BLOG_COLL_NAME
+            src, dest, CrawlDb._BLOG_COLL_NAME
         )
         article_new_id_map = _copy_db_collection_data(
-            src, dest, MyakuCrawlDb._ARTICLE_COLL_NAME,
+            src, dest, CrawlDb._ARTICLE_COLL_NAME,
             {'blog_oid': blog_new_id_map}
         )
         _copy_db_collection_data(
-            src, dest, MyakuCrawlDb._FOUND_LEXICAL_ITEM_COLL_NAME,
+            src, dest, CrawlDb._FOUND_LEXICAL_ITEM_COLL_NAME,
             {'article_oid': article_new_id_map}
         )
 
@@ -81,7 +81,7 @@ def _copy_db_collection_data(
     src_client: MongoClient, dest_client: MongoClient, collection_name: str,
     new_foreign_key_maps: Dict[str, Dict[ObjectId, ObjectId]] = None
 ) -> Dict[ObjectId, ObjectId]:
-    """Copies all docs in a collection in one MyakuCrawlDb instance to another.
+    """Copies all docs in a collection in one CrawlDb instance to another.
 
     Args:
         src_client: MongoClient connected to the source db.
@@ -109,8 +109,8 @@ def _copy_db_collection_data(
         new_foreign_key_maps = {}
 
     new_id_map = {}
-    src_coll = src_client[MyakuCrawlDb._DB_NAME][collection_name]
-    dest_coll = dest_client[MyakuCrawlDb._DB_NAME][collection_name]
+    src_coll = src_client[CrawlDb._DB_NAME][collection_name]
+    dest_coll = dest_client[CrawlDb._DB_NAME][collection_name]
     total_docs = src_coll.count_documents({})
     skipped = 0
     for i, doc in enumerate(src_coll.find({})):
@@ -141,7 +141,7 @@ def _copy_db_collection_data(
 
 
 @utils.add_method_debug_logging
-class MyakuCrawlDb(object):
+class CrawlDb(object):
     """Interface object for accessing the Myaku database.
 
     This database stores mappings from Japanese lexical items to native
@@ -151,12 +151,13 @@ class MyakuCrawlDb(object):
 
     Implements the Myaku database using MongoDB.
     """
+    MAX_ALLOWED_ARTICLE_LEN = 2**16  # 65,536
+    SEARCH_RESULTS_PAGE_SIZE = 20
+
     _DB_NAME = 'myaku'
     _ARTICLE_COLL_NAME = 'articles'
     _BLOG_COLL_NAME = 'blogs'
     _FOUND_LEXICAL_ITEM_COLL_NAME = 'found_lexical_items'
-
-    _SEARCH_RESULTS_PAGE_SIZE = 20
 
     # The match stage at the start of the aggergate is necessary in order to
     # get a covered query that only scans the index for base_form.
@@ -180,9 +181,21 @@ class MyakuCrawlDb(object):
     }
 
     def __init__(
-        self, access_mode: DataAccessMode = DataAccessMode.READ
+        self, access_mode: DataAccessMode = DataAccessMode.READ,
+        update_first_page_cache_on_exit: bool = False
     ) -> None:
-        """Initializes the connection to the database."""
+        """Initializes the connection to the database.
+
+        Args:
+            access_mode: Data access mode to use for this db session. If an
+                operation is attempted that requires permissions not granted by
+                the set access mode, a DataAccessPermissionError will be
+                raised.
+            update_first_page_cache_on_exit: If True, on session close, will
+                automatically update the search results first page cache with
+                any changes made to the db during the database session. If
+                False, will not update the first page cache at all.
+        """
         self._mongo_client = self._init_mongo_client()
 
         self._db = self._mongo_client[self._DB_NAME]
@@ -192,7 +205,8 @@ class MyakuCrawlDb(object):
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
 
-        self._cache = MyakuSearchResultCache(access_mode)
+        self._first_page_cache = FirstPageCache()
+        self._update_first_page_cache_on_exit = update_first_page_cache_on_exit
 
         self._crawlable_coll_map = {
             JpnArticle: self._article_collection,
@@ -264,6 +278,27 @@ class MyakuCrawlDb(object):
         )
         return len(docs) > 0
 
+    def can_store_article(self, article: JpnArticle) -> bool:
+        """Returns True if the article is safe to store in the db.
+
+        Checks that:
+            1. The article is not too long
+            2. There is not an article with the exact same text already stored
+                in the db.
+        """
+        if self.is_article_text_stored(article):
+            _log.info('Article %s already stored!', article)
+            return False
+
+        if len(article.full_text) > self.MAX_ALLOWED_ARTICLE_LEN:
+            _log.info(
+                'Article %s is too long to store (%s chars)',
+                article, len(article.full_text)
+            )
+            return False
+
+        return True
+
     @utils.skip_method_debug_logging
     def filter_crawlable_to_updated(
         self, crawlable_items: List[Crawlable]
@@ -322,16 +357,22 @@ class MyakuCrawlDb(object):
         )
         _log.debug('Update result: %s', result.raw_result)
 
-    def _get_fli_articles(
+    def _get_fli_safe_articles(
             self, flis: List[FoundJpnLexicalItem]
     ) -> List[JpnArticle]:
-        """Gets the unique articles referenced by the found lexical items."""
+        """Gets the unique articles referenced by the found lexical items.
+
+        Does NOT include any articles in the returned list that cannot be
+        safely stored in the db.
+        """
         # Many found lexical items can point to the same article object in
         # memory, so dedupe using id() to get each article object only once.
         article_id_map = {
             id(item.article): item.article for item in flis
         }
-        return list(article_id_map.values())
+
+        articles = list(article_id_map.values())
+        return [a for a in articles if self.can_store_article(a)]
 
     def _get_article_blogs(
             self, articles: List[JpnArticle]
@@ -348,7 +389,7 @@ class MyakuCrawlDb(object):
     def write_found_lexical_items(
             self, found_lexical_items: List[FoundJpnLexicalItem],
             write_articles: bool = True
-    ) -> None:
+    ) -> bool:
         """Writes the found lexical items to the database.
 
         Args:
@@ -358,22 +399,39 @@ class MyakuCrawlDb(object):
                 by the given found lexical items to the database as well. If
                 False, will assume the articles referenced by the the given
                 found lexical items are already in the database.
+
+        Returns:
+            True if all of the given found lexical items were written to the
+            db, or False if some or all of the given found lexical items were
+            not written to the db because their articles were not safe to
+            store.
+            See the myaku info log for the reasons why any articles were
+            considered unsafe.
         """
-        articles = self._get_fli_articles(found_lexical_items)
+        safe_articles = self._get_fli_safe_articles(found_lexical_items)
         if write_articles:
-            article_oid_map = self._write_articles(articles)
+            safe_article_oid_map = self._write_articles(safe_articles)
         else:
-            article_oid_map = self._read_article_oids(articles)
+            safe_article_oid_map = self._read_article_oids(safe_articles)
+
+        # Don't write found lexical items to the db unless their article is
+        # safe to store.
+        safe_article_flis = []
+        for fli in found_lexical_items:
+            if id(fli.article) in safe_article_oid_map:
+                safe_article_flis.append(fli)
 
         found_lexical_item_docs = self._convert_found_lexical_items_to_docs(
-            found_lexical_items, article_oid_map
+            safe_article_flis, safe_article_oid_map
         )
         self._write_with_log(
             found_lexical_item_docs, self._found_lexical_item_collection
         )
         self._written_fli_base_forms |= {
-            fli.base_form for fli in found_lexical_items
+            fli.base_form for fli in safe_article_flis
         }
+
+        return len(safe_article_flis) == len(found_lexical_items)
 
     def _get_fli_score_recalculate_pipeline(
             self, article_quality_score: int
@@ -461,8 +519,11 @@ class MyakuCrawlDb(object):
 
         return True
 
+    # Debug level logging is extremely noisy (can be over 1gb) when enabled
+    # during this function, so switch to info level if logging.
+    @utils.set_package_log_level(logging.INFO)
     def build_search_result_cache(self) -> None:
-        """Builds the full search result cache using current db data."""
+        """Builds the full first page cache using current db data."""
         # Count all unique base forms currently in the db
         cursor = self._found_lexical_item_collection.aggregate([
             {'$match': {'base_form': {'$gt': ''}}},
@@ -470,6 +531,10 @@ class MyakuCrawlDb(object):
             {'$count': 'total'}
         ])
         base_form_total = next(cursor)['total']
+        _log.info(
+            f'Will build the first page cache for all {base_form_total:,} '
+            f'base forms currently in db'
+        )
 
         cursor = self._found_lexical_item_collection.aggregate([
             {'$match': {'base_form': {'$gt': ''}}},
@@ -480,49 +545,51 @@ class MyakuCrawlDb(object):
             search_results = self._search_articles_using_db(
                 base_form, JpnArticleQueryType.EXACT, 1
             )
-            self._cache.cache_search_results(base_form, search_results)
+            self._first_page_cache.set(base_form, search_results)
 
             if (i + 1) % 1000 == 0 or (i + 1) == base_form_total:
                 _log.info(
-                    f'Caching all base form search results: {i + 1:,} / '
-                    f'{base_form_total:,}'
+                    f'Cached first page count: {i + 1:,} / {base_form_total:,}'
                 )
 
-        self._cache.set_cache_built_marker()
-        _log.info('Search result cache built successfully')
+        self._first_page_cache.set_built_marker()
+        _log.info('First page cache built successfully')
 
-    def update_search_result_cache(self) -> None:
-        """Updates the cache with the db changes from this client session.
+    # Debug level logging is extremely noisy (can be over 1gb) when enabled
+    # during this function, so switch to info level if logging.
+    @utils.set_package_log_level(logging.INFO)
+    def update_first_page_cache(self) -> None:
+        """Updates the first page cache with changes from this db session.
 
-        Updates the search result cache entries related to all of the found
-        lexical items written to the db since either the last time this
-        function was called or the start of this client session.
+        Updates the search result first page cache entries related to all of
+        the found lexical items written to the db since either the last time
+        this function was called or the start of this client session.
         """
-        if not self._cache.has_cache_been_built():
+        if not self._first_page_cache.is_built():
             _log.info(
-                'Search result cache has not been built yet, so will build '
+                'First page cache has not been built yet, so will build '
                 'the full the cache'
             )
-            self.build_search_result_cache()
+            self.build_first_page_cache()
             self._written_fli_base_forms = set()
             return
 
         update_total = len(self._written_fli_base_forms)
         _log.info(
-            f'Will update the search result cache for {update_total:,} '
+            f'Will update the first page cache for {update_total:,} '
             f'queries'
         )
         for i, base_form in enumerate(self._written_fli_base_forms):
             search_results = self._search_articles_using_db(
                 base_form, JpnArticleQueryType.EXACT, 1
             )
-            self._cache.cache_search_results(base_form, search_results)
+            self._first_page_cache.set(base_form, search_results)
 
             if (i + 1) % 1000 == 0 or (i + 1) == update_total:
                 _log.info(f'Updated count: {i + 1:,} / {update_total:,}')
 
         self._written_fli_base_forms = set()
-        _log.info('Search result cache update complete')
+        _log.info('First page cache update complete')
 
     def _get_article_docs_from_search_results(
         self, search_results_cursor: Cursor, quality_score_field: str,
@@ -596,13 +663,15 @@ class MyakuCrawlDb(object):
             lexical item query if there was results in the cache, or None if
             nothing was stored in the search results cache for the query.
         """
-        _log.debug('Checking cache for results for query "%s"', query)
-        cached_results = self._cache.get_search_results(query)
+        _log.debug('Checking first page cache for query "%s"', query)
+        cached_results = self._first_page_cache.get(query)
         if cached_results:
-            _log.debug('Query "%s" results retrieved from cache', query)
+            _log.debug(
+                'Query "%s" results retrieved from first page cache', query
+            )
             return cached_results
 
-        _log.debug('Results not found for query "%s" in cache', query)
+        _log.debug('Query "%s" not found in first page cache', query)
         return None
 
     @utils.skip_method_debug_logging
@@ -639,8 +708,8 @@ class MyakuCrawlDb(object):
         ])
         search_result_docs = self._get_article_docs_from_search_results(
             cursor, quality_score_field,
-            (page - 1) * self._SEARCH_RESULTS_PAGE_SIZE,
-            page * self._SEARCH_RESULTS_PAGE_SIZE
+            (page - 1) * self.SEARCH_RESULTS_PAGE_SIZE,
+            page * self.SEARCH_RESULTS_PAGE_SIZE
         )
 
         article_oids = [doc['article_oid'] for doc in search_result_docs]
@@ -1003,9 +1072,13 @@ class MyakuCrawlDb(object):
 
     def close(self) -> None:
         """Closes the connection to the database."""
-        self._mongo_client.close()
+        try:
+            if self._update_first_page_cache_on_exit:
+                self.update_first_page_cache()
+        finally:
+            self._mongo_client.close()
 
-    def __enter__(self) -> 'MyakuCrawlDb':
+    def __enter__(self) -> 'CrawlDb':
         """Initializes the connection to the database."""
         return self
 

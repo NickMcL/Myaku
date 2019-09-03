@@ -11,7 +11,7 @@ POSSIBLE_IMAGE_TYPES=(\
     "rescore" \
     "web" \
     "nginx.reverseproxy" \
-    "redis.search_result_cache" \
+    "redis.first-page-cache" \
     "mongo.crawldb" \
     "mongobackup" \
     "ubuntu.cron" \
@@ -42,7 +42,7 @@ for the image, or the script will error.
     - rescore
     - web
     - nginx.reverseproxy
-    - redis.search_result_cache
+    - redis.first-page-cache
     - mongo.crawldb
     - mongobackup
     - ubuntu.cron
@@ -165,16 +165,16 @@ case $image_type in
         dockerfile="./docker/myaku_web/Dockerfile.myakuweb"
         ;;
 
-    "redis.search_result_cache")
-        dockerfile="./docker/myaku_redis-search_result_cache/Dockerfile.redis.search_result_cache"
+    "redis.first-page-cache")
+        dockerfile="./docker/myaku_redis.first-page-cache/Dockerfile.redis.first-page-cache"
         ;;
 
     "nginx.reverseproxy")
-        dockerfile="./docker/myaku_nginx-reverseproxy/Dockerfile.nginx.reverseproxy"
+        dockerfile="./docker/myaku_nginx.reverseproxy/Dockerfile.nginx.reverseproxy"
         ;;
 
     "mongo.crawldb")
-        dockerfile="./docker/myaku_mongo-crawldb/Dockerfile.mongo.crawldb"
+        dockerfile="./docker/myaku_mongo.crawldb/Dockerfile.mongo.crawldb"
         ;;
 
     "mongobackup")
@@ -185,7 +185,7 @@ case $image_type in
         ;;
 
     "ubuntu.cron")
-        dockerfile="./docker/ubuntu-cron/Dockerfile.ubuntu.cron"
+        dockerfile="./docker/ubuntu.cron/Dockerfile.ubuntu.cron"
         image_name="${IMAGE_NAME_PREFIX}$image_type"
         build_flags="$(echo "--label git_commit_hash=$git_commit_hash" \
             "--label ubuntu_version=$(echo "$tag" | cut -d '_' -f 2)")"

@@ -68,17 +68,17 @@ services:
     # debugging.
     stdin_open: true
     tty: true
-  search_result_cache:
-    image: friedrice2/myaku_redis.search_result_cache:dev
+  first-page-cache:
+    image: friedrice2/myaku_redis.first-page-cache:dev
     volumes:
       - type: bind
-        source: ./myaku_redis-search_result_cache
+        source: ./myaku_redis.search-result-cache
         target: /run_files
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:dev
     volumes:
       - type: bind
-        source: ./myaku_nginx-reverseproxy
+        source: ./myaku_nginx.reverseproxy
         target: /run_files
       - type: bind
         source: ../myakuweb/static
@@ -92,10 +92,10 @@ services:
     image: friedrice2/myaku_mongo.crawldb:dev
     volumes:
       - type: bind
-        source: ./myaku_mongo-crawldb/initdb.d
+        source: ./myaku_mongo.crawldb/initdb.d
         target: /docker-entrypoint-initdb.d
       - type: bind
-        source: ./myaku_mongo-crawldb/run_files
+        source: ./myaku_mongo.crawldb/run_files
         target: /run_files
   crawldb_backup:
     image: friedrice2/mongobackup:dev

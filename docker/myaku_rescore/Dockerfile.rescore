@@ -1,6 +1,6 @@
 # Builds a prod or dev image for the Myaku article rescorer.
 
-FROM friedrice2/ubuntu.cron:1.0.2_18.04 AS base
+FROM friedrice2/ubuntu.cron:1.0.3_18.04 AS base
 
 ENV RESCORE_BASE_DIR /rescore
 

@@ -36,8 +36,8 @@ VOLUME ["$NGINX_STATIC_URL_ALIAS"]
 FROM base AS prod
 
 COPY ./myakuweb/static $NGINX_STATIC_URL_ALIAS
-COPY ./docker/myaku_nginx-reverseproxy/run_nginx.sh $NGINX_RUN_FILES_DIR/
-COPY ./docker/myaku_nginx-reverseproxy/nginx_template.conf $NGINX_RUN_FILES_DIR/
-COPY ./docker/myaku_nginx-reverseproxy/uwsgi_params $MYAKUWEB_UWSGI_PARAMS_FILE
+COPY ./docker/myaku_nginx.reverseproxy/run_nginx.sh $NGINX_RUN_FILES_DIR/
+COPY ./docker/myaku_nginx.reverseproxy/nginx_template.conf $NGINX_RUN_FILES_DIR/
+COPY ./docker/myaku_nginx.reverseproxy/uwsgi_params $MYAKUWEB_UWSGI_PARAMS_FILE
 
 RUN chmod +x $NGINX_RUN_FILES_DIR/run_nginx.sh

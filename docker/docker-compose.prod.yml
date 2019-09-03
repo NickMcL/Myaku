@@ -39,6 +39,15 @@ services:
       placement:
         constraints:
           - node.labels.type == web
+  first-page-cache:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == web
   reverseproxy:
     deploy:
       restart_policy:
@@ -97,4 +106,6 @@ secrets:
   aws_access_key_id:
     external: true
   aws_secret_access_key:
+    external: true
+  first_page_cache_password:
     external: true
