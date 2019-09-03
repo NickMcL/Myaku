@@ -72,7 +72,7 @@ services:
     image: friedrice2/myaku_redis.first-page-cache:dev
     volumes:
       - type: bind
-        source: ./myaku_redis.search-result-cache
+        source: ./myaku_redis.first-page-cache
         target: /run_files
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:dev

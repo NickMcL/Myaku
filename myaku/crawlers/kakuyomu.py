@@ -607,7 +607,7 @@ class KakuyomuCrawler(CrawlerABC):
             _log.debug('No search results found for url "%s"', search_url)
             return
 
-        series_blogs = [self._parse_search_results_page(page_soup)[0]]
+        series_blogs = self._parse_search_results_page(page_soup)
         yield from self._crawl_updated_blogs(series_blogs)
 
     def crawl_search_results(
