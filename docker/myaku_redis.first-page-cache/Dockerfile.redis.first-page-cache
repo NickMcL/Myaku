@@ -21,6 +21,6 @@ VOLUME ["$RUN_FILES_DIR"]
 
 FROM base AS prod
 
-COPY ./myaku_redis.first-page-cache/start_redis.sh $REDIS_LAUNCH_SCRIPT
-COPY ./myaku_redis.first-page-cache/redis.conf $REDIS_CONF_FILE
+COPY ./docker/myaku_redis.first-page-cache/start_redis.sh $REDIS_LAUNCH_SCRIPT
+COPY ./docker/myaku_redis.first-page-cache/redis.conf $REDIS_CONF_FILE
 RUN chmod +x $REDIS_LAUNCH_SCRIPT
