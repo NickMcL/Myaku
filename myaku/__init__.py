@@ -1,4 +1,5 @@
 """Package containing all components of the Myaku app."""
+
 from typing import Dict
 
 import myaku.japanese_analysis

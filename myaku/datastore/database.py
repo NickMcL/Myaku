@@ -1,20 +1,16 @@
-"""Handles CRUD operations for the Myaku database.
+"""Driver for the Myaku crawl and search index database.
 
-The public members of this module are defined generically so that the
-implementation of the article index can be changed freely while keeping the
-access interface consistent.
+Currently implemented using MongoDB, but the public members of this module are
+defined generically so that the implementation of the database can be changed
+freely while keeping the access interface consistent.
 """
 
-import enum
-import functools
 import logging
 import re
 from collections import defaultdict
 from contextlib import closing
-from dataclasses import dataclass
-from datetime import datetime
 from operator import methodcaller
-from typing import Any, Callable, Dict, Iterator, List, Set, TypeVar, Union
+from typing import Any, Dict, Iterator, List, Optional, TypeVar, Union
 
 import pymongo
 from bson.objectid import ObjectId
@@ -26,11 +22,14 @@ from pymongo.results import InsertManyResult
 
 import myaku
 from myaku import utils
+from myaku.datastore import (DataAccessMode, JpnArticleQueryType,
+                             JpnArticleSearchResult, require_update_permission,
+                             require_write_permission)
+from myaku.datastore.cache import MyakuSearchResultCache
 from myaku.datatypes import (ArticleTextPosition, Crawlable,
                              FoundJpnLexicalItem, InterpSource, JpnArticle,
                              JpnArticleBlog, JpnLexicalItemInterp,
                              MecabLexicalItemInterp)
-from myaku.errors import DbPermissionError
 
 _log = logging.getLogger(__name__)
 
@@ -141,146 +140,6 @@ def _copy_db_collection_data(
     return new_id_map
 
 
-def _require_write_permission(func: Callable) -> Callable:
-    """Checks that the client has db write permission before running func.
-
-    Can only be used to wrap db class methods for a db class with a access_mode
-    member variable.
-
-    Raises:
-        DbPermissionError: If the client does not have write permission.
-    """
-    @functools.wraps(func)
-    def wrapper_require_write_permission(*args, **kwargs):
-        if not args[0].access_mode.has_write_permission():
-            utils.log_and_raise(
-                _log, DbPermissionError,
-                'Write operation "{}" was attempted with only {} '
-                'permission'.format(
-                    utils.get_full_name(func), args[0].access_mode.name
-                )
-            )
-
-        value = func(*args, **kwargs)
-        return value
-    return wrapper_require_write_permission
-
-
-def _require_update_permission(func: Callable) -> Callable:
-    """Checks that the client has db update permission before running func.
-
-    Can only be used to wrap db class methods for a db class with a access_mode
-    member variable.
-
-    Raises:
-        DbPermissionError: If the client does not have update permission.
-    """
-    @functools.wraps(func)
-    def wrapper_require_write_permission(*args, **kwargs):
-        if not args[0].access_mode.has_update_permission():
-            utils.log_and_raise(
-                _log, DbPermissionError,
-                'Update operation "{}" was attempted with only {} '
-                'permission'.format(
-                    utils.get_full_name(func), args[0].access_mode.name
-                )
-            )
-
-        value = func(*args, **kwargs)
-        return value
-    return wrapper_require_write_permission
-
-
-@enum.unique
-class JpnArticleQueryType(enum.Enum):
-    """Match type for a found lexical item query on an article corpus.
-
-    Attributes:
-        EXACT: Only match articles containing a term whose base form matches
-            the query exactly.
-
-            For example, searching for "落ち込む" will not match
-            "落ちこむ" because they do not match exactly even though they are
-            definte alternate forms of the same lexical item.
-        DEFINITE_ALT_FORMS: In addition to articles matched by EXACT,
-            also match articles containing any term whose base form
-            is a definite alternate form of a lexical item that has a form that
-            exactly matches the query.
-
-            For example, searching for "落ち込む" will also match
-            "落ちこむ" because they are definite alternate forms of the same
-            lexical item, but searching for "変える" will not match
-            "かえる" even though "かえる" is an alternate form of it because it
-            is not a definite alternate form.
-            This is because "かえる" is also an alternate form for words like
-            "帰る" which are completely different lexical items that do not
-            have the searched "変える" as an alternate form.
-
-        POSSIBLE_ALT_FORMS: In addition to the articles matched by
-            DEFNITE_ALT_FORMS, also match articles containing any term whose
-            base form is an alternate form of a lexical item that has a form
-            that exactly matches the query, even if that base form is also an
-            alternate form of other lexical items that do not have a form that
-            exactly matches the query.
-
-            For example, searching for "変える" will also match "かえる"
-            because "かえる" is an alternate form of it even though "かえる" is
-            also an alternate form for "帰る" which is a completely different
-            lexical item that does not have the searched "変える" as an
-            alternate form.
-
-    """
-    EXACT = 1
-    DEFINITE_ALT_FORMS = 3
-    POSSIBLE_ALT_FORMS = 2
-
-
-@enum.unique
-class DbAccessMode(enum.Enum):
-    """Database client access modes. Determine read-write permissions.
-
-    Attributes:
-        READ: Can only read data from database. Cannot make any modifications
-            to the database.
-        READ_UPDATE: Can read data and update existing objects in the database.
-            Cannot write new objects to the database.
-        READ_WRITE: Can read data and write data to the database. No
-            restrictions on what modifications can be made to the database.
-    """
-    READ = 1
-    READ_UPDATE = 2
-    READ_WRITE = 3
-
-    def has_update_permission(self) -> bool:
-        """Returns True if the access mode as update permission."""
-        return (
-            self is DbAccessMode.READ_UPDATE or self is DbAccessMode.READ_WRITE
-        )
-
-    def has_write_permission(self) -> bool:
-        """Returns True if the access mode as write permission."""
-        return self is DbAccessMode.READ_WRITE
-
-
-@dataclass
-class JpnArticleSearchResult(object):
-    """Article result of a database search for found lexical items.
-
-    Attributes:
-        article: Article matching the found lexical item search query.
-        matched_base_forms: Lexical item base forms that matched the search
-            query that were found in the article.
-        found_positions: Positions of the found lexical items in the article
-            that matched the search query.
-        quality_score: Quality score of this search result. See the scorers
-            module for more info on how quality scoring is done.
-    """
-    article: JpnArticle
-    matched_base_forms: List[str]
-    found_positions: List[ArticleTextPosition]
-    quality_score: int
-
-
 @utils.add_method_debug_logging
 class MyakuCrawlDb(object):
     """Interface object for accessing the Myaku database.
@@ -295,8 +154,9 @@ class MyakuCrawlDb(object):
     _DB_NAME = 'myaku'
     _ARTICLE_COLL_NAME = 'articles'
     _BLOG_COLL_NAME = 'blogs'
-    _CRAWL_SKIP_COLL_NAME = 'crawl_skip'
     _FOUND_LEXICAL_ITEM_COLL_NAME = 'found_lexical_items'
+
+    _SEARCH_RESULTS_PAGE_SIZE = 20
 
     # The match stage at the start of the aggergate is necessary in order to
     # get a covered query that only scans the index for base_form.
@@ -319,17 +179,20 @@ class MyakuCrawlDb(object):
         JpnArticleQueryType.POSSIBLE_ALT_FORMS: 'quality_score_possible',
     }
 
-    def __init__(self, access_mode: DbAccessMode = DbAccessMode.READ) -> None:
+    def __init__(
+        self, access_mode: DataAccessMode = DataAccessMode.READ
+    ) -> None:
         """Initializes the connection to the database."""
         self._mongo_client = self._init_mongo_client()
 
         self._db = self._mongo_client[self._DB_NAME]
         self._article_collection = self._db[self._ARTICLE_COLL_NAME]
         self._blog_collection = self._db[self._BLOG_COLL_NAME]
-        self._crawl_skip_collection = self._db[self._CRAWL_SKIP_COLL_NAME]
         self._found_lexical_item_collection = (
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
+
+        self._cache = MyakuSearchResultCache(access_mode)
 
         self._crawlable_coll_map = {
             JpnArticle: self._article_collection,
@@ -337,6 +200,7 @@ class MyakuCrawlDb(object):
         }
 
         self.access_mode = access_mode
+        self._written_fli_base_forms = set()
         if access_mode.has_write_permission():
             self._create_indexes()
             self._version_doc = myaku.get_version_info()
@@ -366,12 +230,11 @@ class MyakuCrawlDb(object):
 
         return mongo_client
 
-    @_require_write_permission
+    @require_write_permission
     def _create_indexes(self) -> None:
         """Creates the necessary indexes for the db if they don't exist."""
         self._article_collection.create_index('text_hash')
         self._article_collection.create_index('blog_oid')
-        self._crawl_skip_collection.create_index('source_url')
         self._found_lexical_item_collection.create_index('article_oid')
 
         for crawlable_collection in self._crawlable_coll_map.values():
@@ -401,59 +264,6 @@ class MyakuCrawlDb(object):
         )
         return len(docs) > 0
 
-    def _get_last_crawled_map(
-        self, crawlable_items: List[Crawlable]
-    ) -> Dict[str, datetime]:
-        """Gets a mapping from Crawlable items to their last crawled datetime.
-
-        Args:
-            crawlable_items: List of crawlable items to look up the last
-                crawled datetime for in the db.
-
-        Returns:
-            A mapping from the source url of one of the given crawlable items
-            to the last crawled datetime for that item.
-            If the source url of one of the given crawlable items is not in the
-            returned dictionary, it means that it has never been crawled
-            before.
-        """
-        if len(crawlable_items) == 0:
-            return {}
-
-        cursor = self._crawlable_coll_map[type(crawlable_items[0])].find(
-            {'source_url': {'$in': [i.source_url for i in crawlable_items]}},
-            {'_id': -1, 'source_url': 1, 'last_crawled_datetime': 1}
-        )
-        last_crawled_map = {
-            d['source_url']: d['last_crawled_datetime'] for d in cursor
-        }
-
-        return last_crawled_map
-
-    def _get_skipped_crawlable_urls(
-        self, crawlable_items: List[Crawlable]
-    ) -> Set[str]:
-        """Gets the crawl skipped source urls from the given crawlable items.
-
-        Args:
-            crawlable_items: List of crawlable items whose source urls to look
-                up in the db to check which are marked as having been skipped
-                during crawling.
-
-        Returns:
-            A set containing the source urls out of the source urls for the
-            given crawlable items that are marked in the db as having been
-            skipped during crawling.
-        """
-        if len(crawlable_items) == 0:
-            return set()
-
-        cursor = self._crawl_skip_collection.find(
-            {'source_url': {'$in': [i.source_url for i in crawlable_items]}},
-            {'_id': -1, 'source_url': 1}
-        )
-        return set(doc['source_url'] for doc in cursor)
-
     @utils.skip_method_debug_logging
     def filter_crawlable_to_updated(
         self, crawlable_items: List[Crawlable]
@@ -464,19 +274,22 @@ class MyakuCrawlDb(object):
         """
         if len(crawlable_items) == 0:
             return []
-        last_crawled_map = self._get_last_crawled_map(crawlable_items)
-        crawl_skip_urls = self._get_skipped_crawlable_urls(crawlable_items)
+
+        cursor = self._crawlable_coll_map[type(crawlable_items[0])].find(
+            {'source_url': {'$in': [i.source_url for i in crawlable_items]}},
+            {'_id': -1, 'source_url': 1, 'last_crawled_datetime': 1}
+        )
+        last_crawled_map = {
+            d['source_url']: d['last_crawled_datetime'] for d in cursor
+        }
 
         updated_items = []
         unstored_count = 0
         partial_stored_count = 0
         updated_count = 0
-        skipped_count = 0
         for item in crawlable_items:
             item_url = item.source_url
-            if item_url in crawl_skip_urls:
-                skipped_count += 1
-            elif item_url not in last_crawled_map:
+            if item_url not in last_crawled_map:
                 unstored_count += 1
                 updated_items.append(item)
             elif last_crawled_map[item_url] is None:
@@ -489,21 +302,16 @@ class MyakuCrawlDb(object):
 
         _log.debug(
             'Filtered to %s unstored, %s partially stored, and %s updated '
-            'crawlable items of type %s (%s were crawl skipped)',
+            'crawlable items of type %s',
             unstored_count, partial_stored_count, updated_count,
-            type(crawlable_items[0]), skipped_count
+            type(crawlable_items[0])
         )
         return updated_items
 
     @utils.skip_method_debug_logging
-    @_require_update_permission
+    @require_update_permission
     def update_last_crawled(self, item: Crawlable) -> None:
-        """Updates the last crawled datetime of the item in the db.
-
-        If a crawlable item with the source url of the given item is not found
-        in the db, marks the source url of the given item as having been
-        skipped during crawling instead.
-        """
+        """Updates the last crawled datetime of the item in the db."""
         _log.debug(
             'Updating the last crawled datetime for item "%s" of type %s',
             item, type(item)
@@ -513,17 +321,6 @@ class MyakuCrawlDb(object):
             {'$set': {'last_crawled_datetime': item.last_crawled_datetime}}
         )
         _log.debug('Update result: %s', result.raw_result)
-
-        if result.matched_count == 0:
-            _log.debug(
-                'Source url "%s" for item was not found in the db, so marking '
-                'as crawl skipped', item.source_url
-            )
-            self._crawl_skip_collection.insert_one({
-                'source_url': item.source_url,
-                'source_name': item.source_name,
-                'last_crawled_datetime': item.last_crawled_datetime
-            })
 
     def _get_fli_articles(
             self, flis: List[FoundJpnLexicalItem]
@@ -547,7 +344,7 @@ class MyakuCrawlDb(object):
         blog_id_map = {id(a.blog): a.blog for a in articles_with_blog}
         return list(blog_id_map.values())
 
-    @_require_write_permission
+    @require_write_permission
     def write_found_lexical_items(
             self, found_lexical_items: List[FoundJpnLexicalItem],
             write_articles: bool = True
@@ -574,6 +371,9 @@ class MyakuCrawlDb(object):
         self._write_with_log(
             found_lexical_item_docs, self._found_lexical_item_collection
         )
+        self._written_fli_base_forms |= {
+            fli.base_form for fli in found_lexical_items
+        }
 
     def _get_fli_score_recalculate_pipeline(
             self, article_quality_score: int
@@ -614,7 +414,7 @@ class MyakuCrawlDb(object):
         ]
 
     @utils.skip_method_debug_logging
-    @_require_update_permission
+    @require_update_permission
     def update_article_score(self, article: JpnArticle) -> bool:
         """Updates the quality score for the article in the db.
 
@@ -654,7 +454,75 @@ class MyakuCrawlDb(object):
         )
         _log.debug('Update result: %s', result.raw_result)
 
+        cursor = self._found_lexical_item_collection.find(
+            {'article_oid': ObjectId(article.database_id)}, {'base_form': 1}
+        )
+        self._written_fli_base_forms |= {d['base_form'] for d in cursor}
+
         return True
+
+    def build_search_result_cache(self) -> None:
+        """Builds the full search result cache using current db data."""
+        # Count all unique base forms currently in the db
+        cursor = self._found_lexical_item_collection.aggregate([
+            {'$match': {'base_form': {'$gt': ''}}},
+            {'$group': {'_id': '$base_form'}},
+            {'$count': 'total'}
+        ])
+        base_form_total = next(cursor)['total']
+
+        cursor = self._found_lexical_item_collection.aggregate([
+            {'$match': {'base_form': {'$gt': ''}}},
+            {'$group': {'_id': '$base_form'}}
+        ])
+        for i, doc in enumerate(cursor):
+            base_form = doc['_id']
+            search_results = self._search_articles_using_db(
+                base_form, JpnArticleQueryType.EXACT, 1
+            )
+            self._cache.cache_search_results(base_form, search_results)
+
+            if (i + 1) % 1000 == 0 or (i + 1) == base_form_total:
+                _log.info(
+                    f'Caching all base form search results: {i + 1:,} / '
+                    f'{base_form_total:,}'
+                )
+
+        self._cache.set_cache_built_marker()
+        _log.info('Search result cache built successfully')
+
+    def update_search_result_cache(self) -> None:
+        """Updates the cache with the db changes from this client session.
+
+        Updates the search result cache entries related to all of the found
+        lexical items written to the db since either the last time this
+        function was called or the start of this client session.
+        """
+        if not self._cache.has_cache_been_built():
+            _log.info(
+                'Search result cache has not been built yet, so will build '
+                'the full the cache'
+            )
+            self.build_search_result_cache()
+            self._written_fli_base_forms = set()
+            return
+
+        update_total = len(self._written_fli_base_forms)
+        _log.info(
+            f'Will update the search result cache for {update_total:,} '
+            f'queries'
+        )
+        for i, base_form in enumerate(self._written_fli_base_forms):
+            search_results = self._search_articles_using_db(
+                base_form, JpnArticleQueryType.EXACT, 1
+            )
+            self._cache.cache_search_results(base_form, search_results)
+
+            if (i + 1) % 1000 == 0 or (i + 1) == update_total:
+                _log.info(f'Updated count: {i + 1:,} / {update_total:,}')
+
+        self._written_fli_base_forms = set()
+        _log.info('Search result cache update complete')
 
     def _get_article_docs_from_search_results(
         self, search_results_cursor: Cursor, quality_score_field: str,
@@ -707,11 +575,43 @@ class MyakuCrawlDb(object):
 
         return article_search_result_docs
 
-    def search_articles(
-        self, query: str, query_type: JpnArticleQueryType,
-        results_start_index: int, max_results_to_return: int
+    @utils.skip_method_debug_logging
+    def _search_articles_using_cache(
+        self, query: str
+    ) -> Optional[List[JpnArticleSearchResult]]:
+        """Searches for articles that match the query using only the cache.
+
+        Does not use the db in any case, even if the cache contains no search
+        results for the query.
+
+        The search results are in ranked order by quality score. See the scorer
+        module for more info on how quality scores are determined.
+
+        Args:
+            query_value: Lexical item base form value to use to search for
+                articles.
+
+        Returns:
+            A list containing a page of article search results that match the
+            lexical item query if there was results in the cache, or None if
+            nothing was stored in the search results cache for the query.
+        """
+        _log.debug('Checking cache for results for query "%s"', query)
+        cached_results = self._cache.get_search_results(query)
+        if cached_results:
+            _log.debug('Query "%s" results retrieved from cache', query)
+            return cached_results
+
+        _log.debug('Results not found for query "%s" in cache', query)
+        return None
+
+    @utils.skip_method_debug_logging
+    def _search_articles_using_db(
+        self, query: str, query_type: JpnArticleQueryType, page: int = 1
     ) -> List[JpnArticleSearchResult]:
-        """Searchs the db for articles that match the given lexical item query.
+        """Searches for articles that match the query using only the db.
+
+        Does not use the search result cache in any case.
 
         The search results are in ranked order by quality score. See the scorer
         module for more info on how quality scores are determined.
@@ -721,17 +621,12 @@ class MyakuCrawlDb(object):
                 articles.
             query_type: Type of matching to use when searching for articles
                 whose text contains terms matching query_value.
-            results_start_index: Index of the search results that the returned
-                results should start from. Indexing start from 0.
-            max_results_to_return: Max number of search results that the
-                returned generator should yield. If the generator reaches the
-                last overall search result before reaching this max, it will
-                also stop yielding.
+            page: Page of the search results to return. Page indexing starts
+                from 1.
 
         Returns:
-            A list of article search results that match the found lexical item
-            query starting from index results_start_index of the results with a
-            max of max_results_to_return results in the list.
+            A list containing a page of article search results that match the
+            lexical item query.
         """
         query_field = self._QUERY_TYPE_QUERY_FIELD_MAP[query_type]
         quality_score_field = self._QUERY_TYPE_SCORE_FIELD_MAP[query_type]
@@ -743,8 +638,9 @@ class MyakuCrawlDb(object):
             ('article_oid', pymongo.DESCENDING),
         ])
         search_result_docs = self._get_article_docs_from_search_results(
-            cursor, quality_score_field, results_start_index,
-            max_results_to_return
+            cursor, quality_score_field,
+            (page - 1) * self._SEARCH_RESULTS_PAGE_SIZE,
+            page * self._SEARCH_RESULTS_PAGE_SIZE
         )
 
         article_oids = [doc['article_oid'] for doc in search_result_docs]
@@ -754,6 +650,33 @@ class MyakuCrawlDb(object):
             search_result_docs, oid_article_map
         )
         return search_results
+
+    def search_articles(
+        self, query: str, query_type: JpnArticleQueryType, page: int = 1
+    ) -> List[JpnArticleSearchResult]:
+        """Searches the db for articles that match the lexical item query.
+
+        The search results are in ranked order by quality score. See the scorer
+        module for more info on how quality scores are determined.
+
+        Args:
+            query_value: Lexical item base form value to use to search for
+                articles.
+            query_type: Type of matching to use when searching for articles
+                whose text contains terms matching query_value.
+            page: Page of the search results to return. Page indexing starts
+                from 1.
+
+        Returns:
+            A list containing a page of article search results that match the
+            lexical item query.
+        """
+        if page == 1:
+            cached_results = self._search_articles_using_cache(query)
+            if cached_results:
+                return cached_results
+
+        return self._search_articles_using_db(query, query_type, page)
 
     def read_found_lexical_items(
         self, base_forms: Union[str, List[str]], starts_with: bool = False
@@ -823,7 +746,7 @@ class MyakuCrawlDb(object):
             )
             yield article_oid_map[doc['_id']]
 
-    @_require_write_permission
+    @require_write_permission
     def _write_blogs(
         self, blogs: JpnArticleBlog
     ) -> Dict[int, ObjectId]:
@@ -846,7 +769,7 @@ class MyakuCrawlDb(object):
 
         return blog_oid_map
 
-    @_require_write_permission
+    @require_write_permission
     def _write_articles(
         self, articles: JpnArticle
     ) -> Dict[int, ObjectId]:
@@ -925,7 +848,7 @@ class MyakuCrawlDb(object):
         )
         return oid_article_map
 
-    @_require_write_permission
+    @require_write_permission
     def delete_article_found_lexical_items(self, article: JpnArticle) -> None:
         """Deletes found lexical items from article from the database."""
         _log.debug(
@@ -940,7 +863,7 @@ class MyakuCrawlDb(object):
             result.deleted_count, self._found_lexical_item_collection.full_name
         )
 
-    @_require_write_permission
+    @require_write_permission
     def delete_base_form_excess(self) -> None:
         """Deletes found lexical items with base forms in excess in the db.
 
@@ -1008,7 +931,7 @@ class MyakuCrawlDb(object):
 
         return base_form_map
 
-    @_require_write_permission
+    @require_write_permission
     def _delete_low_quality(
         self, excess_flis: List[FoundJpnLexicalItem]
     ) -> None:
@@ -1048,7 +971,7 @@ class MyakuCrawlDb(object):
             self._found_lexical_item_collection.full_name, base_form
         )
 
-    @_require_write_permission
+    @require_write_permission
     def _delete_articles_with_no_found_lexical_items(self) -> None:
         """Deletes articles with no stored found lexical items from the db.
 
@@ -1126,7 +1049,7 @@ class MyakuCrawlDb(object):
 
         return docs
 
-    @_require_write_permission
+    @require_write_permission
     def _write_with_log(
         self, docs: List[_Document], collection: Collection
     ) -> InsertManyResult:
@@ -1143,7 +1066,7 @@ class MyakuCrawlDb(object):
 
         return result
 
-    @_require_write_permission
+    @require_write_permission
     def _replace_write_with_log(
         self, docs: List[_Document], collection: Collection, id_field: str
     ) -> List[ObjectId]:

@@ -11,6 +11,7 @@ POSSIBLE_IMAGE_TYPES=(\
     "rescore" \
     "web" \
     "nginx.reverseproxy" \
+    "redis.search_result_cache" \
     "mongo.crawldb" \
     "mongobackup" \
     "ubuntu.cron" \
@@ -41,6 +42,7 @@ for the image, or the script will error.
     - rescore
     - web
     - nginx.reverseproxy
+    - redis.search_result_cache
     - mongo.crawldb
     - mongobackup
     - ubuntu.cron
@@ -161,6 +163,10 @@ case $image_type in
 
     "web")
         dockerfile="./docker/myaku_web/Dockerfile.myakuweb"
+        ;;
+
+    "redis.search_result_cache")
+        dockerfile="./docker/myaku_redis-search_result_cache/Dockerfile.redis.search_result_cache"
         ;;
 
     "nginx.reverseproxy")

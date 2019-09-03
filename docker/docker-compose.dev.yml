@@ -68,6 +68,12 @@ services:
     # debugging.
     stdin_open: true
     tty: true
+  search_result_cache:
+    image: friedrice2/myaku_redis.search_result_cache:dev
+    volumes:
+      - type: bind
+        source: ./myaku_redis-search_result_cache
+        target: /run_files
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:dev
     volumes:

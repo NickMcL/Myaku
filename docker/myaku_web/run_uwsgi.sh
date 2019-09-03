@@ -3,8 +3,6 @@
 
 set -e
 
-
-
 envsubst < $SCRIPTS_DIR/myakuweb_uwsgi_template.ini > /myakuweb_uwsgi.ini
 
 # Remove dev mode only settings from uwsgi ini if not in dev mode

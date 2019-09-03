@@ -20,7 +20,8 @@ import requests
 from bson.objectid import ObjectId
 
 from myaku import utils
-from myaku.database import MyakuCrawlDb
+from myaku.datastore import DataAccessMode
+from myaku.datastore.database import MyakuCrawlDb
 from myaku.errors import ScriptArgsError
 
 
@@ -72,7 +73,7 @@ def parse_script_args() -> Tuple[str, Optional[ObjectId]]:
 
 def main() -> None:
     source_name, last_checked_id = parse_script_args()
-    with MyakuCrawlDb() as db:
+    with MyakuCrawlDb(DataAccessMode.READ_UPDATE) as db:
         query = {'source_name': source_name}
         if last_checked_id:
             query['_id'] = {'$gt': ObjectId(last_checked_id)}

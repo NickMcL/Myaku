@@ -1,0 +1,26 @@
+# Adds conf for setting up Redis to the base redis image.
+
+FROM redis:5.0.5 AS base
+
+# Volume for persisting redis dumps and logs.
+ENV REDIS_DATA_DIR /data
+VOLUME ["$REDIS_DATA_DIR"]
+
+ENV RUN_FILES_DIR /run_files
+ENV REDIS_LAUNCH_SCRIPT $RUN_FILES_DIR/start_redis.sh
+ENV REDIS_CONF_FILE $RUN_FILES_DIR/redis.conf
+
+ENTRYPOINT ["/bin/bash", "-c", "/run_files/start_redis.sh"]
+
+
+FROM base AS dev
+
+# Volume for sharing in development files on host with container.
+VOLUME ["$RUN_FILES_DIR"]
+
+
+FROM base AS prod
+
+COPY ./myaku_redis-search_result_cache/start_redis.sh $REDIS_LAUNCH_SCRIPT
+COPY ./myaku_redis-search_result_cache/redis.conf $REDIS_CONF_FILE
+RUN chmod +x $REDIS_LAUNCH_SCRIPT

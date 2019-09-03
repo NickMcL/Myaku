@@ -10,8 +10,17 @@ class CannotAccessPageError(Exception):
     pass
 
 
-class DbPermissionError(Exception):
-    """A database operation was attempted without proper permissions.
+class DataAccessError(Exception):
+    """An unexpected error occurred when trying access data.
+
+    For example, if the database is in an unexpected bad state when trying to
+    query for some data.
+    """
+    pass
+
+
+class DataAccessPermissionError(Exception):
+    """A data operation was attempted without proper permissions.
 
     For example, if a read-only client connection to the database was used to
     perform a write operation to the database.

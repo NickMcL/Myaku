@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Deque, Iterable, List, Tuple
 
 from myaku import utils
-from myaku.database import JpnArticleSearchResult
+from myaku.datastore import JpnArticleSearchResult
 from myaku.datatypes import ArticleTextPosition, JpnArticle
 
 _log = logging.getLogger(__name__)

@@ -10,8 +10,9 @@ from django.http.request import HttpRequest
 from django.shortcuts import render
 
 import myaku
-from myaku.database import (DbAccessMode, JpnArticleQueryType,
-                            JpnArticleSearchResult, MyakuCrawlDb)
+from myaku.datastore import (DataAccessMode, JpnArticleQueryType,
+                             JpnArticleSearchResult)
+from myaku.datastore.database import MyakuCrawlDb
 from myaku.datatypes import JpnArticle
 from search.article_preview import SearchResultArticlePreview
 
@@ -282,9 +283,9 @@ class QueryArticleResultSet(object):
     def __init__(self, query: str, match_type: JpnArticleQueryType) -> None:
         """Queries the Myaku db to get the article result set for query."""
         if query:
-            with MyakuCrawlDb(DbAccessMode.READ) as db:
+            with MyakuCrawlDb(DataAccessMode.READ) as db:
                 self._result_articles = db.search_articles(
-                    query, match_type, 0, 20
+                    query, match_type, 1
                 )
         else:
             self._result_articles = []
