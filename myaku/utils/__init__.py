@@ -13,7 +13,7 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from operator import itemgetter
 from random import random
-from typing import Any, Callable, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, List, Optional, Tuple, Type, TypeVar
 from urllib.parse import urlsplit, urlunsplit
 
 import jaconv
@@ -178,7 +178,9 @@ def set_package_log_level(log_level: int) -> Callable:
     return decorator_set_package_log_level
 
 
-def log_and_raise(log: logging.Logger, exc: Exception, error_msg: str) -> None:
+def log_and_raise(
+    log: logging.Logger, exc: Type[Exception], error_msg: str
+) -> None:
     """Logs and raises the exception with the given error message."""
     log.error(error_msg)
     raise exc(error_msg)

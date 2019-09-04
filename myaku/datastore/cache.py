@@ -99,7 +99,7 @@ class FirstPageCache(object):
             len(search_result.found_positions).to_bytes(2, 'little')
         )
         for pos in search_result.found_positions:
-            bytes_list.append(pos.index.to_bytes(2, 'little'))
+            bytes_list.append(pos.start.to_bytes(2, 'little'))
             bytes_list.append(pos.len.to_bytes(1, 'little'))
 
         return bytes_list
@@ -234,7 +234,7 @@ class FirstPageCache(object):
         offset += 2
         for _ in range(text_pos_count):
             text_pos = ArticleTextPosition(
-                index=int.from_bytes(buffer[offset:offset + 2], 'little'),
+                start=int.from_bytes(buffer[offset:offset + 2], 'little'),
                 len=int.from_bytes([buffer[offset + 2]], 'little')
             )
             out_list.append(text_pos)

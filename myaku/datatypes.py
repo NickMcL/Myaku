@@ -105,16 +105,16 @@ class ArticleTextPosition(NamedTuple):
     slice [index:index + len].
 
     Attributes:
-        index: The index of the first character of the text segment in the
+        start: The index of the first character of the text segment in the
             article text.
         len: The length of the text segment.
     """
-    index: int
+    start: int
     len: int
 
     def slice(self) -> slice:
         """Returns slice for getting the text segment from its article text."""
-        return slice(self.index, self.index + self.len)
+        return slice(self.start, self.start + self.len)
 
 
 @dataclass
@@ -219,10 +219,10 @@ class JpnArticle(Crawlable):
             )
 
         start = utils.find_jpn_sentence_start(
-            self.full_text, item_pos.index
+            self.full_text, item_pos.start
         )
         end = utils.find_jpn_sentence_end(
-            self.full_text, item_pos.index + item_pos.len
+            self.full_text, item_pos.start + item_pos.len
         )
 
         return (self.full_text[start:end + 1], start)
@@ -241,13 +241,13 @@ class JpnArticle(Crawlable):
         """
         sentence_groups = defaultdict(list)
         end = -1
-        for pos in sorted(text_positions, key=attrgetter('index')):
-            if pos.index > end:
+        for pos in sorted(text_positions, key=attrgetter('start')):
+            if pos.start > end:
                 start = utils.find_jpn_sentence_start(
-                    self.full_text, pos.index
+                    self.full_text, pos.start
                 )
                 end = utils.find_jpn_sentence_end(
-                    self.full_text, pos.index + pos.len
+                    self.full_text, pos.start + pos.len
                 )
             sentence_groups[
                 ArticleTextPosition(start, end - start + 1)

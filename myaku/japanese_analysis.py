@@ -36,6 +36,8 @@ _IPADIC_NEOLOGD_VERSION_REGEX = re.compile(
     r'^# Release (\d\d\d\d)(\d\d)(\d\d)-.*$'
 )
 
+MecabTags = Tuple[str, ...]
+
 
 def get_resource_version_info() -> Dict[str, str]:
     """Returns the version info of the resources used by this module.
@@ -343,7 +345,7 @@ class JapaneseTextAnalyzer(object):
             lexical_item = FoundJpnLexicalItem(
                 base_form=entry.text_form,
                 found_positions=[ArticleTextPosition(
-                    base_decomp[0].found_positions[0].index, len(surface_form)
+                    base_decomp[0].found_positions[0].start, len(surface_form)
                 )],
                 possible_interps=[
                     JpnLexicalItemInterp(
@@ -413,6 +415,9 @@ class JMdictEntry(object):
 @utils.add_method_debug_logging
 class JMdict(object):
     """Object representation of a JMdict dictionary."""
+
+    EntryMap = Dict[str, List[JMdictEntry]]
+    MecabDecompMap = Dict[Tuple[str, ...], List[JMdictEntry]]
 
     _SHELF_FILENAME = 'JMdict.shelf'
 
@@ -538,10 +543,10 @@ class JMdict(object):
         misc: Tuple[str, ...] = None
 
     def __init__(self, jmdict_xml_filepath: str = None) -> None:
-        self._entry_map = None
-        self._mecab_decomp_map = None
-        self._max_text_form_len = None
-        self._max_mecab_decomp_len = None
+        self._entry_map: JMdict.EntryMap = None
+        self._mecab_decomp_map: JMdict.MecabDecompMap = None
+        self._max_text_form_len: int = None
+        self._max_mecab_decomp_len: int = None
         self._mecab_tagger = MecabTagger()
 
         if jmdict_xml_filepath is not None:
@@ -809,7 +814,7 @@ class JMdict(object):
         )
         with shelve.open(shelf_path, 'r') as shelf:
             self._entry_map = defaultdict(list)
-            self._mecab_decomp_map = defaultdict(list)
+            self._mecab_decomp_map = {}
 
             mecab_decomp_map_items = shelf['_mecab_decomp_map_items']
             for mecab_decomp, entry_list in mecab_decomp_map_items:
@@ -911,7 +916,7 @@ class MecabTagger:
     _TOKEN_SPLITTER = '\t'
     _EXPECTED_TOKEN_TAG_COUNTS = {4, 5, 6}
 
-    _ADJUST_TAGS_MAP = {
+    _ADJUST_TAGS_MAP: Dict[MecabTags, MecabTags] = {
         # MeCab tags a single な character with the base form だ, which is
         # technically correct, but in the vast majority of cases, it works
         # better for lexical analysis to treat it as having the base form な.
@@ -1040,7 +1045,7 @@ class MecabTagger:
 
     def _create_mecab_interp(
         self, parsed_token_tags: List[str]
-    ) -> MecabLexicalItemInterp:
+    ) -> JpnLexicalItemInterp:
         """Creates a MecabLexicalItemInterp from the parsed token tags."""
         parts_of_speech = tuple(
             parsed_token_tags[3].split(self._POS_SPLITTER)
@@ -1067,7 +1072,7 @@ class MecabTagger:
         )
 
     def _create_found_lexical_item(
-        self, parsed_token_tags: List[str], interp: MecabLexicalItemInterp,
+        self, parsed_token_tags: List[str], interp: JpnLexicalItemInterp,
         offset: int
     ) -> FoundJpnLexicalItem:
         """Creates a found lexical item from the tags, interp, and offset."""

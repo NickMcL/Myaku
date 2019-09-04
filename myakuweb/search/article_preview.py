@@ -134,7 +134,7 @@ class SearchResultArticlePreview(object):
 
         # ID sentences by their start index
         self._sentence_found_positions_map = {
-            g[0].index: g[1] for g in sentence_groups
+            g[0].start: g[1] for g in sentence_groups
         }
         self._used_sentences = set()
 
@@ -162,7 +162,7 @@ class SearchResultArticlePreview(object):
         preview_texts = []
         article_len = len(_collapse_whitespace(self._article.full_text))
         for sentence_group in sentence_groups:
-            if sentence_group[0].index in self._used_sentences:
+            if sentence_group[0].start in self._used_sentences:
                 continue
             preview_texts.append(self._create_sample_text(*sentence_group))
 
@@ -201,10 +201,10 @@ class SearchResultArticlePreview(object):
         sample_text = PreviewSampleText(
             article=self._article,
             text_len=_segments_len(segments),
-            text_start_index=sentence_position.index,
+            text_start_index=sentence_position.start,
             segments=segments
         )
-        self._used_sentences.add(sentence_position.index)
+        self._used_sentences.add(sentence_position.start)
 
         if sample_text.text_len > _MAX_ACCEPTABLE_SAMPLE_LEN:
             self._trim_sample_text(sample_text)
@@ -230,10 +230,10 @@ class SearchResultArticlePreview(object):
         segments = []
 
         article_text = self._article.full_text
-        last_end_index = sample_position.index
+        last_end_index = sample_position.start
         for pos in found_positions:
-            if last_end_index != pos.index:
-                segment_text = article_text[last_end_index:pos.index]
+            if last_end_index != pos.start:
+                segment_text = article_text[last_end_index:pos.start]
                 segments.append(PreviewSampleTextSegment(False, segment_text))
                 last_end_index += len(segment_text)
 
@@ -241,7 +241,7 @@ class SearchResultArticlePreview(object):
             segments.append(PreviewSampleTextSegment(True, match_text))
             last_end_index += pos.len
 
-        sample_end_index = sample_position.index + sample_position.len
+        sample_end_index = sample_position.start + sample_position.len
         end_text = article_text[last_end_index:sample_end_index]
         if len(end_text) > 0:
             segments.append(PreviewSampleTextSegment(False, end_text))
@@ -503,14 +503,14 @@ class SearchResultArticlePreview(object):
             - The title of the article is immediately to the left.
             - The sentence to the left has already been used in the preview.
         """
-        if pos.index == 0:
+        if pos.start == 0:
             return False
 
         # Expansion from outside the title to inside it is not allowed
         left_start = utils.find_jpn_sentence_start(
-            self._article.full_text, pos.index - 1
+            self._article.full_text, pos.start - 1
         )
-        if (pos.index >= len(self._article.title)
+        if (pos.start >= len(self._article.title)
                 and left_start < len(self._article.title)):
             return False
 
@@ -521,22 +521,22 @@ class SearchResultArticlePreview(object):
 
     def _paragraph_continues_left(self, pos: ArticleTextPosition) -> bool:
         """Returns True if the paragraph continues to the left of pos."""
-        if pos.index == 0:
+        if pos.start == 0:
             return False
-        return not self._article.full_text[pos.index - 1].isspace()
+        return not self._article.full_text[pos.start - 1].isspace()
 
     def _get_left_sentence_segs(
         self, pos: ArticleTextPosition
     ) -> Tuple[List[PreviewSampleTextSegment], int]:
         """Gets the segments and start index of the sentence left of pos."""
         left_start = utils.find_jpn_sentence_start(
-            self._article.full_text, pos.index - 1
+            self._article.full_text, pos.start - 1
         )
         found_positions = self._sentence_found_positions_map.get(
             left_start, []
         )
         left_segs = self._create_sample_segments(
-            ArticleTextPosition(left_start, pos.index - left_start),
+            ArticleTextPosition(left_start, pos.start - left_start),
             found_positions
         )
 
@@ -569,11 +569,11 @@ class SearchResultArticlePreview(object):
             segs.extendleft(reversed(left_segs))
             current_pos = ArticleTextPosition(
                 left_start,
-                current_pos.len + current_pos.index - left_start
+                current_pos.len + current_pos.start - left_start
             )
             self._used_sentences.add(left_start)
 
-        sample_text.text_start_index = current_pos.index
+        sample_text.text_start_index = current_pos.start
         sample_text.text_len = _segments_len(segs)
         sample_text.segments = list(segs)
         return current_pos
@@ -589,27 +589,27 @@ class SearchResultArticlePreview(object):
                 outside of it.
             - The sentence to the right has already been used in the preview.
         """
-        if (pos.index + pos.len) == len(self._article.full_text):
+        if (pos.start + pos.len) == len(self._article.full_text):
             return False
 
         # Expansion from inside the title to outside it is not allowed
-        if pos.index < len(self._article.title):
+        if pos.start < len(self._article.title):
             right_end = utils.find_jpn_sentence_start(
-                self._article.full_text, pos.index + pos.len
+                self._article.full_text, pos.start + pos.len
             )
             while right_end > 0 and self._article.full_text[right_end] == '\n':
                 right_end -= 1
             if right_end >= len(self._article.title):
                 return False
 
-        if (pos.index + pos.len) in self._used_sentences:
+        if (pos.start + pos.len) in self._used_sentences:
             return False
 
         return True
 
     def _paragraph_continues_right(self, pos: ArticleTextPosition) -> bool:
         """Returns True if the paragraph continues to the right of pos."""
-        pos_end = pos.index + pos.len
+        pos_end = pos.start + pos.len
         if pos_end == len(self._article.full_text):
             return False
         return not self._article.full_text[pos_end].isspace()
@@ -618,7 +618,7 @@ class SearchResultArticlePreview(object):
         self, pos: ArticleTextPosition
     ) -> Tuple[List[PreviewSampleTextSegment], int]:
         """Gets the segments and end index of the sentence right of pos."""
-        right_start = pos.index + pos.len
+        right_start = pos.start + pos.len
         right_end = utils.find_jpn_sentence_end(
             self._article.full_text, right_start
         )
@@ -654,19 +654,19 @@ class SearchResultArticlePreview(object):
         while (self._can_expand_right(current_pos)
                and (not only_if_paragraph_continues
                     or self._paragraph_continues_right(current_pos))):
-            right_start = current_pos.index + current_pos.len
+            right_start = current_pos.start + current_pos.len
             right_segs, right_end = self._get_right_sentence_segs(current_pos)
             if not self._should_expand(segs, right_segs):
                 break
 
             segs.extend(right_segs)
             current_pos = ArticleTextPosition(
-                current_pos.index,
+                current_pos.start,
                 current_pos.len + right_end - right_start + 1
             )
             self._used_sentences.add(right_start)
 
-        sample_text.text_start_index = current_pos.index
+        sample_text.text_start_index = current_pos.start
         sample_text.text_len = _segments_len(segs)
         sample_text.segments = segs
         return current_pos
@@ -707,11 +707,11 @@ class SearchResultArticlePreview(object):
 
             current_pos = ArticleTextPosition(
                 left_start,
-                current_pos.len + current_pos.index - left_start
+                current_pos.len + current_pos.start - left_start
             )
             self._used_sentences.add(left_start)
 
-        sample_text.text_start_index = current_pos.index
+        sample_text.text_start_index = current_pos.start
         sample_text.text_len = _segments_len(segs)
         sample_text.segments = list(segs)
         return current_pos
@@ -732,7 +732,7 @@ class SearchResultArticlePreview(object):
         current_pos = sample_pos
         segs = sample_text.segments
         while self._can_expand_left(current_pos):
-            right_start = current_pos.index + current_pos.len
+            right_start = current_pos.start + current_pos.len
             right_segs, right_end = self._get_right_sentence_segs(current_pos)
             excess_chars = 0
             for seg in right_segs:
@@ -752,12 +752,12 @@ class SearchResultArticlePreview(object):
                 break
 
             current_pos = ArticleTextPosition(
-                current_pos.index,
+                current_pos.start,
                 current_pos.len + right_end - right_start + 1
             )
             self._used_sentences.add(right_start)
 
-        sample_text.text_start_index = current_pos.index
+        sample_text.text_start_index = current_pos.start
         sample_text.text_len = _segments_len(segs)
         sample_text.segments = segs
         return current_pos

@@ -840,7 +840,7 @@ class CrawlDb(object):
 
     @require_write_permission
     def _write_articles(
-        self, articles: JpnArticle
+        self, articles: List[JpnArticle]
     ) -> Dict[int, ObjectId]:
         """Writes the articles to the database.
 
@@ -986,7 +986,7 @@ class CrawlDb(object):
 
     def _make_base_form_mapping(
         self, found_lexical_items: List[FoundJpnLexicalItem]
-    ) -> Dict[str, FoundJpnLexicalItem]:
+    ) -> Dict[str, List[FoundJpnLexicalItem]]:
         """Returns mapping from base forms to the given found lexical items.
 
         Returns:
@@ -1284,7 +1284,7 @@ class CrawlDb(object):
         docs = []
         for found_position in found_positions:
             docs.append({
-                'index': found_position.index,
+                'index': found_position.start,
                 'len': found_position.len
             })
 
@@ -1478,7 +1478,7 @@ class CrawlDb(object):
         found_positions = []
         for doc in docs:
             found_positions.append(ArticleTextPosition(
-                index=doc['index'],
+                start=doc['index'],
                 len=doc['len'],
             ))
 
@@ -1528,7 +1528,7 @@ class CrawlDb(object):
     def _convert_docs_to_search_results(
         self, docs: List[_Document],
         oid_article_map: Dict[ObjectId, JpnArticle]
-    ) -> List[FoundJpnLexicalItem]:
+    ) -> List[JpnArticleSearchResult]:
         """Converts MongoDB docs to article search results.
 
         The given ObjectId to article map must contain the created article
