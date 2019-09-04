@@ -4,7 +4,7 @@ import copy
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List, NamedTuple, TypeVar
+from typing import List, Generic, TypeVar
 
 import pytest
 
@@ -59,7 +59,8 @@ class UnhashableDataClass(object):
     __hash__ = None
 
 
-class BeforeAfterLists(NamedTuple):
+@dataclass
+class BeforeAfterLists(Generic[T]):
     """Stores the before and after values for an operation."""
     before: List[T]
     after: List[T]
