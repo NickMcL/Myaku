@@ -462,8 +462,8 @@ class KakuyomuCrawler(CrawlerABC):
             The <li> tags from the table of contents list on the series
             homepage.
         """
-        table_of_contents_tag = html.select_descendants_by_class(
-            series_page_soup, self._SERIES_EPISODE_TOC_LIST_CLASS, 'ol', 1
+        table_of_contents_tag = html.select_one_descendant_by_class(
+            series_page_soup, self._SERIES_EPISODE_TOC_LIST_CLASS, 'ol'
         )
         table_of_contents_items = html.select_descendants_by_tag(
             table_of_contents_tag, 'li'
@@ -673,8 +673,8 @@ class KakuyomuCrawler(CrawlerABC):
         body_text_list.append(title.strip())
         body_text_list.append('')  # Add extra new line after title
 
-        body_text_div = html.select_descendants_by_class(
-            episode_page_soup, self._EPISODE_TEXT_DIV_CLASS, 'div', 1
+        body_text_div = html.select_one_descendant_by_class(
+            episode_page_soup, self._EPISODE_TEXT_DIV_CLASS, 'div'
         )
         body_text_paras = html.select_descendants_by_tag(body_text_div, 'p')
 

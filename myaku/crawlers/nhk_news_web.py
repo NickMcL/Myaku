@@ -133,9 +133,7 @@ class NhkNewsWebCrawler(CrawlerABC):
 
     def _has_news_video(self, article_page_soup: BeautifulSoup) -> bool:
         """Returns True if there is a news video on the article page."""
-        main_tag = html.select_descendants_by_tag(
-            article_page_soup, 'main', 1
-        )
+        main_tag = html.select_one_descendant_by_tag(article_page_soup, 'main')
         article_json_tag = html.select_one_descendant_by_tag(
             main_tag, 'script'
         )
@@ -394,8 +392,8 @@ class NhkNewsWebCrawler(CrawlerABC):
             HtmlParsingError: An error occurred while parsing the article.
         """
         soup = self._get_url_html_soup(article_url)
-        article_tag = html.select_descendants_by_class(
-            soup, self._ARTICLE_TAG_CLASS, 'section', 1
+        article_tag = html.select_one_descendant_by_class(
+            soup, self._ARTICLE_TAG_CLASS, 'section'
         )
 
         # Ruby tags tend to mess up Japanese processing, so strip all of them

@@ -410,7 +410,7 @@ def select_desc_list_data(desc_list: Tag, term_text: str) -> str:
 def select_descendants_by_class(
     parent: Tag, classes: Union[str, List[str]], tag_name: str = '',
     expected_tag_count: int = None
-) -> Union[Tag, List[Tag]]:
+) -> List[Tag]:
     """Selects tag_name descendant(s) with classes within parent.
 
     Args:

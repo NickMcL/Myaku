@@ -308,8 +308,8 @@ class AsahiCrawler(CrawlerABC):
             article: Article object to store the title and datetime parsed from
                 the article page in.
         """
-        title_div = html.select_descendants_by_class(
-            page_soup, self._ARTICLE_TITLE_DIV_CLASS, 'div', 1
+        title_div = html.select_one_descendant_by_class(
+            page_soup, self._ARTICLE_TITLE_DIV_CLASS, 'div'
         )
         article.title = html.parse_text_from_descendant_by_tag(title_div, 'h1')
         article.title = article.title.strip()
@@ -332,8 +332,8 @@ class AsahiCrawler(CrawlerABC):
         if page_soup.find('ul', class_=self._ARTICLE_TAG_LIST_CLASS) is None:
             return
 
-        tags_ul = html.select_descendants_by_class(
-            page_soup, self._ARTICLE_TAG_LIST_CLASS, 'ul', 1
+        tags_ul = html.select_one_descendant_by_class(
+            page_soup, self._ARTICLE_TAG_LIST_CLASS, 'ul'
         )
         tags_li_tags = html.select_descendants_by_tag(tags_ul, 'li')
 
