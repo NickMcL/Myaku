@@ -2,29 +2,28 @@
 
 FROM friedrice2/ubuntu.cron:1.0.3_18.04 AS base
 
-ENV RESCORE_BASE_DIR /rescore
-
 # Set up deadsnakes ppa for installing newer Python versions
 RUN apt-get update \
     && apt-get install -y software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update
 
-# Install all other needed packages
-RUN apt-get install -y python3.7 python3.7-dev python3-pip python3-gdbm
+# Break python packages install into two layers so that the first install layer
+# can be shared with images that only install those packages.
+RUN apt-get install -y python3.7 python3-pip
+RUN apt-get install -y python3.7-dev python3-gdbm
 
 # Set python binary that should be used in the container
 ENV PYTHON_BIN python3.7
 
-# Get latest pip
-RUN $PYTHON_BIN -m pip install -U pip
-
+ENV RESCORE_BASE_DIR /rescore
 ENV RESCORE_SRC_DIR $RESCORE_BASE_DIR/src
 
 COPY ./LICENSE $RESCORE_SRC_DIR/
 
 COPY ./requirements.txt $RESCORE_SRC_DIR/
-RUN $PYTHON_BIN -m pip install -r $RESCORE_SRC_DIR/requirements.txt
+RUN $PYTHON_BIN -m pip install -U pip \
+    && $PYTHON_BIN -m pip install -r $RESCORE_SRC_DIR/requirements.txt
 
 ENV PYTHONPATH $PYTHONPATH:$RESCORE_SRC_DIR
 ENV MYAKU_SRC_DIR $RESCORE_SRC_DIR/myaku

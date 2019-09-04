@@ -2,43 +2,44 @@
 
 FROM friedrice2/ubuntu.cron:1.0.3_18.04 AS base
 
+# Set up deadsnakes ppa for installing newer Python versions
+RUN apt-get update \
+    && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update
+
+# Break python packages install into two layers so that the first install layer
+# can be shared with images that only install those packages.
+RUN apt-get install -y python3.7 python3-pip
+RUN apt-get install -y python3.7-dev python3-gdbm
+
+# Set python binary that should be used in the container
+ENV PYTHON_BIN python3.7
+
 ENV CRAWLER_BASE_DIR /crawler
 ENV CRAWLER_RESOURCE_DIR $CRAWLER_BASE_DIR/resources
 WORKDIR $CRAWLER_RESOURCE_DIR
 
 # All needed to install ipadic-NEologd in the next run statement
 RUN apt-get update && apt-get install -y build-essential curl git sudo file \
-    mecab libmecab-dev mecab-ipadic-utf8
+    wget mecab libmecab-dev mecab-ipadic-utf8
 
 # Install ipadic-NEologd for use with MeCab (this can take several minutes)
 RUN git clone https://github.com/neologd/mecab-ipadic-neologd.git --progress \
     && ./mecab-ipadic-neologd/bin/install-mecab-ipadic-neologd -n -y
-
-# Set up deadsnakes ppa for installing newer Python versions
-RUN apt-get install -y software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update
-
-# Install all other needed packages
-RUN apt-get install -y wget python3.7 python3.7-dev python3-pip python3-gdbm
 
 # Get latest JMdict
 RUN wget ftp://ftp.monash.edu.au/pub/nihongo/JMdict_e.gz \
     && gunzip JMdict_e.gz \
     && mv JMdict_e JMdict_e.xml
 
-# Set python binary that should be used in the container
-ENV PYTHON_BIN python3.7
-
-# Get latest pip
-RUN $PYTHON_BIN -m pip install -U pip
-
 ENV CRAWLER_SRC_DIR $CRAWLER_BASE_DIR/src
 
 COPY ./LICENSE $CRAWLER_SRC_DIR/
 
 COPY ./requirements.txt $CRAWLER_SRC_DIR/
-RUN $PYTHON_BIN -m pip install -r $CRAWLER_SRC_DIR/requirements.txt
+RUN $PYTHON_BIN -m pip install -U pip \
+    && $PYTHON_BIN -m pip install -r $CRAWLER_SRC_DIR/requirements.txt
 
 ENV PYTHONPATH $PYTHONPATH:$CRAWLER_SRC_DIR
 ENV MYAKU_SRC_DIR $CRAWLER_SRC_DIR/myaku
