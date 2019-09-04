@@ -143,7 +143,7 @@ class QueryResourceLinks(object):
         self._query = query
         self._match_type = QueryMatchType.EXACT_MATCH
 
-        self.resource_link_sets = []
+        self.resource_link_sets: List[ResourceLinkSet] = []
         self.resource_link_sets.append(self._create_jpn_eng_dict_links())
         self.resource_link_sets.append(self._create_sample_sentence_links())
         self.resource_link_sets.append(self._create_jpn_dict_links())
@@ -237,7 +237,7 @@ class QueryResourceLinks(object):
                 website_name, template_url.format('*' + self._query)
             )
 
-    def _create_jpn_dict_links(self) -> List[ResourceLink]:
+    def _create_jpn_dict_links(self) -> ResourceLinkSet:
         """Creates link set for Japanese dictionary sites."""
         link_set = ResourceLinkSet('Jpn Dictionaries', [])
         link_set.resource_links.append(self._create_goo_query_link())

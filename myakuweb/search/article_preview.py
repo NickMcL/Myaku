@@ -4,7 +4,7 @@ import logging
 import re
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Iterable, List, Tuple
+from typing import Deque, Iterable, List, Tuple, Set
 
 from myaku import utils
 from myaku.datastore import JpnArticleSearchResult
@@ -136,7 +136,7 @@ class SearchResultArticlePreview(object):
         self._sentence_found_positions_map = {
             g[0].start: g[1] for g in sentence_groups
         }
-        self._used_sentences = set()
+        self._used_sentences: Set[int] = set()
 
         sample_texts = self._create_all_sample_texts(sentence_groups)
         self.main_sample_text = sample_texts[0]
@@ -181,7 +181,7 @@ class SearchResultArticlePreview(object):
 
     def _create_sample_text(
         self, sentence_position: ArticleTextPosition,
-        found_positions: Tuple[ArticleTextPosition]
+        found_positions: Tuple[ArticleTextPosition, ...]
     ) -> PreviewSampleText:
         """Creates a sample text from a sentence and matching text positions.
 
@@ -215,7 +215,7 @@ class SearchResultArticlePreview(object):
 
     def _create_sample_segments(
         self, sample_position: ArticleTextPosition,
-        found_positions: List[ArticleTextPosition]
+        found_positions: Tuple[ArticleTextPosition, ...]
     ) -> List[PreviewSampleTextSegment]:
         """Creates the text segments for a preview sample text.
 
@@ -302,7 +302,7 @@ class SearchResultArticlePreview(object):
         self, segs: List[PreviewSampleTextSegment],
         sub_segs: Deque[PreviewSampleTextSegment],
         sub_start_index: int, sub_end_index: int
-    ) -> None:
+    ) -> int:
         """Appends segs to sub segs using full left remainder right strategy.
 
         In this strategy, all segments to the left of the sub segment list are
@@ -338,7 +338,7 @@ class SearchResultArticlePreview(object):
         self, segs: List[PreviewSampleTextSegment],
         sub_segs: Deque[PreviewSampleTextSegment],
         sub_start_index: int, sub_end_index: int
-    ) -> None:
+    ) -> int:
         """Appends segs to sub segs using full right remainder left strategy.
 
         In this strategy, all segments to the right of the sub segment list are
@@ -377,7 +377,7 @@ class SearchResultArticlePreview(object):
         self, segs: List[PreviewSampleTextSegment],
         sub_segs: Deque[PreviewSampleTextSegment],
         sub_start_index: int, sub_end_index: int
-    ) -> None:
+    ) -> int:
         """Appends segs to sub segs using left right balance strategy.
 
         In this strategy, characters from the segments to the left and right of
@@ -533,7 +533,7 @@ class SearchResultArticlePreview(object):
             self._article.full_text, pos.start - 1
         )
         found_positions = self._sentence_found_positions_map.get(
-            left_start, []
+            left_start, ()
         )
         left_segs = self._create_sample_segments(
             ArticleTextPosition(left_start, pos.start - left_start),
@@ -545,7 +545,7 @@ class SearchResultArticlePreview(object):
     def _expand_left(
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition,
         only_if_paragraph_continues: bool
-    ) -> None:
+    ) -> ArticleTextPosition:
         """Expands the sample text to the left to be closer to ideal length.
 
         Only expands by adding full sentences.
@@ -556,6 +556,9 @@ class SearchResultArticlePreview(object):
                 the given sample text.
             only_if_paragraph_continues: If True, will only expand left if the
                 article paragraph continues to the left.
+
+        Returns:
+            Article position of the sample text after the expansion.
         """
         current_pos = sample_pos
         segs = deque(sample_text.segments)
@@ -623,7 +626,7 @@ class SearchResultArticlePreview(object):
             self._article.full_text, right_start
         )
         found_positions = self._sentence_found_positions_map.get(
-            right_start, []
+            right_start, ()
         )
         right_segs = self._create_sample_segments(
             ArticleTextPosition(
@@ -637,7 +640,7 @@ class SearchResultArticlePreview(object):
     def _expand_right(
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition,
         only_if_paragraph_continues: bool
-    ) -> None:
+    ) -> ArticleTextPosition:
         """Expands the sample text to the right to be closer to ideal length.
 
         Only expands by adding full sentences.
@@ -648,6 +651,9 @@ class SearchResultArticlePreview(object):
                 the given sample text.
             only_if_paragraph_continues: If True, will only expand right if the
                 article paragraph continues to the left.
+
+        Returns:
+            Article position of the sample text after the expansion.
         """
         current_pos = sample_pos
         segs = sample_text.segments
@@ -673,7 +679,7 @@ class SearchResultArticlePreview(object):
 
     def _force_expand_left_up_to_max(
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition
-    ) -> None:
+    ) -> ArticleTextPosition:
         """Expands the sample text to the left up to max acceptable lengt.
 
         Unlike expand_left, will expand using only part of the sentence to the
@@ -683,6 +689,9 @@ class SearchResultArticlePreview(object):
             sample_text: Sample text to expand.
             sample_position: Article position of the text used to create
                 the given sample text.
+
+        Returns:
+            Article position of the sample text after the expansion.
         """
         current_pos = sample_pos
         segs = deque(sample_text.segments)
@@ -718,7 +727,7 @@ class SearchResultArticlePreview(object):
 
     def _force_expand_right_up_to_max(
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition
-    ) -> None:
+    ) -> ArticleTextPosition:
         """Expands the sample text to the right up to max acceptable lengt.
 
         Unlike expand_right, will expand using only part of the sentence to the
@@ -728,6 +737,9 @@ class SearchResultArticlePreview(object):
             sample_text: Sample text to expand.
             sample_position: Article position of the text used to create
                 the given sample text.
+
+        Returns:
+            Article position of the sample text after the expansion.
         """
         current_pos = sample_pos
         segs = sample_text.segments

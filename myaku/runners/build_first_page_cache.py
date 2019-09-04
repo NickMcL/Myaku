@@ -8,7 +8,7 @@ from myaku.datastore.database import CrawlDb
 
 def main() -> None:
     with CrawlDb() as db:
-        db.build_search_result_cache()
+        db.build_first_page_cache()
 
 
 if __name__ == '__main__':

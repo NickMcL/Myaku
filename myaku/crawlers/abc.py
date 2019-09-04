@@ -16,7 +16,7 @@ import myaku
 from myaku import utils
 from myaku.datastore import DataAccessMode
 from myaku.datastore.database import CrawlDb
-from myaku.datatypes import Crawlable, JpnArticle, JpnArticleBlog
+from myaku.datatypes import Crawlable_co, JpnArticle, JpnArticleBlog
 
 _log = logging.getLogger(__name__)
 
@@ -65,9 +65,9 @@ class CrawlerABC(ABC):
 
     @property
     @abstractmethod
-    def _SOURCE_BASE_URL(self) -> List[str]:
+    def _SOURCE_BASE_URL(self) -> str:
         """The base url for accessing the source."""
-        return []
+        raise NotImplementedError()
 
     @abstractmethod
     def get_crawls_for_most_recent(self) -> List[Crawl]:
@@ -76,13 +76,13 @@ class CrawlerABC(ABC):
         The returned crawls should cover new articles from the source from the
         last 24 hours at minimum.
         """
-        return []
+        raise NotImplementedError()
 
     @abstractmethod
     def crawl_article(
         self, article_url: str, article_meta: JpnArticle
     ) -> JpnArticle:
-        """Crawls a the article page for a single article from the source.
+        """Crawls a article page for a single article from the source.
 
         Args:
             article_url: Url for the article page.
@@ -93,7 +93,23 @@ class CrawlerABC(ABC):
             A JpnArticle with the data from the article page + the given
             metadata.
         """
-        return JpnArticle()
+        raise NotImplementedError()
+
+    def crawl_blog(self, blog_url: str) -> CrawlGenerator:
+        """Crawls a blog page for a single blog from the source.
+
+        Unlike crawl_article which is abstract and needs to be overriden by any
+        child Crawler class, only sources with a blog concept need to override
+        this method.
+
+        Args:
+            blog_url: Url for the blog page.
+
+        Returns:
+            A generator that will yield a JpnArticle for an article of the blog
+            each call.
+        """
+        raise NotImplementedError()
 
     @utils.add_debug_logging
     def __init__(self, timeout: int = 30) -> None:
@@ -220,8 +236,8 @@ class CrawlerABC(ABC):
         return response
 
     def _prep_uncrawled_items_for_crawl(
-        self, crawlable_items: List[Crawlable]
-    ) -> List[Crawlable]:
+        self, crawlable_items: List[Crawlable_co]
+    ) -> List[Crawlable_co]:
         """Gets uncrawled items from the list and preps them for crawling.
 
         Args:

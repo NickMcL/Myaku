@@ -13,7 +13,7 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from operator import itemgetter
 from random import random
-from typing import Any, Callable, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, List, Set, Tuple, Type, TypeVar
 from urllib.parse import urlsplit, urlunsplit
 
 import jaconv
@@ -27,12 +27,12 @@ _log = logging.getLogger(__name__)
 
 # Exceptions raised by the requests module that could be due to transient
 # issues, so it is worth retrying a request after one of these exceptions.
-REQUEST_RETRY_EXCEPTIONS = [
+REQUEST_RETRY_EXCEPTIONS = {
     requests.RequestException,
     requests.ConnectionError,
     requests.HTTPError,
     requests.Timeout
-]
+}
 
 _JAPAN_TIMEZONE = pytz.timezone('Japan')
 
@@ -54,6 +54,9 @@ _LOGGING_FORMAT = (
 )
 
 T = TypeVar('T')
+BaseException_co = TypeVar(
+    'BaseException_co', bound=BaseException, covariant=True
+)
 
 
 def _get_root_package_logger() -> logging.Logger:
@@ -249,7 +252,7 @@ def unique(items: List[T]) -> List[T]:
     If T is a hashable type, use sets to dedupe instead of this function since
     the set method is much faster than method used in this function.
     """
-    unique_items = []
+    unique_items: List[T] = []
     for item in items:
         if item not in unique_items:
             unique_items.append(item)
@@ -489,7 +492,7 @@ def rate_limit(min_wait: float, max_wait: float) -> Callable:
 
 
 def retry_on_exception(
-    max_retries: int, retry_exceptions: List[BaseException]
+    max_retries: int, retry_exceptions: Set[Type[BaseException_co]]
 ) -> Callable:
     """Decorator to retry a function call if it raises certain exceptions.
 
@@ -600,7 +603,7 @@ def skip_method_debug_logging(func: Callable) -> Callable:
 
 
 def _dataclass_setter_with_default_wrapper(
-        func: Callable, field: Optional[dataclasses.field] = None
+        func: Callable, field: dataclasses.Field = None
 ) -> Callable:
     """Handles init properly for a property with default value in a dataclass.
 
@@ -612,7 +615,7 @@ def _dataclass_setter_with_default_wrapper(
 
     Args:
         func: Setter of a property in a dataclass.
-        field: This fields default or default_factory is used to get the
+        field: This field's default or default_factory is used to get the
             default value for the property. None will be used as the default
             value if not given.
     """
@@ -623,14 +626,15 @@ def _dataclass_setter_with_default_wrapper(
                 and get_full_name(set_value.fset) == get_full_name(func)):
             # This is the dataclass init without a user passed value to init,
             # so set the proper default value
+            default_factory = field.default_factory  # type: ignore
             if (field is None
                     or field.default is dataclasses.MISSING
-                    and field.default_factory is dataclasses.MISSING):
+                    and default_factory is dataclasses.MISSING):
                 func(self, None)
             elif field.default is not dataclasses.MISSING:
                 func(self, field.default)
             else:
-                func(self, field.default_factory())
+                func(self, default_factory())
         else:
             func(self, set_value)
 
@@ -666,7 +670,9 @@ def _dataclass_setter_with_readonly(
     raise AttributeError("can't set attribute")
 
 
-def make_properties_work_in_dataclass(cls: T = None, **kwargs) -> T:
+def make_properties_work_in_dataclass(
+    cls: Type[T] = None, **kwargs
+) -> Type[T]:
     """Makes the properties in cls compatible with dataclasses.
 
     As of Python 3.7, properties with default values and read-only properties
@@ -683,7 +689,7 @@ def make_properties_work_in_dataclass(cls: T = None, **kwargs) -> T:
             default value of None will be used.
     """
     if cls is None:
-        return functools.partial(
+        return functools.partial(  # type: ignore
             make_properties_work_in_dataclass, **kwargs
         )
 
@@ -714,7 +720,7 @@ def make_properties_work_in_dataclass(cls: T = None, **kwargs) -> T:
     return cls
 
 
-def singleton_per_config(cls: T) -> T:
+def singleton_per_config(cls: Type[T]) -> Callable[..., T]:
     """Makes the decorated class only have one instance per init config.
 
     This will cause there to only ever be one object in existence for each
@@ -728,7 +734,7 @@ def singleton_per_config(cls: T) -> T:
     parameters are all hashable.
     """
     if not hasattr(singleton_per_config, '_singleton_map'):
-        singleton_per_config._singleton_map = {}
+        singleton_per_config._singleton_map = {}  # type: ignore
 
     @functools.wraps(cls)
     def singleton_per_config_wrapper(*args, **kwargs):

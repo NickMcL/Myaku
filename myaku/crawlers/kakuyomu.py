@@ -2,10 +2,10 @@
 
 import enum
 import logging
-import re
 import os
+import re
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Pattern
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
@@ -192,8 +192,8 @@ class KakuyomuCrawler(CrawlerABC):
         for series_tile in series_tiles:
             series_blog = JpnArticleBlog(source_name=self.SOURCE_NAME)
 
-            title_link_tag = html.select_descendants_by_class(
-                series_tile, self._SEARCH_RESULT_TITLE_CLASS, 'a', 1
+            title_link_tag = html.select_one_descendant_by_class(
+                series_tile, self._SEARCH_RESULT_TITLE_CLASS, 'a'
             )
             series_blog.title = html.parse_valid_child_text(
                 title_link_tag
@@ -219,7 +219,7 @@ class KakuyomuCrawler(CrawlerABC):
 
     @utils.skip_method_debug_logging
     def _parse_count_string(
-        self, count_str: str, count_regex: re.Pattern
+        self, count_str: str, count_regex: Pattern
     ) -> Optional[int]:
         """Parses a data count string for a series into an int.
 
@@ -305,8 +305,6 @@ class KakuyomuCrawler(CrawlerABC):
                 series_blog.tags.append(
                     html.parse_valid_child_text(tag_element).strip()
                 )
-
-        return series_blog.tags
 
     def _parse_series_intro(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
@@ -561,8 +559,8 @@ class KakuyomuCrawler(CrawlerABC):
             else:
                 utils.log_and_raise(
                     _log, HtmlParsingError,
-                    'Unrecognized list item "{}" in table of contents: "{}"',
-                    item, series_page_soup
+                    'Unrecognized list item "{}" in table of contents: '
+                    '"{}"'.format(item, series_page_soup)
                 )
 
         return article_metas

@@ -6,12 +6,11 @@ freely while keeping the access interface consistent.
 """
 
 import logging
-import re
 from collections import defaultdict
 from contextlib import closing
 from datetime import datetime
 from operator import methodcaller
-from typing import Any, Dict, Iterator, List, Set, Optional, TypeVar, Union
+from typing import Any, Dict, Iterator, List, Optional, Set, TypeVar, Union
 
 import pymongo
 from bson.objectid import ObjectId
@@ -27,7 +26,7 @@ from myaku.datastore import (DataAccessMode, JpnArticleQueryType,
                              JpnArticleSearchResult, require_update_permission,
                              require_write_permission)
 from myaku.datastore.cache import FirstPageCache
-from myaku.datatypes import (ArticleTextPosition, Crawlable,
+from myaku.datatypes import (ArticleTextPosition, Crawlable, Crawlable_co,
                              FoundJpnLexicalItem, InterpSource, JpnArticle,
                              JpnArticleBlog, JpnLexicalItemInterp,
                              MecabLexicalItemInterp)
@@ -217,7 +216,7 @@ class CrawlDb(object):
         }
 
         self.access_mode = access_mode
-        self._written_fli_base_forms = set()
+        self._written_fli_base_forms: Set[str] = set()
         if access_mode.has_write_permission():
             self._create_indexes()
             self._version_doc = myaku.get_version_info()
@@ -305,7 +304,7 @@ class CrawlDb(object):
 
     @utils.skip_method_debug_logging
     def _get_last_crawled_map(
-        self, crawlable_items: List[Crawlable]
+        self, crawlable_items: List[Crawlable_co]
     ) -> Dict[str, datetime]:
         """Gets a mapping from Crawlable items to their last crawled datetime.
 
@@ -335,7 +334,7 @@ class CrawlDb(object):
 
     @utils.skip_method_debug_logging
     def _get_skipped_crawlable_urls(
-        self, crawlable_items: List[Crawlable]
+        self, crawlable_items: List[Crawlable_co]
     ) -> Set[str]:
         """Gets the crawl skipped source urls from the given crawlable items.
 
@@ -359,8 +358,8 @@ class CrawlDb(object):
         return set(doc['source_url'] for doc in cursor)
 
     def filter_crawlable_to_updated(
-        self, crawlable_items: List[Crawlable]
-    ) -> List[Crawlable]:
+        self, crawlable_items: List[Crawlable_co]
+    ) -> List[Crawlable_co]:
         """Returns new list with the items updated since last crawled.
 
         The new list includes items that have never been crawled as well.
@@ -594,7 +593,7 @@ class CrawlDb(object):
     # Debug level logging is extremely noisy (can be over 1gb) when enabled
     # during this function, so switch to info level if logging.
     @utils.set_package_log_level(logging.INFO)
-    def build_search_result_cache(self) -> None:
+    def build_first_page_cache(self) -> None:
         """Builds the full first page cache using current db data."""
         # Count all unique base forms currently in the db
         cursor = self._found_lexical_item_collection.aggregate([
@@ -685,7 +684,7 @@ class CrawlDb(object):
         Returns:
             A list of ranked search results docs with only one per article.
         """
-        article_search_result_docs = []
+        article_search_result_docs: List[_Document] = []
         last_article_oid = None
         skipped_articles = 0
         for doc in search_results_cursor:
@@ -820,29 +819,22 @@ class CrawlDb(object):
         return self._search_articles_using_db(query, query_type, page)
 
     def read_found_lexical_items(
-        self, base_forms: Union[str, List[str]], starts_with: bool = False
+        self, base_forms: List[str], starts_with: bool = False
     ) -> List[FoundJpnLexicalItem]:
         """Reads found lexical items that match base form from the database.
 
         Args:
-            base_forms: Either one or a list of base forms of Japanese lexical
-                items to search for matching found lexical items in the db.
+            base_forms: Base forms of Japanese lexical items to query the
+                database with.
             starts_with: If True, will return all found lexical items with a
-                possible interpretation base form that starts with one of the
-                given base forms. If False, will return all found lexical items
-                with a possible interpretation base form that exactly matches
-                one of the given base forms.
+                base form that starts with one of the given base forms. If
+                False, will return all found lexical items a base form that
+                exactly match one of the given base forms.
 
         Returns:
-            A list of found lexical items with at least on possible
-            interpretation that matches at least one of the base forms given.
+            A list of the found lexical items from the database that match at
+            least one of the given base forms.
         """
-        if not isinstance(base_forms, list):
-            base_forms = [base_forms]
-
-        if starts_with:
-            base_forms = [re.compile('^' + s) for s in base_forms]
-
         found_lexical_item_docs = self._read_with_log(
             'base_form', base_forms, self._found_lexical_item_collection
         )
@@ -871,7 +863,7 @@ class CrawlDb(object):
             'Retrieved cursor from %s', self._article_collection.full_name
         )
 
-        oid_blog_map = None
+        oid_blog_map: Dict[ObjectId, JpnArticleBlog] = None
         last_blog_oid = None
         for doc in cursor:
             if doc['blog_oid'] is None:
@@ -889,7 +881,7 @@ class CrawlDb(object):
 
     @require_write_permission
     def _write_blogs(
-        self, blogs: JpnArticleBlog
+        self, blogs: List[JpnArticleBlog]
     ) -> Dict[int, ObjectId]:
         """Writes the blogs to the database.
 
@@ -1066,7 +1058,7 @@ class CrawlDb(object):
             are a list with the found lexical items from the given list with
             that base form.
         """
-        base_form_map = defaultdict(list)
+        base_form_map: Dict[str, List[FoundJpnLexicalItem]] = defaultdict(list)
         for item in found_lexical_items:
             base_form_map[item.base_form].append(item)
 

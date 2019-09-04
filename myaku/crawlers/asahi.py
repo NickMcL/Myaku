@@ -286,8 +286,8 @@ class AsahiCrawler(CrawlerABC):
 
     def _is_paywall_article_page(self, page_soup: BeautifulSoup) -> bool:
         """Returns True if the given page is a paywall article page."""
-        title_div = html.select_descendants_by_class(
-            page_soup, self._ARTICLE_TITLE_DIV_CLASS, 'div', 1
+        title_div = html.select_one_descendant_by_class(
+            page_soup, self._ARTICLE_TITLE_DIV_CLASS, 'div'
         )
         paywall_tag = title_div.find(class_=self._PAYWALL_TITLE_CLASS_REGEX)
 
@@ -353,8 +353,8 @@ class AsahiCrawler(CrawlerABC):
             article: Article object to store the body text data parsed from the
                 article page in.
         """
-        body_text_div = html.select_descendants_by_class(
-            page_soup, self._ARTICLE_BODY_TEXT_DIV_CLASS, 'div', 1
+        body_text_div = html.select_one_descendant_by_class(
+            page_soup, self._ARTICLE_BODY_TEXT_DIV_CLASS, 'div'
         )
 
         body_text_strs = [article.title]
@@ -373,7 +373,6 @@ class AsahiCrawler(CrawlerABC):
 
         article.full_text = '\n\n'.join(body_text_strs)
         article.alnum_count = utils.get_alnum_count(article.full_text)
-        return article
 
     def crawl_article(
         self, article_url: str, article_meta: JpnArticle

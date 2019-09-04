@@ -1,19 +1,33 @@
 """Classes for holding data used across the Myaku project."""
 
 import enum
-import functools
 import hashlib
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from operator import attrgetter
-from typing import Dict, List, NamedTuple, Tuple
+from typing import Dict, List, NamedTuple, Set, Tuple, TypeVar
 
 from myaku import utils
 from myaku.errors import MissingDataError
 
 _log = logging.getLogger(__name__)
+
+# Grouping of text positions by their sentence position
+SentenceGroup = Tuple['ArticleTextPosition', Tuple['ArticleTextPosition', ...]]
+SentenceGroupMap = Dict[
+    'ArticleTextPosition', List['ArticleTextPosition']
+]
+
+# Mapping from (base form, article ID) tuples to a dictionary mapping each of
+# the interpretations of that base form in that article to the set of positions
+# in the article where the base form with that interpretation was found.
+FliInterpMap = Dict[
+    Tuple[str, int], Dict['JpnLexicalItemInterp', Set['ArticleTextPosition']]
+]
+
+Crawlable_co = TypeVar('Crawlable_co', bound='Crawlable', covariant=True)
 
 
 @enum.unique
@@ -166,7 +180,7 @@ class JpnArticle(Crawlable):
     _text_hash: str = field(default=None, init=False, repr=False)
     _text_hash_change: bool = field(default=False, init=False, repr=False)
 
-    @property
+    @property  # type: ignore  # Silence 'already defined' mypy error
     def full_text(self) -> str:
         """See class docstring for full_text documentation."""
         return self._full_text
@@ -176,7 +190,7 @@ class JpnArticle(Crawlable):
         self._text_hash_change = True
         self._full_text = set_value
 
-    @property
+    @property  # type: ignore  # Silence 'already defined' mypy error
     def text_hash(self) -> str:
         """See class docstring for text_hash documentation."""
         if self._text_hash_change:
@@ -229,7 +243,7 @@ class JpnArticle(Crawlable):
 
     def group_text_positions_by_sentence(
         self, text_positions: List[ArticleTextPosition]
-    ) -> List[Tuple[ArticleTextPosition, Tuple[ArticleTextPosition, ...]]]:
+    ) -> List[SentenceGroup]:
         """Groups a list of text positions by their containing sentences.
 
         Args:
@@ -239,7 +253,7 @@ class JpnArticle(Crawlable):
             A list of (sentence position, contained text positions) tuples. The
             tuples are sorted by sentence start index.
         """
-        sentence_groups = defaultdict(list)
+        sentence_groups: SentenceGroupMap = defaultdict(list)
         end = -1
         for pos in sorted(text_positions, key=attrgetter('start')):
             if pos.start > end:
@@ -347,7 +361,7 @@ class FoundJpnLexicalItem(object):
         field(default_factory=dict, init=False, repr=False)
     )
 
-    @property
+    @property  # type: ignore  # Silence 'already defined' mypy error
     def base_form(self) -> str:
         """See class docstring for base_form documentation."""
         return self._base_form
@@ -381,6 +395,45 @@ class FoundJpnLexicalItem(object):
         self._surface_form_cache[text_pos] = surface_form
 
 
+def _convert_fli_interp_map_to_flis(
+    fli_interp_map: FliInterpMap, article_id_map: Dict[int, JpnArticle]
+) -> List[FoundJpnLexicalItem]:
+    """Converts a found lexical item interpretation map to found lexical items.
+
+    Args:
+        fli_interp_map: A mapping from (base form, article) tuples to all of
+            the interpretations of that base form in that article. See the
+            comment on the FliInterpMap type for more info.
+        article_id_map: A mapping from the id()s for the articles used in
+            fli_interp_map to the actual article object for that id().
+
+    Returns:
+        A list of found lexical items with all of the data from the found
+        lexical item interpretation map stored within them.
+    """
+    flis = []
+    for ((base_form, article_id), interp_map) in fli_interp_map.items():
+        new_fli = FoundJpnLexicalItem(
+            base_form=base_form,
+            article=article_id_map[article_id],
+            possible_interps=[]
+        )
+
+        found_positions_set: Set[ArticleTextPosition] = set()
+        for interp, interp_pos_set in interp_map.items():
+            new_fli.possible_interps.append(interp)
+            found_positions_set.update(interp_pos_set)
+        new_fli.found_positions = list(found_positions_set)
+
+        for interp, interp_pos_set in interp_map.items():
+            if interp_pos_set != found_positions_set:
+                new_fli.interp_position_map[interp] = list(interp_pos_set)
+
+        flis.append(new_fli)
+
+    return flis
+
+
 def reduce_found_lexical_items(
         found_lexical_items: List[FoundJpnLexicalItem]
 ) -> List[FoundJpnLexicalItem]:
@@ -399,35 +452,22 @@ def reduce_found_lexical_items(
         needed to represent the data in the given found lexical items.
     """
     article_id_map = {}
-    base_form_interp_map = defaultdict(functools.partial(defaultdict, set))
+    fli_interp_map: FliInterpMap = defaultdict(lambda: defaultdict(set))
     for fli in found_lexical_items:
         article_id_map[id(fli.article)] = fli.article
         base_form_article_pair = (fli.base_form, id(fli.article))
+
         for interp in fli.possible_interps:
-            base_form_interp_map[base_form_article_pair][interp].update(
-                set(fli.found_positions)
+            interp_positions = set(
+                fli.interp_position_map.get(interp, fli.found_positions)
+            )
+            fli_interp_map[base_form_article_pair][interp].update(
+                interp_positions
             )
 
-    reduced_flis = []
-    for ((base_form, article_id), interp_map) in base_form_interp_map.items():
-        new_fli = FoundJpnLexicalItem(
-            base_form=base_form,
-            article=article_id_map[article_id],
-            possible_interps=[]
-        )
-
-        found_positions_set = set()
-        for interp, interp_pos_set in interp_map.items():
-            new_fli.possible_interps.append(interp)
-            found_positions_set.update(interp_pos_set)
-        new_fli.found_positions = list(found_positions_set)
-
-        for interp, interp_pos_set in interp_map.items():
-            if interp_pos_set != found_positions_set:
-                new_fli.interp_position_map[interp] = list(interp_pos_set)
-
-        reduced_flis.append(new_fli)
-
+    reduced_flis = _convert_fli_interp_map_to_flis(
+        fli_interp_map, article_id_map
+    )
     _log.debug(
         'Reduced %s found lexical items to %s',
         len(found_lexical_items), len(reduced_flis)

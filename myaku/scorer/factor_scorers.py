@@ -4,22 +4,48 @@ import logging
 import math
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Generic, List, Tuple, TypeVar
+from typing import Any, Generic, List, Tuple, TypeVar
+
+from typing_extensions import Protocol
 
 from myaku.crawlers import KakuyomuCrawler
 from myaku.datatypes import FoundJpnLexicalItem, JpnArticle
 
 T = TypeVar('T')
+C = TypeVar('C', bound='SameTypeComparable')
 
 _log = logging.getLogger(__name__)
 
 _MAX_FACTOR_SCORE = 1000
 
 
-class ValueRangeMultipliers(Generic[T]):
+class SameTypeComparable(Protocol):
+    """Protocol for supporting same type order comparison operators."""
+    @abstractmethod
+    def __eq__(self, other: Any) -> bool:
+        pass
+
+    @abstractmethod
+    def __lt__(self: T, other: T) -> bool:
+        pass
+
+    @abstractmethod
+    def __le__(self: T, other: T) -> bool:
+        pass
+
+    @abstractmethod
+    def __gt__(self: T, other: T) -> bool:
+        pass
+
+    @abstractmethod
+    def __ge__(self: T, other: T) -> bool:
+        pass
+
+
+class ValueRangeMultipliers(Generic[C]):
     """Stores the multipliers for all ranges of a value."""
 
-    def __init__(self, value_range_tuples: List[Tuple[T, float]]) -> None:
+    def __init__(self, value_range_tuples: List[Tuple[C, float]]) -> None:
         """Sets the value ranges the scores should used.
 
         Args:
@@ -51,7 +77,7 @@ class ValueRangeMultipliers(Generic[T]):
 
         self._value_range_tuples = value_range_tuples
 
-    def get_value_multiplier(self, value: T) -> float:
+    def get_value_multiplier(self, value: C) -> float:
         """Gets multiplier for a value based on which value range it is in."""
         for (range_upper_bound, multiplier) in self._value_range_tuples:
             if range_upper_bound is None:
@@ -62,7 +88,7 @@ class ValueRangeMultipliers(Generic[T]):
         # Should never happen because of check in __init__
         raise ValueError('No range with no upper bound defined')
 
-    def __getitem__(self, value: T) -> float:
+    def __getitem__(self, value: C) -> float:
         """Alternative way to call get_value_multiplier(value)."""
         return self.get_value_multiplier(value)
 

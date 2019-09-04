@@ -253,7 +253,7 @@ class JapaneseTextAnalyzer(object):
             lexical items.
         """
         start = 0
-        meta_lexical_items = []
+        meta_lexical_items: List[FoundJpnLexicalItem] = []
 
         while start < len(base_lexical_items):
             end = start + 1

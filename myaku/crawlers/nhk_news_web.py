@@ -106,7 +106,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         Raises:
             CannotParsePageError: There was an error parsing the body text.
         """
-        body_tags = []
+        body_tags: List[Tag] = []
         for id_ in self._ARTICLE_BODY_IDS:
             divs = article_tag.find_all('div', id=id_)
             _log.debug('Found %s with id "%s"', len(divs), id_)
@@ -136,8 +136,8 @@ class NhkNewsWebCrawler(CrawlerABC):
         main_tag = html.select_descendants_by_tag(
             article_page_soup, 'main', 1
         )
-        article_json_tag = html.select_descendants_by_tag(
-            main_tag, 'script', 1
+        article_json_tag = html.select_one_descendant_by_tag(
+            main_tag, 'script'
         )
 
         article_json_text = article_json_tag.string

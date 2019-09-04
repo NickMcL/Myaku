@@ -141,7 +141,7 @@ class FirstPageCache(object):
             List of bytes that can be joined to get the full serialization of
             the article.
         """
-        article_bytes = []
+        article_bytes: List[bytes] = []
 
         # Encode title and full text using utf-16 because it is more space
         # efficient than utf-8 for Japanese characters.

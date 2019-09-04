@@ -1,10 +1,11 @@
 """Django settings for myakuweb project."""
 
 import os
+from typing import Dict, List
 
 from myaku.utils import get_value_from_env_file, get_value_from_env_variable
 
-debug_mode_flag = get_value_from_env_variable('DJANGO_DEBUG_MODE')
+debug_mode_flag = os.environ.get('DJANGO_DEBUG_MODE', 1)
 if int(debug_mode_flag) == 1:
     DEBUG = True
 else:
@@ -13,10 +14,17 @@ else:
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-SECRET_KEY = get_value_from_env_file('DJANGO_SECRET_KEY_FILE')
+if DEBUG:
+    if os.environ.get('DJANGO_SECRET_KEY_FILE') is not None:
+        SECRET_KEY = get_value_from_env_file('DJANGO_SECRET_KEY_FILE')
+    else:
+        SECRET_KEY = 'jq+jXE1WwWV1S2sSUfcXkaPTnUkM0g/FctVvJ2PcgTlCGcVXMr'
+else:
+    # Always use secret key from docker secret in prod
+    SECRET_KEY = get_value_from_env_file('DJANGO_SECRET_KEY_FILE')
 
 if DEBUG:
-    ALLOWED_HOSTS = []
+    ALLOWED_HOSTS: List[str] = []
 else:
     allowed_hosts_filedata = get_value_from_env_file(
         'MYAKUWEB_ALLOWED_HOSTS_FILE'
@@ -73,7 +81,7 @@ WSGI_APPLICATION = 'myakuweb.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 
-DATABASES = {}
+DATABASES: Dict = {}
 
 
 # Password validation
@@ -121,8 +129,10 @@ STATICFILES_DIRS = [
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-STATIC_URL = get_value_from_env_variable('MYAKUWEB_STATIC_URL')
-
+if DEBUG:
+    STATIC_URL = os.environ.get('MYAKUWEB_STATIC_URL', '/static/')
+else:
+    STATIC_URL = get_value_from_env_variable('MYAKUWEB_STATIC_URL')
 
 # Other misc settings
 

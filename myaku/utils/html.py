@@ -451,14 +451,36 @@ def select_descendants_by_class(
             )
         )
 
-    if expected_tag_count == 1:
-        return tags[0]
     return tags
+
+
+def select_one_descendant_by_class(
+    parent: Tag, classes: Union[str, List[str]], tag_name: str = ''
+) -> Tag:
+    """Selects a single tag_name descendant with classes within parent.
+
+    Raises an error if more or less than exactly 1 tag_name descendant exists
+    within parent with classes.
+
+    Args:
+        parent: Tag whose descendants to search.
+        classes: A single or list of classes that the tag to select must have.
+        tag_name: Type of tag to search for (e.g. span). An empty
+            string will match any tag.
+
+    Returns:
+        The found tag_name descendant tag.
+
+    Raises:
+        HtmlParsingError: There was an issue parsing the html for the given
+            parent.
+    """
+    return select_descendants_by_class(parent, classes, tag_name, 1)[0]
 
 
 def select_descendants_by_tag(
     parent: Tag, tag_name: str, expected_tag_count: int = None
-) -> Union[Tag, List[Tag]]:
+) -> List[Tag]:
     """Selects tag_name descendant(s) within parent.
 
     Args:
@@ -471,8 +493,7 @@ def select_descendants_by_tag(
             If None, no error will be raised if at least one tag is selected.
 
     Returns:
-        The found tag_name descendant tag(s). If expected_tag_count == 1, will
-        not return the tag in a list.
+        The found tag_name descendant tag(s).
 
     Raises:
         HtmlParsingError: There was an issue parsing the html for the given
@@ -491,9 +512,27 @@ def select_descendants_by_tag(
             'Found 0 "{}" tags in: "{}"'.format(tag_name, parent)
         )
 
-    if expected_tag_count == 1:
-        return tags[0]
     return tags
+
+
+def select_one_descendant_by_tag(parent: Tag, tag_name: str) -> Tag:
+    """Selects a single tag_name descendant within parent.
+
+    Raises an error if more or less than exactly 1 tag_name descendant exists
+    within parent.
+
+    Args:
+        parent: Tag whose descendants to search.
+        tag_name: Type of tag to search for (e.g. span).
+
+    Returns:
+        The found tag_name descendant tag.
+
+    Raises:
+        HtmlParsingError: There was an issue parsing the html for the given
+            parent.
+    """
+    return select_descendants_by_tag(parent, tag_name, 1)[0]
 
 
 def select_descendant_by_id(parent: Tag, id_: str) -> Tag:
