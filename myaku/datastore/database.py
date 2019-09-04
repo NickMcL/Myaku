@@ -9,8 +9,9 @@ import logging
 import re
 from collections import defaultdict
 from contextlib import closing
+from datetime import datetime
 from operator import methodcaller
-from typing import Any, Dict, Iterator, List, Optional, TypeVar, Union
+from typing import Any, Dict, Iterator, List, Set, Optional, TypeVar, Union
 
 import pymongo
 from bson.objectid import ObjectId
@@ -157,6 +158,7 @@ class CrawlDb(object):
     _DB_NAME = 'myaku'
     _ARTICLE_COLL_NAME = 'articles'
     _BLOG_COLL_NAME = 'blogs'
+    _CRAWL_SKIP_COLL_NAME = 'crawl_skip'
     _FOUND_LEXICAL_ITEM_COLL_NAME = 'found_lexical_items'
 
     # The match stage at the start of the aggergate is necessary in order to
@@ -201,6 +203,7 @@ class CrawlDb(object):
         self._db = self._mongo_client[self._DB_NAME]
         self._article_collection = self._db[self._ARTICLE_COLL_NAME]
         self._blog_collection = self._db[self._BLOG_COLL_NAME]
+        self._crawl_skip_collection = self._db[self._CRAWL_SKIP_COLL_NAME]
         self._found_lexical_item_collection = (
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
@@ -249,6 +252,7 @@ class CrawlDb(object):
         """Creates the necessary indexes for the db if they don't exist."""
         self._article_collection.create_index('text_hash')
         self._article_collection.create_index('blog_oid')
+        self._crawl_skip_collection.create_index('source_url')
         self._found_lexical_item_collection.create_index('article_oid')
 
         for crawlable_collection in self._crawlable_coll_map.values():
@@ -300,15 +304,24 @@ class CrawlDb(object):
         return True
 
     @utils.skip_method_debug_logging
-    def filter_crawlable_to_updated(
+    def _get_last_crawled_map(
         self, crawlable_items: List[Crawlable]
-    ) -> List[Crawlable]:
-        """Returns new list with the items updated since last crawled.
+    ) -> Dict[str, datetime]:
+        """Gets a mapping from Crawlable items to their last crawled datetime.
 
-        The new list includes items that have never been crawled as well.
+        Args:
+            crawlable_items: List of crawlable items to look up the last
+                crawled datetime for in the db.
+
+        Returns:
+            A mapping from the source url of one of the given crawlable items
+            to the last crawled datetime for that item.
+            If the source url of one of the given crawlable items is not in the
+            returned dictionary, it means that it has never been crawled
+            before.
         """
         if len(crawlable_items) == 0:
-            return []
+            return {}
 
         cursor = self._crawlable_coll_map[type(crawlable_items[0])].find(
             {'source_url': {'$in': [i.source_url for i in crawlable_items]}},
@@ -318,13 +331,57 @@ class CrawlDb(object):
             d['source_url']: d['last_crawled_datetime'] for d in cursor
         }
 
+        return last_crawled_map
+
+    @utils.skip_method_debug_logging
+    def _get_skipped_crawlable_urls(
+        self, crawlable_items: List[Crawlable]
+    ) -> Set[str]:
+        """Gets the crawl skipped source urls from the given crawlable items.
+
+        Args:
+            crawlable_items: List of crawlable items whose source urls to look
+                up in the db to check which are marked as having been skipped
+                during crawling.
+
+        Returns:
+            A set containing the source urls out of the source urls for the
+            given crawlable items that are marked in the db as having been
+            skipped during crawling.
+        """
+        if len(crawlable_items) == 0:
+            return set()
+
+        cursor = self._crawl_skip_collection.find(
+            {'source_url': {'$in': [i.source_url for i in crawlable_items]}},
+            {'_id': -1, 'source_url': 1}
+        )
+        return set(doc['source_url'] for doc in cursor)
+
+    def filter_crawlable_to_updated(
+        self, crawlable_items: List[Crawlable]
+    ) -> List[Crawlable]:
+        """Returns new list with the items updated since last crawled.
+
+        The new list includes items that have never been crawled as well.
+        """
+        total_items = len(crawlable_items)
+        _log.debug('Will apply filter to %s crawlable items', total_items)
+        if total_items == 0:
+            return []
+        last_crawled_map = self._get_last_crawled_map(crawlable_items)
+        crawl_skip_urls = self._get_skipped_crawlable_urls(crawlable_items)
+
         updated_items = []
         unstored_count = 0
         partial_stored_count = 0
         updated_count = 0
+        skipped_count = 0
         for item in crawlable_items:
             item_url = item.source_url
-            if item_url not in last_crawled_map:
+            if item_url in crawl_skip_urls:
+                skipped_count += 1
+            elif item_url not in last_crawled_map:
                 unstored_count += 1
                 updated_items.append(item)
             elif last_crawled_map[item_url] is None:
@@ -337,16 +394,20 @@ class CrawlDb(object):
 
         _log.debug(
             'Filtered to %s unstored, %s partially stored, and %s updated '
-            'crawlable items of type %s',
+            'crawlable items of type %s (%s crawl skipped, %s already stored)',
             unstored_count, partial_stored_count, updated_count,
-            type(crawlable_items[0])
+            type(crawlable_items[0]), skipped_count
         )
         return updated_items
 
-    @utils.skip_method_debug_logging
     @require_update_permission
     def update_last_crawled(self, item: Crawlable) -> None:
-        """Updates the last crawled datetime of the item in the db."""
+        """Updates the last crawled datetime of the item in the db.
+
+        If a crawlable item with the source url of the given item is not found
+        in the db, marks the source url of the given item as having been
+        skipped during crawling instead.
+        """
         _log.debug(
             'Updating the last crawled datetime for item "%s" of type %s',
             item, type(item)
@@ -356,6 +417,17 @@ class CrawlDb(object):
             {'$set': {'last_crawled_datetime': item.last_crawled_datetime}}
         )
         _log.debug('Update result: %s', result.raw_result)
+
+        if result.matched_count == 0:
+            _log.debug(
+                'Source url "%s" for item was not found in the db, so marking '
+                'as crawl skipped', item.source_url
+            )
+            self._crawl_skip_collection.insert_one({
+                'source_url': item.source_url,
+                'source_name': item.source_name,
+                'last_crawled_datetime': item.last_crawled_datetime
+            })
 
     def _get_fli_safe_articles(
             self, flis: List[FoundJpnLexicalItem]
