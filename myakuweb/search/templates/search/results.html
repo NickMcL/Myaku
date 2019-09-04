@@ -39,7 +39,7 @@
         <div class="row mb-3 card shadow-sm result-tile">
           <div class="col-12 pt-3 px-3">
             <h4>
-              <a class="article-title" href="{{ result.article.source_url }}">
+              <a class="article-title japanese-text" href="{{ result.article.source_url }}">
                 {{ result.article.title }}
               </a>
             </h4>
@@ -79,7 +79,7 @@
 
             <hr>
             <blockquote class="mb-3 article-sample-text">
-              <p class="mb-0">
+              <p class="mb-0 japanese-text">
                 {% for segment in result.preview.main_sample_text.segments %}
                   {% if segment.is_query_match %}
                     <span class="article-sample-instance">{{ segment.text }}</span>
@@ -98,7 +98,7 @@
                 {% for sample_text in result.preview.extra_sample_texts %}
                   <li>
                     <blockquote>
-                      <p class="mb-0">
+                      <p class="mb-0 japanese-text">
                         {% for segment in sample_text.segments %}
                           {% if segment.is_query_match %}
                             <span class="article-sample-instance">{{ segment.text }}</span>

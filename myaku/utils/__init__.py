@@ -626,7 +626,11 @@ def _dataclass_setter_with_default_wrapper(
                 and get_full_name(set_value.fset) == get_full_name(func)):
             # This is the dataclass init without a user passed value to init,
             # so set the proper default value
-            default_factory = field.default_factory  # type: ignore
+            if field is not None:
+                default_factory = field.default_factory  # type: ignore
+            else:
+                default_factory = None
+
             if (field is None
                     or field.default is dataclasses.MISSING
                     and default_factory is dataclasses.MISSING):
@@ -683,7 +687,7 @@ def make_properties_work_in_dataclass(
 
     Args:
         kwargs: The default value for a property can be specified by giving a
-            kwarg using the property name set to a dataclasses.field object
+            kwarg using the property name set to a dataclasses.Field object
             that sepecifies the default value or default factory for the
             property. If a kwarg is not given for a property with a setter, a
             default value of None will be used.

@@ -1,10 +1,20 @@
 body {
+  font-family: "Noto Sans", "Noto Sans JP", sans-serif;
+}
+
+/* Use the slighter thicker Noto Sans JP characters for headers */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Noto Sans JP", "Noto Sans", sans-serif;
+}
+
+.japanese-text {
   font-family: "Noto Sans JP", "Noto Sans", sans-serif;
 }
 
 a {
   color: #5272a6;
 }
+
 
 .start-tile {
   font-size: 1.1em;
@@ -85,7 +95,7 @@ a {
 
 .tag-badge {
   padding: .4em .4em;
-  font-size: .8em;
+  font-size: 80%;
   color: #fff;
   /*background-color: #1d4381;*/
   background-color: #126B9C;
@@ -98,6 +108,10 @@ a {
 .article-sample-text {
   font-size: 1.1em;
   letter-spacing: .5pt;
+}
+
+.article-sample-text footer {
+  font-size: 85%;
 }
 
 .article-sample-instance {
