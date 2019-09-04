@@ -5,9 +5,14 @@ import math
 
 from myaku.datatypes import FoundJpnLexicalItem, JpnArticle
 
-from .factor_scorers import (ArticleLengthScorer, BlogArticleOrderScorer,
-                             BlogRatingScorer, HasVideoScorer,
-                             PublicationRecencyScorer, TermFrequencyScorer)
+from myaku.scorer.factor_scorers import (
+    ArticleLengthScorer,
+    BlogArticleOrderScorer,
+    BlogRatingScorer,
+    HasVideoScorer,
+    PublicationRecencyScorer,
+    TermFrequencyScorer
+)
 
 _log = logging.getLogger(__name__)
 

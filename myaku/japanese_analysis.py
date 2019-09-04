@@ -16,12 +16,20 @@ import MeCab
 
 import myaku
 from myaku import utils
-from myaku.datatypes import (ArticleTextPosition, FoundJpnLexicalItem,
-                             InterpSource, JpnArticle, JpnLexicalItemInterp,
-                             MecabLexicalItemInterp,
-                             reduce_found_lexical_items)
-from myaku.errors import (ResourceLoadError, ResourceNotReadyError,
-                          TextAnalysisError)
+from myaku.datatypes import (
+    ArticleTextPosition,
+    FoundJpnLexicalItem,
+    InterpSource,
+    JpnArticle,
+    JpnLexicalItemInterp,
+    MecabLexicalItemInterp,
+    reduce_found_lexical_items
+)
+from myaku.errors import (
+    ResourceLoadError,
+    ResourceNotReadyError,
+    TextAnalysisError
+)
 
 _log = logging.getLogger(__name__)
 

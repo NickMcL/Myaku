@@ -1,4 +1,5 @@
 """Tests for logging-related functions in myaku.utils."""
+
 import functools
 import glob
 import logging

@@ -22,14 +22,25 @@ from pymongo.results import InsertManyResult
 
 import myaku
 from myaku import utils
-from myaku.datastore import (DataAccessMode, JpnArticleQueryType,
-                             JpnArticleSearchResult, require_update_permission,
-                             require_write_permission)
+from myaku.datastore import (
+    DataAccessMode,
+    JpnArticleQueryType,
+    JpnArticleSearchResult,
+    require_update_permission,
+    require_write_permission
+)
 from myaku.datastore.cache import FirstPageCache
-from myaku.datatypes import (ArticleTextPosition, Crawlable, Crawlable_co,
-                             FoundJpnLexicalItem, InterpSource, JpnArticle,
-                             JpnArticleBlog, JpnLexicalItemInterp,
-                             MecabLexicalItemInterp)
+from myaku.datatypes import (
+    ArticleTextPosition,
+    Crawlable,
+    Crawlable_co,
+    FoundJpnLexicalItem,
+    InterpSource,
+    JpnArticle,
+    JpnArticleBlog,
+    JpnLexicalItemInterp,
+    MecabLexicalItemInterp
+)
 
 _log = logging.getLogger(__name__)
 
