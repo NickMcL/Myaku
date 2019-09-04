@@ -404,7 +404,7 @@ class CrawlDb(object):
 
         _log.debug(
             'Filtered to %s unstored, %s partially stored, and %s updated '
-            'crawlable items of type %s (%s crawl skipped, %s already stored)',
+            'crawlable items of type %s (%s crawl skipped)',
             unstored_count, partial_stored_count, updated_count,
             type(crawlable_items[0]), skipped_count
         )
