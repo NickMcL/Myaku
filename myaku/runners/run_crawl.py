@@ -12,7 +12,7 @@ import math
 import sys
 import time
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict, Tuple
 
 import myaku.crawlers
 from myaku import utils
@@ -36,6 +36,8 @@ VALID_CRAWLER_NAMES = {
 }
 
 CRAWLER_ARG_LIST_SPLITTER = ','
+
+CrawlId = Tuple[str, str]
 
 
 @dataclass
@@ -67,12 +69,12 @@ class CrawlStats(object):
 
     def __init__(self, start_now: bool = True) -> None:
         """Inits stat tracking vars."""
-        self._crawl_counts = {}
-        self._crawl_start_times = {}
-        self._source_counts = {}
-        self._source_start_times = {}
+        self._crawl_counts: Dict[CrawlId, CrawlCounts] = {}
+        self._crawl_start_times: Dict[CrawlId, float] = {}
+        self._source_counts: Dict[str, CrawlCounts] = {}
+        self._source_start_times: Dict[str, float] = {}
         self._overall_counts = CrawlCounts()
-        self._overall_start_time = None
+        self._overall_start_time: float = None
 
         if start_now:
             self.start_stat_tracking()

@@ -2,7 +2,6 @@
 
 import logging
 import time
-from typing import List
 
 from myaku import utils
 from myaku.datastore import DataAccessMode
@@ -34,7 +33,7 @@ class Timer(object):
         )
 
 
-def rescore_articles(db: CrawlDb, scorer: MyakuArticleScorer) -> List[str]:
+def rescore_articles(db: CrawlDb, scorer: MyakuArticleScorer) -> None:
     """Rescores all articles in the Myaku db.
 
     Args:

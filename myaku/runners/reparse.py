@@ -15,14 +15,13 @@ def main() -> None:
     jta = JapaneseTextAnalyzer()
     with CrawlDb(DataAccessMode.READ_WRITE) as db:
         articles = db.read_all_articles()
-        print('{} articles read from database'.format(len(articles)))
 
         for i, article in enumerate(articles):
             flis = jta.find_article_lexical_items(article)
             db.delete_article_found_lexical_items(article)
             db.write_found_lexical_items(flis, False)
-            print('({} / {}): Wrote {} lexical items for {}'.format(
-                i + 1, len(articles), len(flis), article
+            print('({:,}): Wrote {:,} lexical items for {}'.format(
+                i + 1, len(flis), article
             ))
 
     end_time = time.perf_counter()
