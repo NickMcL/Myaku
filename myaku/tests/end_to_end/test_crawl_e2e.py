@@ -5,7 +5,8 @@ import os
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Dict, DefaultDict, List
+from operator import itemgetter
+from typing import Any, DefaultDict, Dict, List
 from unittest.mock import Mock
 
 import pymongo
@@ -14,10 +15,25 @@ from bson.objectid import ObjectId
 
 from myaku import utils
 from myaku.crawlers import kakuyomu
+from myaku.datatypes import ArticleTextPosition
+from myaku.datastore import JpnArticleSearchResult
+from myaku.datastore.cache import FirstPageCache
 from myaku.datastore.database import CrawlDb, _Document
 from myaku.runners import run_crawl
 
 TEST_DIR = os.path.dirname(os.path.relpath(__file__))
+
+ARTICLE_CACHED_ATTRS = [
+    'source_name',
+    'source_url',
+    'publication_datetime',
+    'last_updated_datetime',
+    'title',
+    'full_text',
+    'text_hash',
+    'alnum_count',
+    'has_video',
+]
 
 VERSION_DOC_EXPECTED_FIELD_COUNT = 4
 VERSION_DOC_REGEXES = {
@@ -1082,6 +1098,78 @@ def assert_update_crawl_db_data() -> None:
         )
 
 
+def assert_search_results(
+    search_results: List[JpnArticleSearchResult], fli_docs: List[_Document]
+) -> None:
+    """Asserts search results match a list of found lexical item documents."""
+    assert len(search_results) == len(fli_docs)
+    for search_result, fli_doc in zip(search_results, fli_docs):
+        assert search_result.article.database_id == str(fli_doc['article_oid'])
+
+        assert (len(search_result.found_positions)
+                == len(fli_doc['found_positions']))
+        found_positions_zip = zip(
+            search_result.found_positions, fli_doc['found_positions']
+        )
+        for result_pos, fli_pos_doc in found_positions_zip:
+            fli_pos = ArticleTextPosition(
+                fli_pos_doc['index'], fli_pos_doc['len']
+            )
+            assert result_pos == fli_pos
+
+
+def assert_first_page_cache_query_keys(
+    cache: FirstPageCache, db: CrawlDb
+) -> None:
+    """Asserts first page cache query keys are consistent with db data."""
+    base_form_cursor = db._found_lexical_item_collection.aggregate([
+        {'$group': {'_id': '$base_form'}}
+    ])
+    for doc in base_form_cursor:
+        search_results = cache.get(doc['_id'])
+        assert search_results is not None
+
+        fli_cursor = db._found_lexical_item_collection.find(
+            {'base_form': doc['_id']}
+        )
+        ranked_fli_docs = sorted(
+            fli_cursor, key=itemgetter('quality_score_exact'), reverse=True
+        )[:CrawlDb.SEARCH_RESULTS_PAGE_SIZE]
+        assert_search_results(search_results, ranked_fli_docs)
+
+    # Make sure every query key maps to something in the crawl db
+    for query_key in cache._redis_client.keys('query:*'):
+        assert db._found_lexical_item_collection.find_one(
+            {'base_form': query_key[6:].decode()}
+        ) is not None
+
+
+def assert_first_page_cache_article_keys(
+    cache: FirstPageCache, db: CrawlDb
+) -> None:
+    """Asserts first page cache article keys are consistent with db data."""
+    for doc in db._article_collection.find({}):
+        cached_article = cache._get_article(doc['_id'])
+        assert cached_article is not None
+
+        for attr in ARTICLE_CACHED_ATTRS:
+            assert getattr(cached_article, attr) == doc[attr]
+
+    # Make sure every article key maps to something in the crawl db
+    for article_key in cache._redis_client.keys('article:*'):
+        assert db._article_collection.find_one(
+            {'_id': ObjectId(article_key[8:].decode())}
+        ) is not None
+
+
+def assert_first_page_cache_data() -> None:
+    """Asserts first page cache data is consistent with crawl db data."""
+    cache = FirstPageCache()
+    with CrawlDb() as db:
+        assert_first_page_cache_query_keys(cache, db)
+        assert_first_page_cache_article_keys(cache, db)
+
+
 def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     """Test a series of full end-to-end crawling sessions.
 
@@ -1091,12 +1179,17 @@ def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     """
     monkeypatch.setenv(utils._NO_RATE_LIMIT_ENV_VAR, '1')
     monkeypatch.setenv(kakuyomu._PAGES_TO_CRAWL_ENV_VAR, '2')
+    mocker.patch(
+        'myaku.datastore.database.CrawlDb.SEARCH_RESULTS_PAGE_SIZE', 2
+    )
     mocker.patch('sys.argv', ['pytest', 'Kakuyomu'])
 
     mocker.patch('requests.Session', lambda: MockRequestsSession(False))
     run_crawl.main()
     assert_initial_crawl_db_data()
+    assert_first_page_cache_data()
 
     mocker.patch('requests.Session', lambda: MockRequestsSession(True))
     run_crawl.main()
     assert_update_crawl_db_data()
+    assert_first_page_cache_data()

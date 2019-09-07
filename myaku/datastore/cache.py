@@ -321,6 +321,28 @@ class FirstPageCache(object):
             int.from_bytes(buffer[offset:offset + 4], 'little')
         )
 
+    def _get_article(self, oid: ObjectId) -> Optional[JpnArticle]:
+        """Gets the cached article for the given object ID.
+
+        Args:
+            oid: ObjectId for the article to get from the cache.
+
+        Returns:
+            An article object populated with the data for the article in the
+            cache if the article data exists in the cache, or None if no data
+            for the article exists in the cache for the given ObjectId.
+        """
+        cached_article = self._redis_client.get(f'article:{str(oid)}')
+        if cached_article is None:
+            return None
+
+        article = JpnArticle()
+        article.database_id = str(oid)
+        article_bytes = zlib.decompress(cached_article)
+        self._deserialize_article(article_bytes, article)
+
+        return article
+
     def _deserialize_search_results(
         self, serialized_search_results: bytes
     ) -> List[JpnArticleSearchResult]:
@@ -343,19 +365,14 @@ class FirstPageCache(object):
 
             article_oid = ObjectId(results_bytes[offset:offset + 12])
             offset += 12
-            cached_article = self._redis_client.get(
-                f'article:{str(article_oid)}'
-            )
-            if cached_article is None:
+            search_result.article = self._get_article(article_oid)
+            if search_result.article is None:
                 utils.log_and_raise(
                     _log, DataAccessError,
                     'Article key for ID "{}" not found in Redis'.format(
                         article_oid
                     )
                 )
-
-            article_bytes = zlib.decompress(cached_article)
-            self._deserialize_article(article_bytes, search_result.article)
 
             offset += self._deserialize_text_positions(
                 results_bytes, offset, search_result.found_positions

@@ -136,7 +136,7 @@ fi
 echo -e "\n${BLUE}Running end-to-end pytest for crawler in" \
     "$crawler_service container...${NC}"
 sudo docker exec -it $container_id /bin/bash -c \
-    '$PYTHON_BIN -m pytest -vv myaku/tests/end_to_end'
+    '$PYTHON_BIN -m pytest -vv --show-capture=no myaku/tests/end_to_end'
 if [ $? -ne 0 ]; then
     echo -e "Test result for crawler end-to-end: ${RED}FAILURE${NC}"
     test_status="Failed"
