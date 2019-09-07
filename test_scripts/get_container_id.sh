@@ -42,9 +42,9 @@ service="$1"
 # get its ID a number of times waiting 1 second between tries.
 for i in $(seq 1 $MAX_GET_CONTAINER_RETIRES)
 do
-    echo "Attempting to get $service container ID after 3 seconds " \
+    echo "Attempting to get $service container ID after 5 seconds " \
         "(attempt $i/$MAX_GET_CONTAINER_RETIRES)..." >&2
-    sleep 3
+    sleep 5
     container_id="$(
         sudo docker inspect -f "{{.Status.ContainerStatus.ContainerID}}" \
             $(sudo docker service ps -q "$service") \

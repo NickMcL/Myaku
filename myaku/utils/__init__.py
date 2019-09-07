@@ -45,6 +45,8 @@ _JPN_SENTENCE_ENDERS = [
     '\n',
 ]
 
+_NO_RATE_LIMIT_ENV_VAR = 'MYAKU_NO_RATE_LIMIT'
+
 _DEBUG_LOG_MAX_SIZE_ENV_VAR = 'DEBUG_LOG_MAX_SIZE'
 _INFO_LOG_MAX_SIZE_ENV_VAR = 'INFO_LOG_MAX_SIZE'
 
@@ -455,6 +457,9 @@ def rate_limit(min_wait: float, max_wait: float) -> Callable:
     sleeps until wait_time seconds have passed since the last call before
     running the function.
 
+    If MYAKU_NO_RATE_LIMIT is set to 1 in the environment, no rate limiting
+    will be done for any functions wrapped by this decorator.
+
     Args:
         min_wait: Minimum amount of time in seconds that must be waited between
             calls to the function.
@@ -464,6 +469,9 @@ def rate_limit(min_wait: float, max_wait: float) -> Callable:
     def decorator_rate_limit(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper_rate_limit(*args, **kwargs):
+            if int(os.environ.get(_NO_RATE_LIMIT_ENV_VAR, 0)) == 1:
+                return func(*args, **kwargs)
+
             current_time = time.monotonic()
             next_call_wait_time = func.__dict__.get('next_call_wait_time')
             if (next_call_wait_time is not None

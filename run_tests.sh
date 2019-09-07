@@ -120,17 +120,31 @@ if [ $? -ne 0 ] || [ -z "$container_id" ]; then
         "${RED}Crawler container ID could not be obtained${NC}"
 fi
 
-echo -e "${BLUE}Running pytests for crawler in" \
-    "$crawler_service container...${NC}"
-
 test_status="Started"
-sudo docker exec -t $container_id /bin/bash -c '$PYTHON_BIN -m pytest'
+echo -e "\n${BLUE}Running unit pytests for crawler in" \
+    "$crawler_service container...${NC}"
+sudo docker exec -it $container_id /bin/bash -c \
+    '$PYTHON_BIN -m pytest myaku/tests/unit'
 if [ $? -ne 0 ]; then
-    echo -e "Test result for crawler: ${RED}FAILURE${NC}"
+    echo -e "Test result for crawler unit: ${RED}FAILURE${NC}"
     test_status="Failed"
+    exit 1
 else
-    echo -e "Test result for crawler: ${GREEN}PASSED${NC}"
-    test_status="Passed"
+    echo -e "Test result for crawler unit: ${GREEN}PASSED${NC}"
 fi
 
+echo -e "\n${BLUE}Running end-to-end pytest for crawler in" \
+    "$crawler_service container...${NC}"
+sudo docker exec -it $container_id /bin/bash -c \
+    '$PYTHON_BIN -m pytest -vv myaku/tests/end_to_end'
+if [ $? -ne 0 ]; then
+    echo -e "Test result for crawler end-to-end: ${RED}FAILURE${NC}"
+    test_status="Failed"
+    exit 1
+else
+    echo -e "Test result for crawler end-to-end: ${GREEN}PASSED${NC}"
+fi
+
+echo
+test_status="Passed"
 exit 0

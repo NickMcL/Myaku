@@ -612,7 +612,8 @@ class CrawlDb(object):
             {'$group': {'_id': '$base_form'}},
             {'$count': 'total'}
         ])
-        base_form_total = next(cursor)['total']
+        doc_list = list(cursor)
+        base_form_total = doc_list[0]['total'] if len(doc_list) > 0 else 0
         _log.info(
             f'Will build the first page cache for all {base_form_total:,} '
             f'base forms currently in db'

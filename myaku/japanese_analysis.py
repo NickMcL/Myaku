@@ -163,7 +163,9 @@ class JapaneseTextAnalyzer(object):
         jmdict_xml_filepath = utils.get_value_from_env_variable(
             _JMDICT_XML_FILEPATH_ENV_VAR
         )
-        self._jmdict = JMdict(jmdict_xml_filepath)
+        self._jmdict = JMdict(
+            jmdict_xml_filepath
+        )
 
         self._mecab_tagger = MecabTagger()
 
