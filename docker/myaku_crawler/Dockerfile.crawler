@@ -51,8 +51,7 @@ ENV JMDICT_XML_FILEPATH $CRAWLER_RESOURCE_DIR/JMdict_e.xml
 ENV MYAKU_LOG_DIR $CRAWLER_BASE_DIR/log
 VOLUME ["$MYAKU_LOG_DIR"]
 
-ENV MYAKU_APP_DATA_DIR $CRAWLER_BASE_DIR/appdata
-VOLUME ["$MYAKU_APP_DATA_DIR"]
+ENV MYAKU_APP_DATA_DIR $CRAWLER_RESOURCE_DIR
 
 ENV CRAWL_START_SCRIPT $SCRIPTS_DIR/start_crawl.sh
 ENV CRAWL_PYTHON_SCRIPT $MYAKU_SRC_DIR/runners/run_crawl.py
@@ -85,6 +84,18 @@ VOLUME ["$MYAKU_DEV_DATA_DIR"]
 
 
 FROM base AS prod
+
+# Copy only the myaku module files needed to build the JMdict shelf.
+COPY ./myaku/__init__.py $MYAKU_SRC_DIR/__init__.py
+COPY ./myaku/_version.py $MYAKU_SRC_DIR/_version.py
+COPY ./myaku/utils/__init__.py $MYAKU_SRC_DIR/utils/__init__.py
+COPY ./myaku/japanese_analysis.py $MYAKU_SRC_DIR/japanese_analysis.py
+COPY ./myaku/errors.py $MYAKU_SRC_DIR/errors.py
+COPY ./myaku/datatypes.py $MYAKU_SRC_DIR/datatypes.py
+COPY ./myaku/runners/build_jmdict_shelf.py \
+    $MYAKU_SRC_DIR/runners/build_jmdict_shelf.py
+
+RUN $PYTHON_BIN ./myaku/runners/build_jmdict_shelf.py
 
 # Copy full source into image
 COPY ./myaku $MYAKU_SRC_DIR

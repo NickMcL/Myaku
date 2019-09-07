@@ -1,5 +1,6 @@
 """End-to-end tests for the Myaku crawl scenarios."""
 
+import copy
 import os
 import re
 from collections import defaultdict
@@ -27,7 +28,7 @@ VERSION_DOC_REGEXES = {
 }
 
 BLOG_DOC_EXPECTED_FIELD_COUNT = 19
-BEFORE_UPDATE_EXPECTED_BLOG_DOCS = [
+INITIAL_CRAWL_EXPECTED_BLOG_DOCS = [
     {
         'title': 'Kakuyomu Series 1',
         'author': 'Kakuyomu Author 1',
@@ -86,8 +87,51 @@ BEFORE_UPDATE_EXPECTED_BLOG_DOCS = [
     },
 ]
 
+# Use deepcopy to avoid modifying any of the contents of the initial docs.
+UPDATE_CRAWL_EXPECTED_BLOG_DOCS = copy.deepcopy(
+    INITIAL_CRAWL_EXPECTED_BLOG_DOCS
+)
+UPDATE_CRAWL_EXPECTED_BLOG_DOCS[2] = {
+    'title': 'Kakuyomu Series 3',
+    'author': 'Kakuyomu Author 3v2',
+    'source_name': 'Kakuyomu',
+    'source_url': 'https://kakuyomu.jp/series-link-3',
+    'publication_datetime': datetime.fromisoformat('2015-07-11T11:47:00'),
+    'last_updated_datetime': datetime.fromisoformat('2037-09-06T15:30:28'),
+    'rating': 17,
+    'rating_count': 6,
+    'tags': ['Nonfiction', 'Tag 4'],
+    'catchphrase': '自業自得',
+    'introduction': None,
+    'article_count': 2,
+    'total_char_count': 2145,
+    'comment_count': None,
+    'follower_count': 13,
+    'in_serialization': False,
+}
+UPDATE_CRAWL_EXPECTED_BLOG_DOCS.append({
+    'title': 'Kakuyomu Series 4',
+    'author': 'Kakuyomu Author 4',
+    'source_name': 'Kakuyomu',
+    'source_url': 'https://kakuyomu.jp/series-link-4',
+    'publication_datetime': datetime.fromisoformat('2037-09-06T09:18:02'),
+    'last_updated_datetime': datetime.fromisoformat('2037-09-06T09:18:02'),
+    'rating': 3,
+    'rating_count': 1,
+    'tags': ['Nonfiction', 'Watch out!'],
+    'catchphrase': None,
+    'introduction':
+        '　これは僕の短い序文です。\n\n宜しくお願いします。\n          ',
+    'article_count': 1,
+    'total_char_count': 421,
+    'comment_count': 1,
+    'follower_count': 1,
+    'in_serialization': True,
+})
+
+
 ARTICLE_DOC_EXPECTED_FIELD_COUNT = 20
-BEFORE_UPDATE_EXPECTED_ARTICLE_DOCS = [
+INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
     {
         'full_text':
             'Kakuyomu Series 1 Article 1\n\n'
@@ -278,9 +322,66 @@ BEFORE_UPDATE_EXPECTED_ARTICLE_DOCS = [
     },
 ]
 
+# Use deepcopy to avoid modifying any of the contents of the initial docs.
+UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS = copy.deepcopy(
+    INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS
+)
+UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.append({
+    'full_text':
+        'Kakuyomu Series 3 Article 2\n\n'
+        '吾輩は猫である。名前はまだ無い。\n'
+        'どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャー'
+        'ニャー泣いていた事だけは記憶している。\n\n'
+        '吾輩はここで始めて人間というものを見た。しかもあとで聞くとそれは書生'
+        'という人間中で一番獰悪な種族であったそうだ。',
+    'title': 'Kakuyomu Series 3 Article 2',
+    'author': 'Kakuyomu Author 3v2',
+    'source_url': 'https://kakuyomu.jp/series-link-3/article-link-2',
+    'source_name': 'Kakuyomu',
+    'blog_oid': 3,
+    'blog_article_order_num': 2,
+    'blog_section_name': None,
+    'blog_section_order_num': 0,
+    'blog_section_article_order_num': 2,
+    'publication_datetime': datetime.fromisoformat('2037-09-06T15:30:28'),
+    'last_updated_datetime': datetime.fromisoformat('2037-09-06T15:30:28'),
+    'text_hash':
+        '29a6ffddce745f00cc781fe48eade12f0d3542e27896830dc89d44a7d5f96d42',
+    'alnum_count': 142,
+    'has_video': False,
+    'tags': None,
+    'quality_score': 500,
+})
+UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.append({
+    'full_text':
+        'Kakuyomu Series 4 Article 1\n\n'
+        'だけど、僕には音楽の素養がないからなア」\n'
+        '「音楽なんか、やってるうちに自然と分るようになるわよ。………ねえ、譲治さ'
+        'んもやらなきゃ駄目。あたし一人でやったって踊りに行けやしないもの。よ'
+        'う、そうして時々二人でダンスに行こうじゃないの。毎日々々内で遊んでば'
+        'かりいたってつまりゃしないわ」',
+    'title': 'Kakuyomu Series 4 Article 1',
+    'author': 'Kakuyomu Author 4',
+    'source_url': 'https://kakuyomu.jp/series-link-4/article-link-1',
+    'source_name': 'Kakuyomu',
+    'blog_oid': 4,
+    'blog_article_order_num': 1,
+    'blog_section_name': None,
+    'blog_section_order_num': 0,
+    'blog_section_article_order_num': 1,
+    'publication_datetime': datetime.fromisoformat('2037-09-06T09:18:02'),
+    'last_updated_datetime': datetime.fromisoformat('2037-09-06T09:18:02'),
+    'text_hash':
+        '89517ffc51ce622beef8bc430ad29b8394d97a6b79bdf853b36b1dbf47c896b7',
+    'alnum_count': 148,
+    'has_video': False,
+    'tags': None,
+    'quality_score': 500,
+})
+
 
 FLI_DOC_EXPECTED_FIELD_COUNT = 20
-BEFORE_UPDATE_EXPECTED_FLI_QUERY_DOCS: Dict[str, List[_Document]] = {
+INITIAL_CRAWL_EXPECTED_FLI_QUERY_DOCS = {
     '自然': [
         {
             'base_form': '自然',
@@ -295,10 +396,7 @@ BEFORE_UPDATE_EXPECTED_FLI_QUERY_DOCS: Dict[str, List[_Document]] = {
                 {
                     'interp_sources': [1],
                     'mecab_interp': {
-                        'parts_of_speech': [
-                            '名詞',
-                            '形容動詞語幹'
-                        ],
+                        'parts_of_speech': ['名詞', '形容動詞語幹'],
                         'conjugated_type': None,
                         'conjugated_form': None
                     },
@@ -329,10 +427,7 @@ BEFORE_UPDATE_EXPECTED_FLI_QUERY_DOCS: Dict[str, List[_Document]] = {
                 {
                     'interp_sources': [1],
                     'mecab_interp': {
-                        'parts_of_speech': [
-                            '名詞',
-                            '形容動詞語幹'
-                        ],
+                        'parts_of_speech': ['名詞', '形容動詞語幹'],
                         'conjugated_type': None,
                         'conjugated_form': None
                     },
@@ -483,9 +578,7 @@ BEFORE_UPDATE_EXPECTED_FLI_QUERY_DOCS: Dict[str, List[_Document]] = {
                 {
                     'interp_sources': [1],
                     'mecab_interp': {
-                        'parts_of_speech': [
-                            '接続詞'
-                        ],
+                        'parts_of_speech': ['接続詞'],
                         'conjugated_type': None,
                         'conjugated_form': None
                     },
@@ -572,21 +665,94 @@ BEFORE_UPDATE_EXPECTED_FLI_QUERY_DOCS: Dict[str, List[_Document]] = {
     ],
 }
 
+# Use deepcopy to avoid modifying any of the contents of the initial docs.
+UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS = copy.deepcopy(
+    INITIAL_CRAWL_EXPECTED_FLI_QUERY_DOCS
+)
+UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS['自然'].append({
+    'base_form': '自然',
+    'base_form_definite_group': '自然',
+    'base_form_possible_group': '自然',
+    'article_oid': 8,
+    'found_positions': [{'index': 64, 'len': 2}],
+    'found_positions_exact_count': 1,
+    'found_positions_definite_count': 1,
+    'found_positions_possible_count': 1,
+    'possible_interps': [
+        {
+            'interp_sources': [1],
+            'mecab_interp': {
+                'parts_of_speech': ['名詞', '形容動詞語幹'],
+                'conjugated_type': None,
+                'conjugated_form': None
+            },
+            'jmdict_interp_entry_id': None
+        }
+    ],
+    'interp_position_map': None,
+    'quality_score_exact_mod': 0,
+    'quality_score_definite_mod': 0,
+    'quality_score_possible_mod': 0,
+    'article_quality_score': 500,
+    'article_last_updated_datetime':
+        datetime.fromisoformat('2037-09-06T09:18:02'),
+    'quality_score_exact': 500,
+    'quality_score_definite': 500,
+    'quality_score_possible': 500,
+})
+UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS['吾輩'] = [{
+    'base_form': '吾輩',
+    'base_form_definite_group': '吾輩',
+    'base_form_possible_group': '吾輩',
+    'article_oid': 7,
+    'found_positions': [{'index': 101, 'len': 2}],
+    'found_positions_exact_count': 1,
+    'found_positions_definite_count': 1,
+    'found_positions_possible_count': 1,
+    'possible_interps': [
+        {
+            'interp_sources': [1],
+            'mecab_interp': {
+                'parts_of_speech': ['名詞', '代名詞', '一般'],
+                'conjugated_type': None,
+                'conjugated_form': None
+            },
+            'jmdict_interp_entry_id': None
+        }
+    ],
+    'interp_position_map': None,
+    'quality_score_exact_mod': 0,
+    'quality_score_definite_mod': 0,
+    'quality_score_possible_mod': 0,
+    'article_quality_score': 500,
+    'article_last_updated_datetime':
+        datetime.fromisoformat('2037-09-06T15:30:28'),
+    'quality_score_exact': 500,
+    'quality_score_definite': 500,
+    'quality_score_possible': 500,
+}]
+
 
 class MockRequestsSession(object):
     """Mocks a requests session used by a crawler."""
 
-    _BEFORE_UPDATE_RESPONSE_HTML = {
+    _INITIAL_CRAWL_RESPONSE_HTML = {
         'https://kakuyomu.jp/search?genre_name=nonfiction'
         '&order=last_episode_published_at&page=1':
-            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_search_p1.html'),
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_search_p1_initial.html'
+            ),
 
         'https://kakuyomu.jp/search?genre_name=nonfiction'
         '&order=last_episode_published_at&page=2':
-            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_search_p2.html'),
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_search_p2_initial.html'
+            ),
 
         'https://kakuyomu.jp/series-link-1':
-            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_1.html'),
+            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_1_initial.html'),
 
         'https://kakuyomu.jp/series-link-1/article-link-1':
             os.path.join(
@@ -652,7 +818,7 @@ class MockRequestsSession(object):
             ),
 
         'https://kakuyomu.jp/series-link-3':
-            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_3.html'),
+            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_3_initial.html'),
 
         'https://kakuyomu.jp/series-link-3/article-link-1':
             os.path.join(
@@ -667,17 +833,67 @@ class MockRequestsSession(object):
             ),
     }
 
-    def __init__(self, after_updates: bool) -> None:
+    _UPDATE_CRAWL_RESPONSE_HTML = {
+        'https://kakuyomu.jp/search?genre_name=nonfiction'
+        '&order=last_episode_published_at&page=1':
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_search_p1_update.html'
+            ),
+
+        'https://kakuyomu.jp/search?genre_name=nonfiction'
+        '&order=last_episode_published_at&page=2':
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_search_p2_update.html'
+            ),
+
+        'https://kakuyomu.jp/series-link-1':
+            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_1_update.html'),
+
+        'https://kakuyomu.jp/series-link-3':
+            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_3_update.html'),
+
+        'https://kakuyomu.jp/series-link-3/article-link-2':
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_3_article_2.html'
+            ),
+
+        'https://kakuyomu.jp/series-link-3/article-link-2/episode_sidebar':
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_3_article_2_sidebar.html'
+            ),
+
+        'https://kakuyomu.jp/series-link-4':
+            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_4.html'),
+
+        'https://kakuyomu.jp/series-link-4/article-link-1':
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_4_article_1.html'
+            ),
+
+        'https://kakuyomu.jp/series-link-4/article-link-1/episode_sidebar':
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_4_article_1_sidebar.html'
+            ),
+    }
+
+    def __init__(self, is_update_crawl: bool) -> None:
         """Specifies which set of responses should be given by the mock.
 
         Args:
-            after_updates: If False, the mock will give responses for the sites
-                in their initial test state. If True, the mock will give
+            is_update_crawl: If False, the mock will give responses for the
+                sites in their initial test state. If True, the mock will give
                 responses for the sites as if they had received a partial
                 update from the initial test state.
         """
-        if not after_updates:
-            self._response_html = self._BEFORE_UPDATE_RESPONSE_HTML
+        self._response_html = self._INITIAL_CRAWL_RESPONSE_HTML
+        if is_update_crawl:
+            self._response_html.update(self._UPDATE_CRAWL_RESPONSE_HTML)
 
     def get(self, url: str, timeout: int) -> requests.Response:
         """Returns a response with the test HTML for the given url."""
@@ -840,7 +1056,33 @@ def assert_found_lexical_item_db_data(
                 assert_doc_field_value(field, value, expected_fli_doc, oid_map)
 
 
-def test_crawl_end_to_end(mocker, monkeypatch):
+def assert_initial_crawl_db_data() -> None:
+    """Asserts the db data matches the expected initial crawl data."""
+    oid_map: DefaultDict[str, List[ObjectId]] = defaultdict(list)
+    with CrawlDb() as db:
+        assert_blog_db_data(db, INITIAL_CRAWL_EXPECTED_BLOG_DOCS, oid_map)
+        assert_article_db_data(
+            db, INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS, oid_map
+        )
+        assert_found_lexical_item_db_data(
+            db, INITIAL_CRAWL_EXPECTED_FLI_QUERY_DOCS, oid_map
+        )
+
+
+def assert_update_crawl_db_data() -> None:
+    """Asserts the db data matches the expected update crawl data."""
+    oid_map: DefaultDict[str, List[ObjectId]] = defaultdict(list)
+    with CrawlDb() as db:
+        assert_blog_db_data(db, UPDATE_CRAWL_EXPECTED_BLOG_DOCS, oid_map)
+        assert_article_db_data(
+            db, UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS, oid_map
+        )
+        assert_found_lexical_item_db_data(
+            db, UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS, oid_map
+        )
+
+
+def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     """Test a series of full end-to-end crawling sessions.
 
     Mocks out the web requests done by the crawlers so that they get test HTML
@@ -850,16 +1092,11 @@ def test_crawl_end_to_end(mocker, monkeypatch):
     monkeypatch.setenv(utils._NO_RATE_LIMIT_ENV_VAR, '1')
     monkeypatch.setenv(kakuyomu._PAGES_TO_CRAWL_ENV_VAR, '2')
     mocker.patch('sys.argv', ['pytest', 'Kakuyomu'])
+
     mocker.patch('requests.Session', lambda: MockRequestsSession(False))
-
     run_crawl.main()
+    assert_initial_crawl_db_data()
 
-    oid_map = defaultdict(list)
-    with CrawlDb() as db:
-        assert_blog_db_data(db, BEFORE_UPDATE_EXPECTED_BLOG_DOCS, oid_map)
-        assert_article_db_data(
-            db, BEFORE_UPDATE_EXPECTED_ARTICLE_DOCS, oid_map
-        )
-        assert_found_lexical_item_db_data(
-            db, BEFORE_UPDATE_EXPECTED_FLI_QUERY_DOCS, oid_map
-        )
+    mocker.patch('requests.Session', lambda: MockRequestsSession(True))
+    run_crawl.main()
+    assert_update_crawl_db_data()

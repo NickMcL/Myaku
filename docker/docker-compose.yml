@@ -11,10 +11,6 @@ services:
       - type: volume
         source: crawler_log
         target: /crawler/log
-
-      - type: volume
-        source: crawler_appdata
-        target: /crawler/appdata
     environment:
       # A cron schedule of "#" will comment out the line for the crawl job in
       # the crontab file so that it will not run during testing.
@@ -173,7 +169,6 @@ services:
 
 volumes:
   crawler_log:
-  crawler_appdata:
   rescore_log:
   web_log:
   first_page_cache_data:
