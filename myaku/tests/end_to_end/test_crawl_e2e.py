@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from operator import itemgetter
-from typing import Any, DefaultDict, Dict, List
+from typing import Any, DefaultDict, Dict, List, Set
 from unittest.mock import Mock
 
 import pymongo
@@ -15,10 +15,10 @@ from bson.objectid import ObjectId
 
 from myaku import utils
 from myaku.crawlers import kakuyomu
-from myaku.datatypes import ArticleTextPosition
 from myaku.datastore import JpnArticleSearchResult
 from myaku.datastore.cache import FirstPageCache
 from myaku.datastore.database import CrawlDb, _Document
+from myaku.datatypes import ArticleTextPosition
 from myaku.runners import run_crawl
 
 TEST_DIR = os.path.dirname(os.path.relpath(__file__))
@@ -1120,8 +1120,20 @@ def assert_search_results(
 
 def assert_first_page_cache_query_keys(
     cache: FirstPageCache, db: CrawlDb
-) -> None:
-    """Asserts first page cache query keys are consistent with db data."""
+) -> Set[ObjectId]:
+    """Asserts first page cache query keys are consistent with db data.
+
+    Args:
+        cache: First page cache whose query keys to check.
+        db: Crawl db client to use to get the db data to check the query keys
+            against.
+
+    Returns:
+        A set of all of the article object IDs that were referenced in the
+        first page search results for at least one query in the cache.
+    """
+    article_oids: Set[ObjectId] = set()
+
     base_form_cursor = db._found_lexical_item_collection.aggregate([
         {'$group': {'_id': '$base_form'}}
     ])
@@ -1135,6 +1147,8 @@ def assert_first_page_cache_query_keys(
         ranked_fli_docs = sorted(
             fli_cursor, key=itemgetter('quality_score_exact'), reverse=True
         )[:CrawlDb.SEARCH_RESULTS_PAGE_SIZE]
+        article_oids |= {d['article_oid'] for d in ranked_fli_docs}
+
         assert_search_results(search_results, ranked_fli_docs)
 
     # Make sure every query key maps to something in the crawl db
@@ -1143,14 +1157,28 @@ def assert_first_page_cache_query_keys(
             {'base_form': query_key[6:].decode()}
         ) is not None
 
+    return article_oids
+
 
 def assert_first_page_cache_article_keys(
-    cache: FirstPageCache, db: CrawlDb
+    cache: FirstPageCache, db: CrawlDb, expected_article_oids: Set[ObjectId]
 ) -> None:
-    """Asserts first page cache article keys are consistent with db data."""
+    """Asserts first page cache article keys are consistent with db data.
+
+    Args:
+        cache: First page cache whose query keys to check.
+        db: Crawl db client to use to get the db data to check the query keys
+            against.
+        expected_article_oids: Set of the article object IDs expected to have
+            keys with article data in the first page cache.
+    """
     for doc in db._article_collection.find({}):
         cached_article = cache._get_article(doc['_id'])
-        assert cached_article is not None
+        if doc['_id'] not in expected_article_oids:
+            assert cached_article is None
+            continue
+        else:
+            assert cached_article is not None
 
         for attr in ARTICLE_CACHED_ATTRS:
             assert getattr(cached_article, attr) == doc[attr]
@@ -1166,8 +1194,8 @@ def assert_first_page_cache_data() -> None:
     """Asserts first page cache data is consistent with crawl db data."""
     cache = FirstPageCache()
     with CrawlDb() as db:
-        assert_first_page_cache_query_keys(cache, db)
-        assert_first_page_cache_article_keys(cache, db)
+        expected_article_oids = assert_first_page_cache_query_keys(cache, db)
+        assert_first_page_cache_article_keys(cache, db, expected_article_oids)
 
 
 def test_crawl_end_to_end(mocker, monkeypatch) -> None:
@@ -1179,10 +1207,13 @@ def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     """
     monkeypatch.setenv(utils._NO_RATE_LIMIT_ENV_VAR, '1')
     monkeypatch.setenv(kakuyomu._PAGES_TO_CRAWL_ENV_VAR, '2')
+    mocker.patch('sys.argv', ['pytest', 'Kakuyomu'])
+
+    # Use small search result page size to ensure not all data crawled gets
+    # stored in the first page cache
     mocker.patch(
         'myaku.datastore.database.CrawlDb.SEARCH_RESULTS_PAGE_SIZE', 2
     )
-    mocker.patch('sys.argv', ['pytest', 'Kakuyomu'])
 
     mocker.patch('requests.Session', lambda: MockRequestsSession(False))
     run_crawl.main()
