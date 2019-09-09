@@ -10,13 +10,15 @@ import sys
 import time
 from typing import Any, Dict, List, NamedTuple
 
+import colorlog
 import docker
 from docker.models.containers import Container
 
 _log = logging.getLogger(__name__)
 
 # _LOGGING_FORMAT = '%(asctime)s:%(levelname)s: %(message)s'
-_LOGGING_FORMAT = '%(message)s'
+_LOGGING_FORMAT = '%(log_color)s%(message)s'
+RESULT = 25  # Test result log level
 
 _MYAKU_PROJECT_DIR_ENV_VAR = 'MYAKU_PROJECT_DIR'
 
@@ -35,12 +37,11 @@ _NORMAL_REMOVE_DOCKER_OBJECTS = [
 ]
 
 # Shell color codes
-_BLUE = '\033[34m'
-_GREEN = '\033[32m'
-_YELLOW = '\033[33m'
 _RED = '\033[31m'
+_GREEN = '\033[32m'
 _ENDC = '\033[0m'
 
+# Script arg parser setup
 arg_parser = argparse.ArgumentParser(
     description='Runs all of the test suites for the Myaku project.'
 )
@@ -53,87 +54,24 @@ arg_parser.add_argument(
         '(./docker/docker-compose.yml).'
     )
 )
+arg_parser.add_argument(
+    '-c', '--clean-only',
+    action='store_true',
+    help=(
+        'Removes all test docker objects including volumes and exits without '
+        'running any tests.'
+    )
+)
 
 
-class TestRunner(object):
-    """Runs the Myaku test suites and tracks their results."""
+def red_text(text: str) -> str:
+    """Makes text green in console output."""
+    return _RED + text + _ENDC
 
-    def __init__(self) -> None:
-        """Sets up the test runner to track test results."""
-        self._test_results: Dict[str, str] = {}
 
-    def run_crawler_unit_tests(self, container: Container) -> None:
-        """Runs the unit test suite for the crawler.
-
-        Args:
-            container: The crawler container to run the tests in.
-        """
-        _log.info(
-            _BLUE + '\nRunning unit pytests for crawler in %s container...'
-            + _ENDC, container.name.split('.')[0]
-        )
-        exec_cmd = [
-            'docker', 'exec', '-it', container.short_id,
-            '/bin/bash', '-c', '$PYTHON_BIN -m pytest myaku/tests/unit'
-        ]
-        completed = subprocess.run(exec_cmd, text=True)
-
-        if completed.returncode == 0:
-            _log.info(
-                'Test result for crawler unit: ' + _GREEN + 'PASSED' + _ENDC
-            )
-            self._test_results['Crawler unit'] = 'PASSED'
-        else:
-            _log.info(
-                'Test result for crawler unit: ' + _RED + 'FAILED' + _ENDC
-            )
-            self._test_results['Crawler unit'] = 'FAILED'
-
-    def run_crawler_end_to_end_test(self, container: Container) -> None:
-        """Runs the end to end test for the crawler.
-
-        Args:
-            container: The crawler container to run the tests in.
-        """
-        _log.info(
-            _BLUE + '\nRunning end-to-end pytest for crawler in %s '
-            'container...' + _ENDC, container.name.split('.')[0]
-        )
-        exec_cmd = [
-            'docker', 'exec', '-it', container.short_id,
-            '/bin/bash', '-c', '$PYTHON_BIN -m pytest myaku/tests/end_to_end'
-        ]
-        completed = subprocess.run(exec_cmd, text=True)
-
-        if completed.returncode == 0:
-            _log.info(
-                'Test result for crawler end-to-end: ' + _GREEN + 'PASSED'
-                + _ENDC
-            )
-            self._test_results['Crawler end-to-end'] = 'PASSED'
-        else:
-            _log.info(
-                'Test result for crawler end-to-end: ' + _RED + 'FAILED'
-                + _ENDC
-            )
-            self._test_results['Crawler end-to-end'] = 'FAILED'
-
-    def log_results(self) -> None:
-        """Logs the overall test results."""
-        failed_tests = []
-        for test_name, result in self._test_results.items():
-            if result == 'FAILED':
-                failed_tests.append(test_name)
-
-        if len(failed_tests) == 0:
-            _log.info(
-                '\nOverall test results: ' + _GREEN + 'ALL TESTS PASSED'
-                + _ENDC
-            )
-        else:
-            _log.info(
-                '\nOverall test results: ' + _RED + 'TEST FAILURE' + _ENDC
-            )
+def green_text(text: str) -> str:
+    """Makes text green in console output."""
+    return _GREEN + text + _ENDC
 
 
 class DockerImageBuildSpec(NamedTuple):
@@ -154,8 +92,9 @@ class TestMyakuStack(object):
     # stack name.
     _STACK_NAME_RAND_SECTION_LEN = 8
 
-    _GET_CONTAINER_RETRIES = 3
-    _GET_CONTAINER_RETRY_WAIT_TIME = 3
+    # Seconds to wait for all of the containers for the stack to be running
+    # before raising an error.
+    _CONTAINER_STARTUP_TIMEOUT = 5
 
     # Paths are relative to the Myaku project root directory.
     _STACK_IMAGE_BUILD_SPECS = [
@@ -214,11 +153,17 @@ class TestMyakuStack(object):
         ))
         self.stack_name = f'myaku_test_{rand_section}'
 
-        if use_existing_images:
-            self._deploy_stack_using_existing_images()
-        else:
-            self._build_stack_images()
-            self._deploy_stack_using_test_images()
+        try:
+            if use_existing_images:
+                self._deploy_stack_using_existing_images()
+            else:
+                self._build_stack_images()
+                self._deploy_stack_using_test_images()
+        except BaseException:
+            # Make sure we remove any part of stack that got deployed if there
+            # was any error during the deployment process.
+            self.teardown()
+            raise
 
     def __enter__(self) -> 'TestMyakuStack':
         """Builds and deploys a Myaku test stack."""
@@ -231,9 +176,9 @@ class TestMyakuStack(object):
     def teardown(self) -> None:
         """Tears down the deployed test stack.
 
-        Does not remove the volumes for the test stack.
+        Does NOT remove the volumes for the test stack.
         """
-        _log.info('Removing %s test stack...', self.stack_name)
+        _log.debug('Removing %s test stack...', self.stack_name)
         subprocess.run(
             ['docker', 'stack', 'rm', self.stack_name],
             capture_output=True, check=True
@@ -255,7 +200,7 @@ class TestMyakuStack(object):
                 self._myaku_project_dir
             ]
 
-            _log.info('Building %s image...', tagged_image_name)
+            _log.debug('Building %s image...', tagged_image_name)
             subprocess.run(
                 build_cmd, capture_output=True, check=True, text=True
             )
@@ -285,7 +230,7 @@ class TestMyakuStack(object):
         The images specified in the current base docker compose file
         (./docker/docker-compose.yml) are used.
         """
-        _log.info(
+        _log.debug(
             'Using existing images specified in docker/docker-compose.yml'
         )
         no_image_test_compose = self._get_no_image_test_compose()
@@ -299,16 +244,17 @@ class TestMyakuStack(object):
             self.stack_name
         ]
 
-        _log.info('Deploying Myaku test stack %s...', self.stack_name)
+        _log.debug('Deploying Myaku test stack %s...', self.stack_name)
         subprocess.run(
             deploy_cmd, input=no_image_test_compose, capture_output=True,
             check=True, text=True
         )
-        _log.info(_BLUE + 'Stack %s created' + _ENDC, self.stack_name)
+        self._wait_for_all_containers_running()
+        _log.info('Stack %s created', self.stack_name)
 
     def _deploy_stack_using_test_images(self) -> None:
         """Deploys the Myaku test stack using newly built test prod images."""
-        _log.info('Using newly built test images')
+        _log.debug('Using newly built test images')
         test_compose_filepath = os.path.join(
             self._myaku_project_dir, 'docker/docker-compose.test.yml'
         )
@@ -323,34 +269,161 @@ class TestMyakuStack(object):
             self.stack_name
         ]
 
-        _log.info('Deploying Myaku test stack %s...', self.stack_name)
+        _log.debug('Deploying Myaku test stack %s...', self.stack_name)
         subprocess.run(
             deploy_cmd, capture_output=True, check=True, text=True
         )
-        _log.info(_BLUE + 'Stack %s created' + _ENDC, self.stack_name)
+        self._wait_for_all_containers_running()
+        _log.info('Stack %s created', self.stack_name)
+
+    def _wait_for_all_containers_running(self) -> None:
+        """Waits for all containers for the test stack to be running.
+
+        Deploying a docker stack creates all the services for the stack, but it
+        can still take some time after the services are created for all of
+        their containers to be in a running state.
+
+        This function will wait until all services for the stack have their
+        containers in a running state.
+
+        Will timeout and raise an error if _CONTAINER_STARTUP_TIMEOUT seconds
+        have passed and not all of the containers are in the running state.
+        """
+        _log.debug(
+            'Waiting for stack %s containers to start...', self.stack_name
+        )
+        waited_secs = 0
+        while waited_secs < self._CONTAINER_STARTUP_TIMEOUT:
+            services = self._docker_client.services.list(
+                filters={'name': self.stack_name}
+            )
+            all_running = True
+            for service in services:
+                for task in service.tasks():
+                    if ('Status' not in task
+                            or 'State' not in task['Status']
+                            or task['Status']['State'] != 'running'):
+                        all_running = False
+                        break
+                if not all_running:
+                    break
+
+            if all_running:
+                break
+            time.sleep(1)
+            waited_secs += 1
+
+        if not all_running:
+            raise RuntimeError(
+                f'Test stack {self.stack_name} containers not all running '
+                f'after timeout of {self._CONTAINER_STARTUP_TIMEOUT} seconds'
+            )
+        _log.debug('Stack %s containers all started', self.stack_name)
 
     def get_crawler_container(self) -> Container:
         """Gets the crawler service container for this test stack."""
-        for i in range(self._GET_CONTAINER_RETRIES):
-            _log.info(
-                'Attempting to get crawler container for %s stack after %s '
-                'seconds (attempt %s/%s)...',
-                self.stack_name, self._GET_CONTAINER_RETRY_WAIT_TIME, i + 1,
-                self._GET_CONTAINER_RETRIES
-            )
-            time.sleep(self._GET_CONTAINER_RETRY_WAIT_TIME)
-
-            for container in self._docker_client.containers.list():
-                if container.name.startswith(self.stack_name + '_crawler'):
-                    _log.info('Got crawler container %s', container.name)
-                    return container
-
-            _log.info('Failed to get crawler container')
+        for container in self._docker_client.containers.list():
+            if container.name.startswith(self.stack_name + '_crawler'):
+                return container
 
         raise RuntimeError(
-            'Max retries reached for getting crawler container for {} '
-            'stack'.format(self.stack_name)
+            f'Could not get crawler container for {self.stack_name} stack'
         )
+
+
+class TestRunner(object):
+    """Runs the Myaku test suites and tracks their results."""
+
+    def __init__(self, use_existing_images: bool) -> None:
+        """Sets up the test runner to track test results.
+
+        Args:
+            use_existing_images: Instead of building new prod images for the
+                tests, use the existing images specified in the current base
+                docker compose file (./docker/docker-compose.yml).
+        """
+        self._use_existing_images = use_existing_images
+        self._test_results: Dict[str, str] = {}
+
+    def run_crawler_tests(self) -> None:
+        """Runs all of the tests for the crawler service."""
+        with TestMyakuStack(self._use_existing_images) as test_stack:
+            crawler_container = test_stack.get_crawler_container()
+            self._run_crawler_unit_tests(crawler_container)
+            self._run_crawler_end_to_end_test(crawler_container)
+
+    def _run_crawler_unit_tests(self, container: Container) -> None:
+        """Runs the unit test suite for the crawler.
+
+        Args:
+            container: The crawler container to run the tests in.
+        """
+        _log.info(
+            '\nRunning unit pytests for crawler in %s container...',
+            container.name.split('.')[0]
+        )
+        exec_cmd = [
+            'docker', 'exec', '-it', container.short_id,
+            '/bin/bash', '-c', '$PYTHON_BIN -m pytest myaku/tests/unit'
+        ]
+        completed = subprocess.run(exec_cmd, text=True)
+
+        if completed.returncode == 0:
+            _log.log(
+                RESULT, 'Test result for crawler unit: ' + green_text('PASSED')
+            )
+            self._test_results['Crawler unit'] = 'PASSED'
+        else:
+            _log.log(
+                RESULT, 'Test result for crawler unit: ' + red_text('FAILED')
+            )
+            self._test_results['Crawler unit'] = 'FAILED'
+
+    def _run_crawler_end_to_end_test(self, container: Container) -> None:
+        """Runs the end to end test for the crawler.
+
+        Args:
+            container: The crawler container to run the tests in.
+        """
+        _log.info(
+            '\nRunning end-to-end pytest for crawler in %s container...',
+            container.name.split('.')[0]
+        )
+        exec_cmd = [
+            'docker', 'exec', '-it', container.short_id,
+            '/bin/bash', '-c', '$PYTHON_BIN -m pytest myaku/tests/end_to_end'
+        ]
+        completed = subprocess.run(exec_cmd, text=True)
+
+        if completed.returncode == 0:
+            _log.log(
+                RESULT,
+                'Test result for crawler end-to-end: ' + green_text('PASSED')
+            )
+            self._test_results['Crawler end-to-end'] = 'PASSED'
+        else:
+            _log.log(
+                RESULT,
+                'Test result for crawler end-to-end: ' + red_text('FAILED')
+            )
+            self._test_results['Crawler end-to-end'] = 'FAILED'
+
+    def log_results(self) -> None:
+        """Logs the overall test results."""
+        failed_tests = []
+        for test_name, result in self._test_results.items():
+            if result == 'FAILED':
+                failed_tests.append(test_name)
+
+        if len(failed_tests) == 0:
+            _log.log(
+                RESULT,
+                '\nOverall test results: ' + green_text('ALL TESTS PASSED')
+            )
+        else:
+            _log.log(
+                RESULT, '\nOverall test results: ' + red_text('TEST FAILURE')
+            )
 
 
 def setup_logger() -> logging.Logger:
@@ -361,13 +434,27 @@ def setup_logger() -> logging.Logger:
     Returns:
         The setup logger to use for the script.
     """
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    log_formatter = logging.Formatter(_LOGGING_FORMAT)
+    logger = logging.getLogger('run_tests')
+    logger.setLevel(logging.DEBUG)
+    logging.addLevelName(RESULT, 'RESULT')
 
-    stream_handler = logging.StreamHandler(sys.stderr)
-    stream_handler.setLevel(logging.INFO)
-    stream_handler.setFormatter(log_formatter)
+    stream_handler = colorlog.StreamHandler()
+    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setFormatter(colorlog.ColoredFormatter(
+        _LOGGING_FORMAT,
+        reset=True,
+        log_colors={
+            'DEBUG': '',
+            'INFO': 'blue',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'red,bg_white',
+
+            # Leave uncolored so only the PASSED/FAILED text inside the result
+            # message can be colored.
+            'RESULT': '',
+        }
+    ))
     logger.addHandler(stream_handler)
 
     return logger
@@ -405,8 +492,7 @@ def attempt_remove_docker_obj(docker_obj: Any) -> None:
         docker_obj.remove()
     except docker.errors.APIError as e:
         _log.warning(
-            _YELLOW + 'Unable to remove docker object %s due to error: %s'
-            + _ENDC, docker_obj, e
+            'Unable to remove docker object %s due to error: %s', docker_obj, e
         )
 
 
@@ -421,7 +507,7 @@ def teardown_test_stacks() -> None:
     """
     test_stacks = get_test_stacks()
     for test_stack in test_stacks:
-        _log.info('Removing %s test stack...', test_stack)
+        _log.debug('Removing %s test stack...', test_stack)
         subprocess.run(
             ['docker', 'stack', 'rm', test_stack],
             capture_output=True, check=True
@@ -441,14 +527,13 @@ def teardown_test_stacks() -> None:
 def main() -> None:
     script_args = arg_parser.parse_args()
 
-    _log.info('Cleaning up any previous test docker objects...')
+    _log.debug('Cleaning up any previous test docker objects...')
     teardown_test_stacks()
+    if script_args.clean_only:
+        sys.exit(0)
 
-    test_runner = TestRunner()
-    with TestMyakuStack(script_args.use_existing_images) as test_stack:
-        crawler_container = test_stack.get_crawler_container()
-        test_runner.run_crawler_unit_tests(crawler_container)
-        test_runner.run_crawler_end_to_end_test(crawler_container)
+    test_runner = TestRunner(script_args.use_existing_images)
+    test_runner.run_crawler_tests()
 
     test_runner.log_results()
 
