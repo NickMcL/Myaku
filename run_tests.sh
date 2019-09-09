@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs the test suites for the Myaku project.
-# All this script does is launch the docker container that run the tests.
+# All this script does is launch the docker container that runs the tests.
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
