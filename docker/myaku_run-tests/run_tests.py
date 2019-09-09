@@ -8,7 +8,7 @@ import string
 import subprocess
 import sys
 import time
-from typing import Any, List, NamedTuple
+from typing import Any, Dict, List, NamedTuple
 
 import docker
 from docker.models.containers import Container
@@ -60,7 +60,7 @@ class TestRunner(object):
 
     def __init__(self) -> None:
         """Sets up the test runner to track test results."""
-        self._test_results = {}
+        self._test_results: Dict[str, str] = {}
 
     def run_crawler_unit_tests(self, container: Container) -> None:
         """Runs the unit test suite for the crawler.
@@ -299,14 +299,12 @@ class TestMyakuStack(object):
             self.stack_name
         ]
 
-        _log.info('Deploying Myaku test stack %s', self.stack_name)
+        _log.info('Deploying Myaku test stack %s...', self.stack_name)
         subprocess.run(
             deploy_cmd, input=no_image_test_compose, capture_output=True,
             check=True, text=True
         )
-        _log.info(
-            _BLUE + 'Deployment of stack %s created' + _ENDC, self.stack_name
-        )
+        _log.info(_BLUE + 'Stack %s created' + _ENDC, self.stack_name)
 
     def _deploy_stack_using_test_images(self) -> None:
         """Deploys the Myaku test stack using newly built test prod images."""
@@ -325,20 +323,18 @@ class TestMyakuStack(object):
             self.stack_name
         ]
 
-        _log.info('Deploying Myaku test stack %s', self.stack_name)
+        _log.info('Deploying Myaku test stack %s...', self.stack_name)
         subprocess.run(
             deploy_cmd, capture_output=True, check=True, text=True
         )
-        _log.info(
-            _BLUE + 'Deployment of stack %s created' + _ENDC, self.stack_name
-        )
+        _log.info(_BLUE + 'Stack %s created' + _ENDC, self.stack_name)
 
     def get_crawler_container(self) -> Container:
         """Gets the crawler service container for this test stack."""
         for i in range(self._GET_CONTAINER_RETRIES):
             _log.info(
                 'Attempting to get crawler container for %s stack after %s '
-                'seconds (attempt %s / %s)...',
+                'seconds (attempt %s/%s)...',
                 self.stack_name, self._GET_CONTAINER_RETRY_WAIT_TIME, i + 1,
                 self._GET_CONTAINER_RETRIES
             )
