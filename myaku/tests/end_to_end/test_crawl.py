@@ -1,11 +1,25 @@
-"""End-to-end tests for the Myaku crawl scenarios."""
+"""End-to-end test for the Myaku crawler.
 
+Uses a set of mock HTML pages from the source sites supported by Myaku to test
+running end-to-end crawl sessions with the Myaku crawler.
+
+Thoroughly checks many aspects of the crawl during the test including:
+    - All targeted data is successfully parsed out of all types of source
+        pages.
+    - All crawled data is correctly stored in the crawl database.
+    - The search results first page cache is correctly set with the crawled
+        data.
+    - No unexpected network requests are attempted by the crawler.
+"""
+
+import collections
 import copy
+import enum
 import os
 import re
 from datetime import datetime
 from operator import itemgetter
-from typing import Any, Dict, List, Set
+from typing import Any, Counter, Dict, List, Set
 from unittest.mock import Mock
 
 import pymongo
@@ -1584,6 +1598,22 @@ UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS['美しさ'] = [
 ]
 
 
+@enum.unique
+class SourceUpdateState(enum.Enum):
+    """The update state of the content for a source crawled by a crawler.
+
+    Attributes:
+        INITIAL: The source is in its initial content state.
+        UPDATE: The source has had some updates applied to its content since
+            the last crawl.
+        NO_CHANGES: Nothing has changed with the source content since its last
+            crawl.
+    """
+    INITIAL = 1
+    UPDATE = 2
+    NO_CHANGES = 3
+
+
 class MockRequestsSession(object):
     """Mocks a requests session used by a crawler."""
 
@@ -1847,21 +1877,87 @@ class MockRequestsSession(object):
             ),
     }
 
-    def __init__(self, is_update_crawl: bool) -> None:
-        """Specifies which set of responses should be given by the mock.
+    _NO_CHANGES_CRAWL_RESPONSE_HTML = {
+        'https://kakuyomu.jp/search?genre_name=nonfiction'
+        '&order=last_episode_published_at&page=1':
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_search_p1_update.html'
+            ),
 
-        Args:
-            is_update_crawl: If False, the mock will give responses for the
-                sites in their initial test state. If True, the mock will give
-                responses for the sites as if they had received a partial
-                update from the initial test state.
+        'https://kakuyomu.jp/search?genre_name=nonfiction'
+        '&order=last_episode_published_at&page=2':
+            os.path.join(
+                TEST_DIR,
+                'test_html/kakuyomu/series_search_p2_update.html'
+            ),
+
+        # These series pages have a last update date set far in the future so
+        # that the crawler will always check them for updates during the UPDATE
+        # crawl. Since the last update date for the series is in the future, it
+        # means these series pages will be crawled again during the NO_CHANGES
+        # crawl even though nothing has changed on them.
+        'https://kakuyomu.jp/series-link-1':
+            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_1_update.html'),
+
+        'https://kakuyomu.jp/series-link-3':
+            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_3_update.html'),
+
+        'https://kakuyomu.jp/series-link-4':
+            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_4.html'),
+
+        'https://www.asahi.com/news/':
+            os.path.join(TEST_DIR, 'test_html/asahi/news_top_update.html'),
+
+        'https://www.asahi.com/rensai/featurelist.html':
+            os.path.join(TEST_DIR, 'test_html/asahi/column_top_update.html'),
+
+        'https://www.asahi.com/news/editorial.html':
+            os.path.join(
+                TEST_DIR,
+                'test_html/asahi/editorial_top_update.html'
+            ),
+    }
+
+    _RESPONSE_HTML_MAP = {
+        SourceUpdateState.INITIAL: _INITIAL_CRAWL_RESPONSE_HTML,
+        SourceUpdateState.UPDATE: _UPDATE_CRAWL_RESPONSE_HTML,
+        SourceUpdateState.NO_CHANGES: _NO_CHANGES_CRAWL_RESPONSE_HTML,
+    }
+
+    _current_update_state: SourceUpdateState = None
+    _request_counter: collections.Counter = None
+
+    def __init__(self) -> None:
+        """Stub for the init of a requests Session.
+
+        Sets the response HTML to use for this session based on the currently
+        set update state for the MockRequestsSession class.
         """
-        self._response_html = self._INITIAL_CRAWL_RESPONSE_HTML
-        if is_update_crawl:
-            self._response_html.update(self._UPDATE_CRAWL_RESPONSE_HTML)
+        if self._current_update_state is None:
+            raise RuntimeError(
+                'MockRequestsSession _current_update_state attribute has not '
+                'been set'
+            )
+        if self._request_counter is None:
+            raise RuntimeError(
+                'MockRequestsSession _request_counter attribute has not been '
+                'set'
+            )
+
+        self._response_html = self._RESPONSE_HTML_MAP[
+            MockRequestsSession._current_update_state
+        ]
 
     def get(self, url: str, timeout: int) -> requests.Response:
         """Returns a response with the test HTML for the given url."""
+        if url not in self._response_html:
+            raise AssertionError(
+                f'Unexpected request to url "{url}" with source update state '
+                f'set to {self._current_update_state}'
+            )
+        MockRequestsSession._request_counter[url] += 1
+
         with open(self._response_html[url], 'r') as html_file:
             html_content = html_file.read().encode('utf-8')
 
@@ -1876,6 +1972,35 @@ class MockRequestsSession(object):
     def close(self) -> None:
         """Stub for Session close function."""
         pass
+
+    @staticmethod
+    def start_request_tracking(update_state: SourceUpdateState) -> None:
+        """Starts request tracking for all MockRequestsSession instances.
+
+        Resets requests tracking if it had been started previously.
+
+        Args:
+            update_state: The update state the sources are in. This is used to
+                determine which source URLs should be getting requests during
+                the tracking.
+        """
+        MockRequestsSession._current_update_state = update_state
+        MockRequestsSession._request_counter = Counter()
+
+    @staticmethod
+    def assert_request_counts() -> None:
+        """Asserts that the tracked request counts match the expected counts.
+
+        Checks that every URL that should have been requested for the currently
+        set source update state was requested exactly once since the last call
+        to start_request_tracking.
+        """
+        response_html = MockRequestsSession._RESPONSE_HTML_MAP[
+            MockRequestsSession._current_update_state
+        ]
+        for url in response_html:
+            assert url in MockRequestsSession._request_counter
+            assert MockRequestsSession._request_counter[url] == 1
 
 
 def assert_doc_field_value(
@@ -2174,6 +2299,7 @@ def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     monkeypatch.setenv(utils._NO_RATE_LIMIT_ENV_VAR, '1')
     monkeypatch.setenv(kakuyomu._PAGES_TO_CRAWL_ENV_VAR, '2')
     mocker.patch('sys.argv', ['pytest', 'Kakuyomu,Asahi'])
+    mocker.patch('requests.Session', MockRequestsSession)
 
     # Use small search result page size to ensure not all data crawled gets
     # stored in the first page cache
@@ -2181,19 +2307,23 @@ def test_crawl_end_to_end(mocker, monkeypatch) -> None:
         'myaku.datastore.database.CrawlDb.SEARCH_RESULTS_PAGE_SIZE', 2
     )
 
-    mocker.patch('requests.Session', lambda: MockRequestsSession(False))
+    MockRequestsSession.start_request_tracking(SourceUpdateState.INITIAL)
     run_crawl.main()
     assert_initial_crawl_db_data()
     assert_first_page_cache_data()
+    MockRequestsSession.assert_request_counts()
 
-    mocker.patch('requests.Session', lambda: MockRequestsSession(True))
+    MockRequestsSession.start_request_tracking(SourceUpdateState.UPDATE)
     run_crawl.main()
     assert_update_crawl_db_data()
     assert_first_page_cache_data()
+    MockRequestsSession.assert_request_counts()
 
     # Run update crawls one more time with the same test HTML to make sure
     # no issues happen during crawls when nothing has changed on the site since
     # the last time it was crawled.
+    MockRequestsSession.start_request_tracking(SourceUpdateState.NO_CHANGES)
     run_crawl.main()
     assert_update_crawl_db_data()
     assert_first_page_cache_data()
+    MockRequestsSession.assert_request_counts()
