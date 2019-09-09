@@ -8,9 +8,13 @@ RUN apt-get update \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update
 
-# Install needed python packages + gettext-base for envsubst
-RUN apt-get install -y python3.7 python3.7-dev python3-pip python3-gdbm \
-    gettext-base
+# Break python packages install into two layers so that the first install layer
+# can be shared with images that only install those packages.
+RUN apt-get install -y python3.7 python3-pip
+RUN apt-get install -y python3.7-dev python3-gdbm
+
+# Install gettext-base for envsubst
+RUN apt-get install gettext-base
 
 # Set python binary that should be used in the container
 ENV PYTHON_BIN python3.7

@@ -1,0 +1,42 @@
+# Image for containers that run the test suites for Myaku.
+
+FROM ubuntu:18.04
+
+# Set up deadsnakes ppa for installing newer Python versions
+RUN apt-get update \
+    && apt-get install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update
+
+# Install needed python packages
+RUN apt-get install -y python3.7 python3-pip
+
+# Install latest docker CLI
+RUN apt-get remove docker docker-engine docker.io containerd runc \
+    && apt-get install -y apt-transport-https ca-certificates curl \
+        gnupg-agent
+
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - \
+    && add-apt-repository \
+        "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+        $(lsb_release -cs) stable" \
+    && apt-get update \
+    && apt-get -y install docker-ce-cli
+
+# Set python binary that should be used in the container
+ENV PYTHON_BIN python3.7
+
+ENV SRC_DIR /test
+COPY ./LICENSE $SRC_DIR/
+
+COPY ./docker/myaku_run-tests/requirements.txt $SRC_DIR/
+RUN $PYTHON_BIN -m pip install -U pip \
+    && $PYTHON_BIN -m pip install -r $SRC_DIR/requirements.txt
+
+ENV MYAKU_PROJECT_DIR $SRC_DIR/myaku
+ENV TEST_RUNNER_SCRIPT $MYAKU_PROJECT_DIR/docker/myaku_run-tests/run_tests.py
+
+COPY ./docker/myaku_run-tests/start_test_runner.sh $SRC_DIR/
+RUN chmod +x $SRC_DIR/start_test_runner.sh
+
+WORKDIR $SRC_DIR
