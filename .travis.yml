@@ -2,5 +2,9 @@
 # travis CI host VM.
 language: minimal
 dist: bionic
+
 install: ./docker/setup_scripts/ubuntu_bootstrap.sh
-script: ./docker/setup_scripts/build_all_images.sh && ./run_tests.sh
+script: ./docker/setup_scripts/build_all_base_images.sh && ./run_tests.sh
+
+services:
+  - docker
