@@ -4,7 +4,7 @@ language: minimal
 dist: bionic
 
 install: ./docker/setup_scripts/ubuntu_bootstrap.sh
-script: ./docker/setup_scripts/build_all_test_images.sh && ./run_tests.sh
+script: ./docker/setup_scripts/build_all_test_images.sh && ./run_tests.sh -c
 
 services:
   - docker

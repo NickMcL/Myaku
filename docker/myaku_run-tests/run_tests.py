@@ -63,7 +63,16 @@ arg_parser.add_argument(
     )
 )
 arg_parser.add_argument(
-    '-c', '--clean-only',
+    '-c', '--cache-from-existing',
+    action='store_true',
+    help=(
+        'When building docker images, specify that thee build --cache-from '
+        'the existing image that has the same name and tag as ithe image '
+        'being built instead of using the normal docker layer cache.'
+    )
+)
+arg_parser.add_argument(
+    '-r', '--remove-only',
     action='store_true',
     help=(
         'Removes all test docker objects including volumes and exits without '
@@ -283,14 +292,19 @@ class TestMyakuStack(object):
     # whether they've been built or not as a class variable.
     _test_images_built = False
 
-    def __init__(self, use_existing_images: bool) -> None:
-        """Deploys a new Myaku docker stack for testing.
+    # If set to True, instead of building new test images, all test stacks will
+    # use the existing images specified in the current base docker compose
+    # file.
+    use_existing_images = False
 
-        Args:
-            use_existing_images: Instead of building new prod images for the
-                tests, use the existing images specified in the current base
-                docker compose file (./docker/docker-compose.yml).
-        """
+    # If set to True, when building the images for test stacks, will specify
+    # that the build --cache-from the existing image that has the same name and
+    # tag as the image being built instead of using the normal docker layer
+    # cache.
+    cache_from_existing = False
+
+    def __init__(self) -> None:
+        """Deploys a new Myaku docker stack for testing."""
         self._docker_client = docker.from_env()
         self._myaku_project_dir = os.environ[_MYAKU_PROJECT_DIR_ENV_VAR]
 
@@ -301,7 +315,7 @@ class TestMyakuStack(object):
         self.stack_name = f'myaku_test_{rand_section}'
 
         try:
-            if use_existing_images:
+            if TestMyakuStack.use_existing_images:
                 self._deploy_stack_using_existing_images()
             else:
                 self._build_stack_images()
@@ -344,8 +358,10 @@ class TestMyakuStack(object):
                 '-f', abs_dockerfile_path,
                 '-t', tagged_image_name,
                 '--target', 'prod',
-                self._myaku_project_dir
             ]
+            if TestMyakuStack.cache_from_existing:
+                build_cmd.extend(['--cache-from', tagged_image_name])
+            build_cmd.append(self._myaku_project_dir)
 
             _log.debug('Building %s image...', tagged_image_name)
             run_docker_subprocess(build_cmd)
@@ -522,14 +538,14 @@ class TestRunner(object):
 
     def run_crawler_tests(self) -> None:
         """Runs all of the tests for the crawler service."""
-        with TestMyakuStack(self._use_existing_images) as test_stack:
+        with TestMyakuStack() as test_stack:
             crawler_container = test_stack.get_crawler_container()
             self._run_crawler_unit_tests(crawler_container)
             self._run_crawler_end_to_end_test(crawler_container)
 
     def run_web_tests(self) -> None:
         """Runs all of the tests for the Myaku web services."""
-        with TestMyakuStack(self._use_existing_images) as test_stack:
+        with TestMyakuStack() as test_stack:
             reverseproxy_host = test_stack.link_to_reverseproxy()
             os.environ[_REVERSEPROXY_HOST_ENV_VAR] = reverseproxy_host
 
@@ -628,13 +644,15 @@ class TestRunner(object):
 
 def main() -> None:
     script_args = arg_parser.parse_args()
+    TestMyakuStack.use_existing_images = script_args.use_existing_images
+    TestMyakuStack.cache_from_existing = script_args.cache_from_existing
 
     _log.debug('Initializing docker swarm...')
     init_docker_swarm()
 
     _log.debug('Cleaning up any previous test docker objects...')
     teardown_test_stacks()
-    if script_args.clean_only:
+    if script_args.remove_only:
         sys.exit(0)
 
     test_runner = TestRunner(script_args.use_existing_images)
