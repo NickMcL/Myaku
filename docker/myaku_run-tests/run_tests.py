@@ -94,7 +94,7 @@ def log_blue(msg: str, *args, **kwargs) -> None:
 def setup_logger() -> logging.Logger:
     """Sets up the logger for the script.
 
-    Writes the log to both stderr.
+    Writes the log to stdout.
 
     Returns:
         The setup logger to use for the script.
@@ -204,7 +204,7 @@ class TestMyakuStack(object):
 
     # Seconds to wait for all of the containers for the stack to be running
     # before raising an error.
-    _CONTAINER_STARTUP_TIMEOUT = 5
+    _CONTAINER_STARTUP_TIMEOUT = 10
 
     # Paths are relative to the Myaku project root directory.
     _STACK_IMAGE_BUILD_SPECS = [
@@ -288,9 +288,6 @@ class TestMyakuStack(object):
 
     def teardown(self) -> None:
         """Tears down the deployed test stack.
-
-        Also removes any additional docker objects created by this instance
-        outside of the test stack services.
 
         Does NOT remove the volumes for the test stack.
         """

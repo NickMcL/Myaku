@@ -1,6 +1,6 @@
 """End-to-end test for the Myaku crawler.
 
-Uses a set of mock HTML pages from the source sites supported by Myaku to test
+Uses a set of mock HTML pages for the source sites supported by Myaku to test
 running end-to-end crawl sessions with the Myaku crawler.
 
 Thoroughly checks many aspects of the crawl during the test including:

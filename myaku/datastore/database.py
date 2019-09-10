@@ -296,7 +296,7 @@ class CrawlDb(object):
         """Returns True if the article is safe to store in the db.
 
         Checks that:
-            1. The article is not too long
+            1. The article is not too long.
             2. There is not an article with the exact same text already stored
                 in the db.
         """
