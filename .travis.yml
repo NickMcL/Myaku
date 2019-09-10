@@ -1,4 +1,6 @@
-language: python
+# All tests run in docker containers, so no language setup is necessary on the
+# travis CI host VM.
+language: minimal
 dist: bionic
 install: ./docker/setup_scripts/ubuntu_bootstrap.sh
 script: ./docker/setup_scripts/build_all_images.sh && ./run_tests.sh
