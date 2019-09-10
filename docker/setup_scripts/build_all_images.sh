@@ -3,7 +3,7 @@
 
 set -ev
 
-cd "$(dirname "${BASH_SOURCE[0]}")"/..
+cd "$(dirname "${BASH_SOURCE[0]}")"/../..
 
 ./build_image.sh crawler dev
 ./build_image.sh rescore dev
