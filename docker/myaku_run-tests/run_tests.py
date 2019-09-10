@@ -8,6 +8,7 @@ import string
 import subprocess
 import sys
 import time
+from subprocess import CompletedProcess
 from typing import Any, Dict, List, NamedTuple
 
 import colorlog
@@ -120,18 +121,51 @@ def setup_logger() -> logging.Logger:
     return logger
 
 
+def run_docker_subprocess(cmd: List[str], **kwargs) -> CompletedProcess:
+    """Runs a subprocess for a docker CLI command.
+
+    Suppresses output of the command and checks the return code.
+
+    Args:
+        cmd: Docker CLI command to run.
+        kwargs: Additional kwargs to pass to subprocess.run.
+
+    Returns:
+        The completed process object for the subprocess.
+
+    Raises:
+        RuntimeError: The docker process exited with a non-zero return code.
+    """
+    completed = subprocess.run(
+        cmd, capture_output=True, text=True, **kwargs
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f'Docker process exited with non-zero return code: {completed}'
+        )
+
+    return completed
+
+
+def init_docker_swarm() -> None:
+    """Initializes docker swarm on the docker engine for the tests."""
+    docker_client = docker.from_env()
+
+    # If swarm.attrs is not empty, the docker engine is already part of a
+    # swarm.
+    if docker_client.swarm.attrs:
+        return
+
+    docker_client.swarm.init()
+
+
 def get_test_stacks() -> List[str]:
     """Gets a list of all of the currently live test stacks.
 
     A stack is considered a test stack if its name begins with
     _TEST_STACK_NAME_PREFIX.
     """
-    completed = subprocess.run(
-        ['docker', 'stack', 'ls'], capture_output=True, text=True
-    )
-    _log.info(completed)
-    if completed.returncode != 0:
-        raise RuntimeError()
+    completed = run_docker_subprocess(['docker', 'stack', 'ls'])
 
     # First line of stdout is the column headers, so skip first line
     test_stacks = []
@@ -171,10 +205,7 @@ def teardown_test_stacks() -> None:
     test_stacks = get_test_stacks()
     for test_stack in test_stacks:
         _log.debug('Removing %s test stack...', test_stack)
-        subprocess.run(
-            ['docker', 'stack', 'rm', test_stack],
-            capture_output=True, check=True
-        )
+        run_docker_subprocess(['docker', 'stack', 'rm', test_stack])
 
     docker_client = docker.from_env()
     for container in docker_client.containers.list(all=True):
@@ -295,10 +326,7 @@ class TestMyakuStack(object):
         Does NOT remove the volumes for the test stack.
         """
         _log.debug('Removing %s test stack...', self.stack_name)
-        subprocess.run(
-            ['docker', 'stack', 'rm', self.stack_name],
-            capture_output=True, check=True
-        )
+        run_docker_subprocess(['docker', 'stack', 'rm', self.stack_name])
 
     def _build_stack_images(self) -> None:
         """Builds the test prod images to use in the stack."""
@@ -320,9 +348,7 @@ class TestMyakuStack(object):
             ]
 
             _log.debug('Building %s image...', tagged_image_name)
-            subprocess.run(
-                build_cmd, capture_output=True, check=True, text=True
-            )
+            run_docker_subprocess(build_cmd)
 
         TestMyakuStack._test_images_built = True
 
@@ -366,10 +392,7 @@ class TestMyakuStack(object):
         ]
 
         _log.debug('Deploying Myaku test stack %s...', self.stack_name)
-        subprocess.run(
-            deploy_cmd, input=no_image_test_compose, capture_output=True,
-            check=True, text=True
-        )
+        run_docker_subprocess(deploy_cmd, input=no_image_test_compose)
         self._wait_for_all_containers_running()
         log_blue('Stack %s created', self.stack_name)
 
@@ -391,9 +414,7 @@ class TestMyakuStack(object):
         ]
 
         _log.debug('Deploying Myaku test stack %s...', self.stack_name)
-        subprocess.run(
-            deploy_cmd, capture_output=True, check=True, text=True
-        )
+        run_docker_subprocess(deploy_cmd)
         self._wait_for_all_containers_running()
         log_blue('Stack %s created', self.stack_name)
 
@@ -607,6 +628,9 @@ class TestRunner(object):
 
 def main() -> None:
     script_args = arg_parser.parse_args()
+
+    _log.debug('Initializing docker swarm...')
+    init_docker_swarm()
 
     _log.debug('Cleaning up any previous test docker objects...')
     teardown_test_stacks()
