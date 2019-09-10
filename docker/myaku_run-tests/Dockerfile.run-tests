@@ -25,12 +25,12 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - \
 
 # Install firefox + geckodriver for web driver testing.
 RUN apt-get install -y wget firefox
-RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.24.0\
-/geckodriver-v0.24.0-linux64.tar.gz \
-    && tar -xvzf geckodriver-v0.24.0-linux64.tar.gz \
+RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.25.0\
+/geckodriver-v0.25.0-linux64.tar.gz \
+    && tar -xvzf geckodriver-v0.25.0-linux64.tar.gz \
     && chmod +x geckodriver \
     && mv geckodriver /usr/local/bin/ \
-    && rm geckodriver-v0.24.0-linux64.tar.gz
+    && rm geckodriver-v0.25.0-linux64.tar.gz
 
 # Set python binary that should be used in the container
 ENV PYTHON_BIN python3.7
