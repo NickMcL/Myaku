@@ -55,20 +55,13 @@ arg_parser = argparse.ArgumentParser(
 )
 arg_parser.add_argument(
     '-e', '--use-existing-images',
-    action='store_true',
+    action='store', choices=['prod', 'test'],
     help=(
-        'Instead of building new prod images for the tests, use the existing '
-        'images specified in the current base docker compose file '
-        '(./docker/docker-compose.yml).'
-    )
-)
-arg_parser.add_argument(
-    '-c', '--cache-from-existing',
-    action='store_true',
-    help=(
-        'When building docker images, specify that thee build --cache-from '
-        'the existing image that has the same name and tag as ithe image '
-        'being built instead of using the normal docker layer cache.'
+        'Instead of building new prod images for the tests, use existing '
+        'images instead.'
+        'If "prod" is specified, uses the images specified in the  base '
+        'docker compose file (./docker/docker-compose.yml).'
+        'If "test" is specified, uses the images with the :test tag.'
     )
 )
 arg_parser.add_argument(
@@ -292,16 +285,21 @@ class TestMyakuStack(object):
     # whether they've been built or not as a class variable.
     _test_images_built = False
 
-    # If set to True, instead of building new test images, all test stacks will
-    # use the existing images specified in the current base docker compose
-    # file.
-    use_existing_images = False
+    # If None, will build new tests images to use for the test stack.
+    # If "prod", will use the images specified in the base docker compose file
+    #   (./docker/docker-compose.yml).
+    # If "test" is specified, uses the images with the :test tag.
+    use_existing_images = None
 
-    # If set to True, when building the images for test stacks, will specify
-    # that the build --cache-from the existing image that has the same name and
-    # tag as the image being built instead of using the normal docker layer
-    # cache.
-    cache_from_existing = False
+    @staticmethod
+    def apply_script_args(script_args: argparse.Namespace) -> None:
+        """Applys the script args related to test stack creation.
+
+        Args:
+            config_args: A argparse.Namespace with the args given to this
+                script.
+        """
+        TestMyakuStack.use_existing_images = script_args.use_existing_images
 
     def __init__(self) -> None:
         """Deploys a new Myaku docker stack for testing."""
@@ -314,11 +312,13 @@ class TestMyakuStack(object):
         ))
         self.stack_name = f'myaku_test_{rand_section}'
 
+        if TestMyakuStack.use_existing_images is None:
+            self._build_stack_images()
+
         try:
-            if TestMyakuStack.use_existing_images:
-                self._deploy_stack_using_existing_images()
+            if TestMyakuStack.use_existing_images == 'prod':
+                self._deploy_stack_using_prod_images()
             else:
-                self._build_stack_images()
                 self._deploy_stack_using_test_images()
         except BaseException:
             # Make sure we remove any part of stack that got deployed if there
@@ -358,10 +358,8 @@ class TestMyakuStack(object):
                 '-f', abs_dockerfile_path,
                 '-t', tagged_image_name,
                 '--target', 'prod',
+                self._myaku_project_dir
             ]
-            if TestMyakuStack.cache_from_existing:
-                build_cmd.extend(['--cache-from', tagged_image_name])
-            build_cmd.append(self._myaku_project_dir)
 
             _log.debug('Building %s image...', tagged_image_name)
             run_docker_subprocess(build_cmd)
@@ -387,15 +385,13 @@ class TestMyakuStack(object):
 
         return ''.join(no_image_test_compose_lines)
 
-    def _deploy_stack_using_existing_images(self) -> None:
-        """Deploys the Myaku test stack using existing images.
+    def _deploy_stack_using_prod_images(self) -> None:
+        """Deploys the Myaku test stack using current prod images.
 
         The images specified in the current base docker compose file
         (./docker/docker-compose.yml) are used.
         """
-        _log.debug(
-            'Using existing images specified in docker/docker-compose.yml'
-        )
+        _log.debug('Using prod images specified in docker/docker-compose.yml')
         no_image_test_compose = self._get_no_image_test_compose()
         base_compose_filepath = os.path.join(
             self._myaku_project_dir, 'docker/docker-compose.yml'
@@ -413,8 +409,8 @@ class TestMyakuStack(object):
         log_blue('Stack %s created', self.stack_name)
 
     def _deploy_stack_using_test_images(self) -> None:
-        """Deploys the Myaku test stack using newly built test prod images."""
-        _log.debug('Using newly built test images')
+        """Deploys the Myaku test stack using the :test tagged images."""
+        _log.debug('Using :test tagged images')
         test_compose_filepath = os.path.join(
             self._myaku_project_dir, 'docker/docker-compose.test.yml'
         )
@@ -644,8 +640,7 @@ class TestRunner(object):
 
 def main() -> None:
     script_args = arg_parser.parse_args()
-    TestMyakuStack.use_existing_images = script_args.use_existing_images
-    TestMyakuStack.cache_from_existing = script_args.cache_from_existing
+    TestMyakuStack.apply_script_args(script_args)
 
     _log.debug('Initializing docker swarm...')
     init_docker_swarm()
