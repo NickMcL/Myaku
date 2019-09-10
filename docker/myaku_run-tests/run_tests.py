@@ -581,8 +581,12 @@ class TestRunner(object):
             _log.info('Test result for %s: ' + red_text('FAILED'), test_name)
             self._test_results[test_name] = 'FAILED'
 
-    def log_overall_results(self) -> None:
-        """Logs the overall test results."""
+    def log_overall_results(self) -> int:
+        """Logs the overall test results.
+
+        Returns:
+            0 if all tests passed, 1 if not all tests passed.
+        """
         failed_tests = []
         for test_name, result in self._test_results.items():
             if result == 'FAILED':
@@ -592,8 +596,10 @@ class TestRunner(object):
             _log.info(
                 '\nOverall test results: ' + green_text('ALL TESTS PASSED')
             )
+            return 0
         else:
             _log.info('\nOverall test results: ' + red_text('TEST FAILURE'))
+            return 1
 
 
 def main() -> None:
@@ -608,7 +614,8 @@ def main() -> None:
     test_runner.run_crawler_tests()
     test_runner.run_web_tests()
 
-    test_runner.log_overall_results()
+    returncode = test_runner.log_overall_results()
+    sys.exit(returncode)
 
 
 if __name__ == '__main__':
