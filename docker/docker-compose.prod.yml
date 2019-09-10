@@ -57,6 +57,11 @@ services:
       placement:
         constraints:
           - node.labels.type == web
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
   crawldb:
     deploy:
       restart_policy:

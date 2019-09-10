@@ -97,11 +97,6 @@ services:
       - type: volume
         source: reverseproxy_log
         target: /nginx_log
-    ports:
-      - target: 80
-        published: 80
-        protocol: tcp
-        mode: host
     environment:
       MYAKUWEB_HOST: web
       MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts

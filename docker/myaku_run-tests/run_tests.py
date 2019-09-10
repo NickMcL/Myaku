@@ -8,6 +8,7 @@ import string
 import subprocess
 import sys
 import time
+from pprint import pformat
 from subprocess import CompletedProcess
 from typing import Any, Dict, List, NamedTuple
 
@@ -240,7 +241,7 @@ class TestMyakuStack(object):
 
     # Seconds to wait for all of the containers for the stack to be running
     # before raising an error.
-    _CONTAINER_STARTUP_TIMEOUT = 20
+    _CONTAINER_STARTUP_TIMEOUT = 30
 
     # Paths are relative to the Myaku project root directory.
     _STACK_IMAGE_BUILD_SPECS = [
@@ -454,6 +455,7 @@ class TestMyakuStack(object):
             all_running = True
             for service in services:
                 for task in service.tasks():
+                    _log.info(pformat(task))
                     if ('Status' not in task
                             or 'State' not in task['Status']
                             or task['Status']['State'] != 'running'):
@@ -464,8 +466,8 @@ class TestMyakuStack(object):
 
             if all_running:
                 break
-            time.sleep(1)
-            waited_secs += 1
+            time.sleep(5)
+            waited_secs += 5
 
         if not all_running:
             raise RuntimeError(
