@@ -127,8 +127,11 @@ def get_test_stacks() -> List[str]:
     _TEST_STACK_NAME_PREFIX.
     """
     completed = subprocess.run(
-        ['docker', 'stack', 'ls'], capture_output=True, check=True, text=True
+        ['docker', 'stack', 'ls'], capture_output=True, text=True
     )
+    _log.info(completed)
+    if completed.returncode != 0:
+        raise RuntimeError()
 
     # First line of stdout is the column headers, so skip first line
     test_stacks = []

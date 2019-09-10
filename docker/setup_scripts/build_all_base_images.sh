@@ -58,6 +58,7 @@ sudo docker build \
     -t friedrice2/mongobackup:base \
     .
 sudo docker build \
+    --cache-from friedrice2/myaku_web:latest \
     -f ./docker/myaku_run-tests/Dockerfile.run-tests \
     -t friedrice2/myaku_run-tests:dev \
     .
