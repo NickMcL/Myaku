@@ -1,5 +1,6 @@
 #!/bin/bash
-# Builds the base layers for all Myaku docker images.
+# Builds the test prod images for all Myaku docker services.
+# Used to set up testing environments like Travis CI.
 
 set -ev
 
@@ -17,45 +18,45 @@ sudo docker pull friedrice2/mongobackup:latest
 
 sudo docker build \
     --cache-from friedrice2/myaku_crawler:latest \
-    --target base \
+    --target prod \
     -f ./docker/myaku_crawler/Dockerfile.crawler \
-    -t friedrice2/myaku_crawler:base \
+    -t friedrice2/myaku_crawler:test \
     .
 sudo docker build \
     --cache-from friedrice2/myaku_rescore:latest \
-    --target base \
+    --target prod \
     -f ./docker/myaku_rescore/Dockerfile.rescore \
-    -t friedrice2/myaku_rescore:base \
+    -t friedrice2/myaku_rescore:test \
     .
 sudo docker build \
     --cache-from friedrice2/myaku_web:latest \
-    --target base \
+    --target prod \
     -f ./docker/myaku_web/Dockerfile.myakuweb \
-    -t friedrice2/myaku_rescore:base \
+    -t friedrice2/myaku_rescore:test \
     .
 sudo docker build \
     --cache-from friedrice2/myaku_nginx.reverseproxy:latest \
-    --target base \
+    --target prod \
     -f ./docker/myaku_nginx.reverseproxy/Dockerfile.nginx.reverseproxy \
-    -t friedrice2/myaku_nginx.reverseproxy:base \
+    -t friedrice2/myaku_nginx.reverseproxy:test \
     .
 sudo docker build \
     --cache-from friedrice2/myaku_redis.first-page-cache:latest \
-    --target base \
+    --target prod \
     -f ./docker/myaku_redis.first-page-cache/Dockerfile.redis.first-page-cache \
-    -t friedrice2/myaku_redis.first-page-cache:base \
+    -t friedrice2/myaku_redis.first-page-cache:test \
     .
 sudo docker build \
     --cache-from friedrice2/myaku_mongo.crawldb:latest \
-    --target base \
+    --target prod \
     -f ./docker/myaku_mongo.crawldb/Dockerfile.mongo.crawldb \
-    -t friedrice2/myaku_mongo.crawldb:base \
+    -t friedrice2/myaku_mongo.crawldb:test \
     .
 sudo docker build \
     --cache-from friedrice2/mongobackup:latest \
-    --target base \
+    --target prod \
     -f ./docker/mongobackup/Dockerfile.mongobackup \
-    -t friedrice2/mongobackup:base \
+    -t friedrice2/mongobackup:test \
     .
 sudo docker build \
     --cache-from friedrice2/myaku_web:latest \
