@@ -15,10 +15,15 @@ POSSIBLE_IMAGE_TYPES=(\
     "mongo.crawldb" \
     "mongobackup" \
     "ubuntu.cron" \
+    "run-tests" \
 )
 
 NO_DEV_TARGET_IMAGE_TYPES=(\
     "ubuntu.cron" \
+)
+
+NO_PROD_TARGET_IMAGE_TYPES=(\
+    "run-tests" \
 )
 
 
@@ -46,6 +51,7 @@ for the image, or the script will error.
     - mongo.crawldb
     - mongobackup
     - ubuntu.cron
+    - run-tests
 
 -n|--no-cache: Builds the image with the --no-cache option.
 -h|--help: Outputs this message and exits.
@@ -117,6 +123,12 @@ if [[ " ${NO_DEV_TARGET_IMAGE_TYPES[@]} " =~ " $image_type " ]] && \
         "Image type \"$image_type\" does not have a dev target for building"
 fi
 
+if [[ " ${NO_PROD_TARGET_IMAGE_TYPES[@]} " =~ " $image_type " ]] && \
+        [[ "$tag" != "dev" ]]; then
+    error_handler $LINENO \
+        "Image type \"$image_type\" does not have a prod target for building"
+fi
+
 # Check if given tag matches versioning scheme for given image type
 if [ "$image_type" == "mongobackup" ]; then
     match="$(echo "$tag" | \
@@ -175,6 +187,11 @@ case $image_type in
 
     "mongo.crawldb")
         dockerfile="./docker/myaku_mongo.crawldb/Dockerfile.mongo.crawldb"
+        ;;
+
+    "run-tests")
+        dockerfile="./docker/myaku_run-tests/Dockerfile.run-tests"
+        build_flags=""
         ;;
 
     "mongobackup")

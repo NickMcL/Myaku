@@ -7,5 +7,6 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 sudo docker run -it --rm \
     -v "/var/run/docker.sock:/var/run/docker.sock" \
     -v "$(pwd):/test/myaku" \
+    --name "test-runner" \
     --entrypoint "/test/start_test_runner.sh" \
-    friedrice2/myaku_run-tests:latest "$@"
+    friedrice2/myaku_run-tests:dev "$@"
