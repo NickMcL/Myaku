@@ -33,9 +33,9 @@
       <div class="container search-top">
         <nav class="navbar d-flex align-items-start">
           <a class="navbar-brand" href="/">
-            <img class="img-fluid myaku-logo d-none d-md-block"
+            <img class="img-fluid myaku-logo myaku-logo-lg d-none d-md-block"
                 src="{% static "images/myaku_logo.svg" %}"/>
-            <img class="img-fluid myaku-logo-sm d-block d-md-none"
+            <img class="img-fluid myaku-logo myaku-logo-sm d-block d-md-none"
                 src="{% static "images/myaku_logo.svg" %}"/>
           </a>
           <ul class="navbar-nav align-top">
@@ -98,7 +98,7 @@
       </div>
     </div>
 
-    <div class="container">
+    <div class="container" id="tile-container">
       {% block tile_content %}{% endblock %}
     </div>
 

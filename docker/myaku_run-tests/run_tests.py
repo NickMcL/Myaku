@@ -204,7 +204,7 @@ class TestMyakuStack(object):
 
     # Seconds to wait for all of the containers for the stack to be running
     # before raising an error.
-    _CONTAINER_STARTUP_TIMEOUT = 10
+    _CONTAINER_STARTUP_TIMEOUT = 20
 
     # Paths are relative to the Myaku project root directory.
     _STACK_IMAGE_BUILD_SPECS = [

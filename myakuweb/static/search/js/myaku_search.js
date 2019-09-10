@@ -2,7 +2,7 @@
 
 const FULL_SEARCH_PLACEHOLDER = 'Japanese word, set phrase, idiom, etc.';
 const SHORT_SEARCH_PLACEHOLDER = 'Japanese word, phrase, etc.';
-const MOBILE_VIEWPORT_WIDTH_MAX = 768;  // in pixels.
+const MOBILE_VIEWPORT_WIDTH_MAX = 767;  // in pixels.
 
 function updateSearchPlaceholder() {
     if (window.innerWidth <= MOBILE_VIEWPORT_WIDTH_MAX) {
