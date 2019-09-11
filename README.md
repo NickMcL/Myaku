@@ -1,5 +1,7 @@
 # Myaku: Learning Japanese _from Context_
 
+[![Build Status](https://travis-ci.org/FriedRice/Myaku.svg?branch=master)](https://travis-ci.org/FriedRice/Myaku)
+
 A search engine for finding native Japanese articles on the web that
 demonstrate in-context usage for any bit of Japanese language.
 
