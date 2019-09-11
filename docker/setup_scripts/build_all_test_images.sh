@@ -13,7 +13,6 @@ sudo docker pull friedrice2/myaku_rescore:latest
 sudo docker pull friedrice2/myaku_web:latest
 sudo docker pull friedrice2/myaku_nginx.reverseproxy:latest
 sudo docker pull friedrice2/myaku_redis.first-page-cache:latest
-sudo docker pull friedrice2/myaku_mongo.crawldb:latest
 sudo docker pull friedrice2/myaku_run-tests:latest
 sudo docker pull friedrice2/mongobackup:latest
 
@@ -48,12 +47,6 @@ sudo docker build \
     -t friedrice2/myaku_redis.first-page-cache:test \
     .
 sudo docker build \
-    --cache-from friedrice2/myaku_mongo.crawldb:latest \
-    --target prod \
-    -f ./docker/myaku_mongo.crawldb/Dockerfile.mongo.crawldb \
-    -t friedrice2/myaku_mongo.crawldb:test \
-    .
-sudo docker build \
     --cache-from friedrice2/mongobackup:latest \
     --target prod \
     -f ./docker/mongobackup/Dockerfile.mongobackup \
@@ -63,4 +56,12 @@ sudo docker build \
     --cache-from friedrice2/myaku_run-tests:latest \
     -f ./docker/myaku_run-tests/Dockerfile.run-tests \
     -t friedrice2/myaku_run-tests:dev \
+    .
+
+# Always build mongo.crawldb locally because it won't run correctly when built
+# using --cache-from
+sudo docker build \
+    --target prod \
+    -f ./docker/myaku_mongo.crawldb/Dockerfile.mongo.crawldb \
+    -t friedrice2/myaku_mongo.crawldb:test \
     .
