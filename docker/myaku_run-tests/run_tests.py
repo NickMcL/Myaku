@@ -8,7 +8,6 @@ import string
 import subprocess
 import sys
 import time
-from pprint import pformat
 from subprocess import CompletedProcess
 from typing import Any, Dict, List, NamedTuple
 
@@ -241,7 +240,7 @@ class TestMyakuStack(object):
 
     # Seconds to wait for all of the containers for the stack to be running
     # before raising an error.
-    _CONTAINER_STARTUP_TIMEOUT = 30
+    _CONTAINER_STARTUP_TIMEOUT = 20
 
     # Paths are relative to the Myaku project root directory.
     _STACK_IMAGE_BUILD_SPECS = [
@@ -431,6 +430,18 @@ class TestMyakuStack(object):
         self._wait_for_all_containers_running()
         log_blue('Stack %s created', self.stack_name)
 
+    def _print_service_ps(self) -> None:
+        """Prints docker service ps for all services in the stack."""
+        services = self._docker_client.services.list(
+            filters={'name': self.stack_name}
+        )
+        for service in services:
+            _log.info('\n%s service ps:', service.name)
+            subprocess.run(
+                ['docker', 'service', 'ps', '--no-trunc', service.name],
+                text=True
+            )
+
     def _wait_for_all_containers_running(self) -> None:
         """Waits for all containers for the test stack to be running.
 
@@ -455,7 +466,6 @@ class TestMyakuStack(object):
             all_running = True
             for service in services:
                 for task in service.tasks():
-                    _log.info(pformat(task))
                     if ('Status' not in task
                             or 'State' not in task['Status']
                             or task['Status']['State'] != 'running'):
@@ -466,8 +476,10 @@ class TestMyakuStack(object):
 
             if all_running:
                 break
-            time.sleep(5)
-            waited_secs += 5
+            _log.info('\n\n\nWaited %s seconds', waited_secs)
+            self._print_service_ps()
+            time.sleep(1)
+            waited_secs += 1
 
         if not all_running:
             raise RuntimeError(
