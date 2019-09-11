@@ -141,6 +141,8 @@ def run_docker_subprocess(cmd: List[str], **kwargs) -> CompletedProcess:
     completed = subprocess.run(
         cmd, capture_output=True, text=True, **kwargs
     )
+    _log.debug('stdout:\n' + completed.stdout)
+    _log.debug('stderr:\n' + completed.stderr)
     if completed.returncode != 0:
         raise RuntimeError(
             f'Docker process exited with non-zero return code: {completed}'
