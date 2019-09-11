@@ -14,6 +14,7 @@ sudo docker pull friedrice2/myaku_web:latest
 sudo docker pull friedrice2/myaku_nginx.reverseproxy:latest
 sudo docker pull friedrice2/myaku_redis.first-page-cache:latest
 sudo docker pull friedrice2/myaku_mongo.crawldb:latest
+sudo docker pull friedrice2/myaku_run-tests:latest
 sudo docker pull friedrice2/mongobackup:latest
 
 sudo docker build \
@@ -32,7 +33,7 @@ sudo docker build \
     --cache-from friedrice2/myaku_web:latest \
     --target prod \
     -f ./docker/myaku_web/Dockerfile.myakuweb \
-    -t friedrice2/myaku_rescore:test \
+    -t friedrice2/myaku_web:test \
     .
 sudo docker build \
     --cache-from friedrice2/myaku_nginx.reverseproxy:latest \

@@ -430,13 +430,13 @@ class TestMyakuStack(object):
         self._wait_for_all_containers_running()
         log_blue('Stack %s created', self.stack_name)
 
-    def _print_service_ps(self) -> None:
-        """Prints docker service ps for all services in the stack."""
+    def _log_service_ps(self) -> None:
+        """Logs docker service ps for all services in the stack."""
         services = self._docker_client.services.list(
             filters={'name': self.stack_name}
         )
         for service in services:
-            _log.info('\n%s service ps:', service.name)
+            _log.debug('\n%s service ps:', service.name)
             subprocess.run(
                 ['docker', 'service', 'ps', '--no-trunc', service.name],
                 text=True
@@ -476,15 +476,15 @@ class TestMyakuStack(object):
 
             if all_running:
                 break
-            _log.info('\n\n\nWaited %s seconds', waited_secs)
-            self._print_service_ps()
             time.sleep(1)
             waited_secs += 1
 
         if not all_running:
+            self._log_service_ps()
             raise RuntimeError(
                 f'Test stack {self.stack_name} containers not all running '
-                f'after timeout of {self._CONTAINER_STARTUP_TIMEOUT} seconds'
+                f'after timeout of {self._CONTAINER_STARTUP_TIMEOUT} seconds.'
+                f'See logged service ps for errors.'
             )
         _log.debug('Stack %s containers all started', self.stack_name)
 
