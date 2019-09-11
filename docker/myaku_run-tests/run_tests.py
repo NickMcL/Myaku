@@ -431,7 +431,7 @@ class TestMyakuStack(object):
         log_blue('Stack %s created', self.stack_name)
 
     def _log_stack_debug_info(self) -> None:
-        """Logs debug info for the services and containers in the stack."""
+        """Logs debug info for all of the services in the stack."""
         services = self._docker_client.services.list(
             filters={'name': self.stack_name}
         )
@@ -442,12 +442,9 @@ class TestMyakuStack(object):
                 text=True
             )
 
-        containers = self._docker_client.containers.list(
-            all=True, filters={'name': self.stack_name}
-        )
-        for container in containers:
-            _log.debug('\n%s container logs:', container.name)
-            _log.debug(container.logs(timestamps=True).decode())
+            log_gen = service.logs(stdout=True, stderr=True, timestamps=True)
+            logs = b''.join(list(log_gen)).decode()
+            _log.debug('\n%s service logs:\n%s', service.name, logs)
 
     def _wait_for_all_containers_running(self) -> None:
         """Waits for all containers for the test stack to be running.
