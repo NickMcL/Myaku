@@ -994,8 +994,8 @@ class MecabTagger:
 
             # Adjust offset to account for MeCab skipping some white space
             # characters.
-            while (text[offset:offset + len(parsed_token_tags[0])] !=
-                   parsed_token_tags[0]):
+            while (text[offset:offset + len(parsed_token_tags[0])]
+                   != parsed_token_tags[0]):
                 offset += 1
 
             interp = self._create_mecab_interp(parsed_token_tags)

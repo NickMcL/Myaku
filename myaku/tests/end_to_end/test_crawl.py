@@ -2042,7 +2042,7 @@ def assert_doc_field_value(
         for key, version in value.items():
             assert VERSION_DOC_REGEXES[key].match(version) is not None
     else:
-        assert False, f'Unexpected field: {field}:{value}'
+        raise AssertionError(f'Unexpected field: {field}:{value}')
 
 
 def assert_blog_db_data(

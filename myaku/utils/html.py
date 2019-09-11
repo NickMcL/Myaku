@@ -55,8 +55,8 @@ def parse_valid_child_text(
             could be parsed from the parent.
     """
     for descendant in parent.descendants:
-        if (descendant.name is not None and
-                descendant.name not in _ALLOWABLE_HTML_TAGS_IN_TEXT):
+        if (descendant.name is not None
+                and descendant.name not in _ALLOWABLE_HTML_TAGS_IN_TEXT):
             if raise_on_no_text:
                 _raise_parsing_error(
                     'Structural tag "{}" found while parsing child text in: '

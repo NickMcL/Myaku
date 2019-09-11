@@ -65,8 +65,8 @@ class KakuyomuCrawler(CrawlerABC):
     _PAGES_TO_CRAWL_DEFAULT = 1
 
     _SEARCH_PAGE_URL_TEMPLATE = (
-        __SOURCE_BASE_URL +
-        '/search?genre_name={genre}&order={sort_order}&page={page_num}'
+        __SOURCE_BASE_URL
+        + '/search?genre_name={genre}&order={sort_order}&page={page_num}'
     )
 
     _EPISODE_SIDEBAR_URL_SUFFIX = 'episode_sidebar'

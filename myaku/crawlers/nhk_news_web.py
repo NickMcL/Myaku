@@ -219,7 +219,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         while True:
             json_url = self._get_summary_json_url(json_url_prefix, page_num)
             json = self._get_url_json(json_url)
-            for i, article in enumerate(json['channel']['item']):
+            for article in json['channel']['item']:
                 pub_datetime_str = article['pubDate']
                 pub_datetime = self._parse_json_datetime_str(pub_datetime_str)
                 metadata = JpnArticle(
@@ -232,7 +232,8 @@ class NhkNewsWebCrawler(CrawlerABC):
                 metadatas.append(metadata)
 
             _log.debug(
-                'Found %s metadatas from JSON url "%s"', i + 1, json_url
+                'Found %s metadatas from JSON url "%s"',
+                len(json['channel']['item']), json_url
             )
             if page_num >= max_pages_to_crawl:
                 return metadatas

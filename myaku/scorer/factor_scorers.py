@@ -277,8 +277,8 @@ class BlogRatingScorer(ArticleFactorScorer):
         """
         if article.source_name in self._FIXED_SOURCE_MULTIPLIER_MAP:
             return math.floor(
-                _MAX_FACTOR_SCORE *
-                self._FIXED_SOURCE_MULTIPLIER_MAP[article.source_name]
+                _MAX_FACTOR_SCORE
+                * self._FIXED_SOURCE_MULTIPLIER_MAP[article.source_name]
             )
         elif article.source_name == KakuyomuCrawler.SOURCE_NAME:
             return self._score_kakuyomu_article(article)

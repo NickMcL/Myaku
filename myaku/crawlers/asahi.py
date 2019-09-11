@@ -219,7 +219,7 @@ class AsahiCrawler(CrawlerABC):
         soup = self._get_url_html_soup(self._EDITORIAL_ARCHIVE_URL)
 
         article_metas = []
-        for i, tab_id in enumerate(self._EDITORIAL_ARCHIVE_MONTH_TAB_IDS):
+        for tab_id in self._EDITORIAL_ARCHIVE_MONTH_TAB_IDS:
             tab_article_metas = self._parse_editorial_archive_tab(soup, tab_id)
             article_metas.extend(tab_article_metas)
 

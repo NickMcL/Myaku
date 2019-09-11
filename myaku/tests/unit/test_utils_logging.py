@@ -20,8 +20,8 @@ ERROR_LOG_MESSAGE = LOG_MESSAGE_TEMPLATE.format('ERROR')
 CRITICAL_LOG_MESSAGE = LOG_MESSAGE_TEMPLATE.format('CRITICAL')
 
 LOG_REGEX_TEMPLATE = (
-    r'^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d,\d\d\d:myaku:{0}: ' +
-    LOG_MESSAGE_TEMPLATE + '$'
+    r'^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d,\d\d\d:myaku:{0}: '
+    + LOG_MESSAGE_TEMPLATE + '$'
 )
 LOG_MESSAGE_REGEX_MAP = {
     'd': re.compile(LOG_REGEX_TEMPLATE.format('DEBUG')),
@@ -123,8 +123,8 @@ def test_log_rotate(custom_log_environment, caplog):
     assert info_file_count == (utils._LOG_ROTATING_BACKUP_COUNT + 1)
     assert file_count == ((utils._LOG_ROTATING_BACKUP_COUNT + 1) * 2)
     assert get_dir_size(log_dir) <= (
-        custom_log_environment.debug_max_size +
-        custom_log_environment.info_max_size
+        custom_log_environment.debug_max_size
+        + custom_log_environment.info_max_size
     )
 
 
