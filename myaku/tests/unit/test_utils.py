@@ -4,7 +4,7 @@ import copy
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List, Generic, TypeVar
+from typing import Generic, List, TypeVar
 
 import pytest
 
@@ -224,7 +224,9 @@ def test_get_alnum_count():
 def test_normalize_char_width():
     """Tests normalize_char_width with half and full width chars."""
     all_half_kata = 'ﾃｽﾄﾔｯﾀﾈｫｫ'
-    assert utils.normalize_char_width(all_half_kata) == 'テストヤッタネォォ'
+    assert utils.normalize_char_width(
+        all_half_kata,
+    ) == 'テストヤッタネォォ'
 
     all_full_latin = 'Ｔｅｓｔ０１２３４５６７８９！？'
     assert utils.normalize_char_width(all_full_latin) == 'Test0123456789!?'

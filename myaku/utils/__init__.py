@@ -62,14 +62,14 @@ BaseException_co = TypeVar(
 
 
 def _get_root_package_logger() -> logging.Logger:
-    """Gets the root logger for the myaku package."""
+    """Get the root logger for the myaku package."""
     return logging.getLogger(__name__.split('.')[0])
 
 
 def toggle_myaku_package_log(
     enable: bool = True, filename_base: str = 'myaku'
 ) -> None:
-    """Toggles the logger for the myaku package.
+    """Toggle the logger for the myaku package.
 
     Logs to three locations:
         - DEBUG level to <filename_base>.debug.log files using a rotating
@@ -108,7 +108,7 @@ def toggle_myaku_package_log(
 
 
 def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
-    """Adds a set of handlers to the given logger.
+    """Add a set of handlers to the given logger.
 
     Adds the handlers specified in the docstring of toggle_myaku_package_log.
     """
@@ -150,12 +150,12 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
 
 
 def is_package_log_enabled() -> bool:
-    """Returns True if the package log is currently enabled."""
+    """Return True if the package log is currently enabled."""
     return len(_get_root_package_logger().handlers) > 0
 
 
 def set_package_log_level(log_level: int) -> Callable:
-    """Decorator for changing the package log level for a single function.
+    """Change the package log level for a single function.
 
     The package log level will be changed before the decorated function starts,
     and then the package log level will be restored to its previous value after
@@ -186,13 +186,13 @@ def set_package_log_level(log_level: int) -> Callable:
 def log_and_raise(
     log: logging.Logger, exc: Type[Exception], error_msg: str
 ) -> None:
-    """Logs and raises the exception with the given error message."""
+    """Log and raise the exception with the given error message."""
     log.error(error_msg)
     raise exc(error_msg)
 
 
 def get_value_from_env_variable(env_var: str) -> str:
-    """Gets a value from an environment variable.
+    """Get a value from an environment variable.
 
     Raises:
         EnvironmentNotSetError: One of the following:
@@ -216,7 +216,7 @@ def get_value_from_env_variable(env_var: str) -> str:
 
 
 def get_value_from_env_file(env_var: str) -> str:
-    """Gets a value from a file specified by an environment variable.
+    """Get a value from a file specified by an environment variable.
 
     Raises:
         EnvironmentNotSetError: One of the following:
@@ -247,7 +247,7 @@ def get_value_from_env_file(env_var: str) -> str:
 
 
 def unique(items: List[T]) -> List[T]:
-    """Returns a list with only the unique elements of items.
+    """Return a list with only the unique elements of items.
 
     Preserves order of items, and does not require T to be hashable.
 
@@ -279,7 +279,7 @@ def find_jpn_sentence_start(text: str, pos: int) -> int:
 
 
 def find_jpn_sentence_end(text: str, pos: int) -> int:
-    """Finds the end index of the Japanese sentence in text containing pos."""
+    """Find the end index of the Japanese sentence in text containing pos."""
     sentence_ender_indexes = [
         text.find(char, pos) for char in _JPN_SENTENCE_ENDERS
     ]
@@ -298,7 +298,7 @@ def find_jpn_sentence_end(text: str, pos: int) -> int:
 
 
 def _get_full_sentence_ender(text: str, ender_pos: int) -> int:
-    """Gets the full sentence ender for a given sentence ender position.
+    """Get the full sentence ender for a given sentence ender position.
 
     A full sentence ender is a sentence ender without another sentence ender
     to its right. For example, in "Hello?!", only ! is a full sentence ender.
@@ -324,14 +324,14 @@ def _get_full_sentence_ender(text: str, ender_pos: int) -> int:
 
 
 def tuple_or_none(item: Any) -> Tuple:
-    """Converts item to tuple, or returns None if item is None."""
+    """Convert item to tuple, or return None if item is None."""
     if item is None:
         return None
     return tuple(item)
 
 
 def join_suffix_to_url_base(url_base: str, url_suffix: str) -> str:
-    """Joins a url suffix to a url base.
+    """Join a url suffix to a url base.
 
     The url base must have the scheme and network location parts of the url,
     and it may have a path part.
@@ -353,7 +353,7 @@ def join_suffix_to_url_base(url_base: str, url_suffix: str) -> str:
 
 
 def join_path_to_url(url: str, path: str) -> str:
-    """Joins a path section to a full url.
+    """Join a path section to a full url.
 
     The scheme, network location, query, and fragment of the returned url will
     be the same as the given url. The only change in the returned url is that
@@ -371,7 +371,7 @@ def join_path_to_url(url: str, path: str) -> str:
 
 
 def strip_url_query_and_frag(url: str) -> str:
-    """Strips the query and fragment from the url."""
+    """Strip the query and fragment from the url."""
     url_split = urlsplit(url)
     return urlunsplit(
         (url_split.scheme, url_split.netloc, url_split.path, '', '')
@@ -379,7 +379,7 @@ def strip_url_query_and_frag(url: str) -> str:
 
 
 def convert_jst_to_utc(dt: datetime) -> datetime:
-    """Returns Japan Standard Time (JST) datetime converted to UTC.
+    """Return Japan Standard Time (JST) datetime converted to UTC.
 
     JST is always UTC+9:00. Japan does not do daylight savings time.
 
@@ -396,12 +396,12 @@ def convert_jst_to_utc(dt: datetime) -> datetime:
 
 
 def get_alnum_count(string: str) -> int:
-    """Returns the number of alphanumeric characters in the string."""
+    """Return the number of alphanumeric characters in the string."""
     return sum(c.isalnum() for c in string)
 
 
 def normalize_char_width(string: str) -> str:
-    """Normalizes character widths in string to a set standard.
+    """Normalize character widths in string to a set standard.
 
     Converts all katakana to full-width, and converts all latin alphabet and
     numeric characters to half-width
@@ -412,7 +412,7 @@ def normalize_char_width(string: str) -> str:
 
 
 def get_full_name(obj: Any) -> str:
-    """Gets the fully qualified name of the object."""
+    """Get the fully qualified name of the object."""
     if obj.__module__:
         return f'{obj.__module__}.{obj.__qualname__}'
     return obj.__qualname__
@@ -449,7 +449,7 @@ def shorten_repr(obj: Any, max_chars: int = 100) -> str:
 
 
 def rate_limit(min_wait: float, max_wait: float) -> Callable:
-    """Decorator for enforcing a wait time between calls of a function.
+    """Enforce a wait time between calls of a function.
 
     After each call to the decorated function, picks a random wait_time in
     seconds between [min_wait, max_wait). Then, when the function is next
@@ -502,7 +502,7 @@ def rate_limit(min_wait: float, max_wait: float) -> Callable:
 def retry_on_exception(
     max_retries: int, retry_exceptions: Set[Type[BaseException_co]]
 ) -> Callable:
-    """Decorator to retry a function call if it raises certain exceptions.
+    """Retry a function call if it raises certain exceptions.
 
     Will wait 2**(retry_count) seconds before each retry.
 
@@ -556,7 +556,7 @@ def retry_on_exception(
 
 
 def add_debug_logging(func: Callable) -> Callable:
-    """Logs params and return value on func entrance and exit.
+    """Log params and return value on func entrance and exit.
 
     Also logs any exception if raised from func.
     """
@@ -581,7 +581,7 @@ def add_debug_logging(func: Callable) -> Callable:
 
 
 def add_method_debug_logging(cls: type) -> type:
-    """Applies the add_debug_logging decorator to all methods in class.
+    """Apply the add_debug_logging decorator to all methods in class.
 
     Does NOT apply decorator to inherited methods from parent classes.
 
@@ -601,7 +601,7 @@ def add_method_debug_logging(cls: type) -> type:
 
 
 def skip_method_debug_logging(func: Callable) -> Callable:
-    """Causes method not be logged when add_method_debug_logging is applied.
+    """Cause method not be logged when add_method_debug_logging is applied.
 
     If a method gets called a high number of times, it can be excluded from
     being logged with skip_method_debug_logging with this decorator.
@@ -613,7 +613,7 @@ def skip_method_debug_logging(func: Callable) -> Callable:
 def _dataclass_setter_with_default_wrapper(
         func: Callable, field: dataclasses.Field = None
 ) -> Callable:
-    """Handles init properly for a property with default value in a dataclass.
+    """Handle init properly for a property with default value in a dataclass.
 
     If a property has a setter and a default value is given for it in a
     dataclass, the dataclass will try to set the property to the property
@@ -685,7 +685,7 @@ def _dataclass_setter_with_readonly(
 def make_properties_work_in_dataclass(
     cls: Type[T] = None, **kwargs
 ) -> Type[T]:
-    """Makes the properties in cls compatible with dataclasses.
+    """Make the properties in cls compatible with dataclasses.
 
     As of Python 3.7, properties with default values and read-only properties
     will not init properly with dataclasses because the dataclass init will try
@@ -733,7 +733,7 @@ def make_properties_work_in_dataclass(
 
 
 def singleton_per_config(cls: Type[T]) -> Callable[..., T]:
-    """Makes the decorated class only have one instance per init config.
+    """Make the decorated class only have one instance per init config.
 
     This will cause there to only ever be one object in existence for each
     combination of init parameters for the class. If a second object is

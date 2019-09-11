@@ -1,3 +1,5 @@
+"""Run a reparse and re-analysis of articles in the crawl db."""
+
 import time
 
 from myaku import utils
@@ -9,6 +11,7 @@ LOG_NAME = 'reparse'
 
 
 def main() -> None:
+    """Rerun the Japanese text analyzer for all articles in the crawl db."""
     utils.toggle_myaku_package_log(filename_base=LOG_NAME)
 
     start_time = time.perf_counter()

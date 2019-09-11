@@ -27,7 +27,7 @@ from myaku.datastore import (
     JpnArticleQueryType,
     JpnArticleSearchResult,
     require_update_permission,
-    require_write_permission
+    require_write_permission,
 )
 from myaku.datastore.cache import FirstPageCache
 from myaku.datatypes import (
@@ -39,7 +39,7 @@ from myaku.datatypes import (
     JpnArticle,
     JpnArticleBlog,
     JpnLexicalItemInterp,
-    MecabLexicalItemInterp
+    MecabLexicalItemInterp,
 )
 
 _log = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ def copy_db_data(
     src_host: str, src_username: str, src_password: str,
     dest_host: str, dest_username: str, dest_password: str
 ) -> None:
-    """Copies all Myaku data from one CrawlDb to another.
+    """Copy all Myaku data from one CrawlDb to another.
 
     The source database data must not change during the duration of the copy.
 
@@ -92,7 +92,7 @@ def _copy_db_collection_data(
     src_client: MongoClient, dest_client: MongoClient, collection_name: str,
     new_foreign_key_maps: Dict[str, Dict[ObjectId, ObjectId]] = None
 ) -> Dict[ObjectId, ObjectId]:
-    """Copies all docs in a collection in one CrawlDb instance to another.
+    """Copy all docs in a collection in one CrawlDb instance to another.
 
     Args:
         src_client: MongoClient connected to the source db.
@@ -196,7 +196,7 @@ class CrawlDb(object):
         self, access_mode: DataAccessMode = DataAccessMode.READ,
         update_first_page_cache_on_exit: bool = False
     ) -> None:
-        """Initializes the connection to the database.
+        """Initialize the connection to the database.
 
         Args:
             access_mode: Data access mode to use for this db session. If an
@@ -233,7 +233,7 @@ class CrawlDb(object):
             self._version_doc = myaku.get_version_info()
 
     def _init_mongo_client(self) -> MongoClient:
-        """Initializes and returns the client for connecting to the database.
+        """Initialize and return the client for connecting to the database.
 
         Returns:
             A client object connected and authenticated with the database.
@@ -259,7 +259,7 @@ class CrawlDb(object):
 
     @require_write_permission
     def _create_indexes(self) -> None:
-        """Creates the necessary indexes for the db if they don't exist."""
+        """Create the necessary indexes for the db if they don't exist."""
         self._article_collection.create_index('text_hash')
         self._article_collection.create_index('blog_oid')
         self._crawl_skip_collection.create_index('source_url')
@@ -285,7 +285,7 @@ class CrawlDb(object):
             )
 
     def is_article_text_stored(self, article: JpnArticle) -> bool:
-        """Returns True if an article with the same text is already stored."""
+        """Return True if an article with the same text is already stored."""
         docs = self._read_with_log(
             'text_hash', article.text_hash, self._article_collection,
             {'text_hash': 1, '_id': 0}
@@ -293,7 +293,7 @@ class CrawlDb(object):
         return len(docs) > 0
 
     def can_store_article(self, article: JpnArticle) -> bool:
-        """Returns True if the article is safe to store in the db.
+        """Return True if the article is safe to store in the db.
 
         Checks that:
             1. The article is not too long.
@@ -317,7 +317,7 @@ class CrawlDb(object):
     def _get_last_crawled_map(
         self, crawlable_items: List[Crawlable_co]
     ) -> Dict[str, datetime]:
-        """Gets a mapping from Crawlable items to their last crawled datetime.
+        """Get a mapping from Crawlable items to their last crawled datetime.
 
         Args:
             crawlable_items: List of crawlable items to look up the last
@@ -347,7 +347,7 @@ class CrawlDb(object):
     def _get_skipped_crawlable_urls(
         self, crawlable_items: List[Crawlable_co]
     ) -> Set[str]:
-        """Gets the crawl skipped source urls from the given crawlable items.
+        """Get the crawl skipped source urls from the given crawlable items.
 
         Args:
             crawlable_items: List of crawlable items whose source urls to look
@@ -371,7 +371,7 @@ class CrawlDb(object):
     def filter_crawlable_to_updated(
         self, crawlable_items: List[Crawlable_co]
     ) -> List[Crawlable_co]:
-        """Returns new list with the items updated since last crawled.
+        """Return new list with the items updated since last crawled.
 
         The new list includes items that have never been crawled as well.
         """
@@ -412,7 +412,7 @@ class CrawlDb(object):
 
     @require_update_permission
     def update_last_crawled(self, item: Crawlable) -> None:
-        """Updates the last crawled datetime of the item in the db.
+        """Update the last crawled datetime of the item in the db.
 
         If a crawlable item with the source url of the given item is not found
         in the db, marks the source url of the given item as having been
@@ -442,7 +442,7 @@ class CrawlDb(object):
     def _get_fli_safe_articles(
             self, flis: List[FoundJpnLexicalItem]
     ) -> List[JpnArticle]:
-        """Gets the unique articles referenced by the found lexical items.
+        """Get the unique articles referenced by the found lexical items.
 
         Does NOT include any articles in the returned list that cannot be
         safely stored in the db.
@@ -459,7 +459,7 @@ class CrawlDb(object):
     def _get_article_blogs(
             self, articles: List[JpnArticle]
     ) -> List[JpnArticleBlog]:
-        """Gets the unique blogs referenced by the articles."""
+        """Get the unique blogs referenced by the articles."""
         articles_with_blog = [a for a in articles if a.blog]
 
         # Many found lexical items can point to the same blog object in
@@ -472,7 +472,7 @@ class CrawlDb(object):
             self, found_lexical_items: List[FoundJpnLexicalItem],
             write_articles: bool = True
     ) -> bool:
-        """Writes the found lexical items to the database.
+        """Write the found lexical items to the database.
 
         Args:
             found_lexical_items: List of found lexical items to write to the
@@ -518,7 +518,7 @@ class CrawlDb(object):
     def _get_fli_score_recalculate_pipeline(
             self, article_quality_score: int
     ) -> List[_Document]:
-        """Gets a pipeline to recalculate found lexical item quality scores.
+        """Get a pipeline to recalculate found lexical item quality scores.
 
         Args:
             article_quality_score: New article quality score to use to
@@ -556,7 +556,7 @@ class CrawlDb(object):
     @utils.skip_method_debug_logging
     @require_update_permission
     def update_article_score(self, article: JpnArticle) -> bool:
-        """Updates the quality score for the article in the db.
+        """Update the quality score for the article in the db.
 
         Updates the quality score for the article and found lexical items for
         the article in the db to match the data stored in quality_score field
@@ -605,7 +605,7 @@ class CrawlDb(object):
     # during this function, so switch to info level if logging.
     @utils.set_package_log_level(logging.INFO)
     def build_first_page_cache(self) -> None:
-        """Builds the full first page cache using current db data."""
+        """Build the full first page cache using current db data."""
         # Count all unique base forms currently in the db
         cursor = self._found_lexical_item_collection.aggregate([
             {'$match': {'base_form': {'$gt': ''}}},
@@ -642,7 +642,7 @@ class CrawlDb(object):
     # during this function, so switch to info level if logging.
     @utils.set_package_log_level(logging.INFO)
     def update_first_page_cache(self) -> None:
-        """Updates the first page cache with changes from this db session.
+        """Update the first page cache with changes from this db session.
 
         Updates the search result first page cache entries related to all of
         the found lexical items written to the db since either the last time
@@ -678,7 +678,7 @@ class CrawlDb(object):
         self, search_results_cursor: Cursor, quality_score_field: str,
         results_start_index: int, max_results_to_return: int
     ) -> List[_Document]:
-        """Merges the top search result docs together to get one per article.
+        """Merge the top search result docs together to get one per article.
 
         Args:
             search_results_cursor: Cursor that will yield search result
@@ -729,7 +729,7 @@ class CrawlDb(object):
     def _search_articles_using_cache(
         self, query: str
     ) -> Optional[List[JpnArticleSearchResult]]:
-        """Searches for articles that match the query using only the cache.
+        """Search for articles that match the query using only the cache.
 
         Does not use the db in any case, even if the cache contains no search
         results for the query.
@@ -761,7 +761,7 @@ class CrawlDb(object):
     def _search_articles_using_db(
         self, query: str, query_type: JpnArticleQueryType, page: int = 1
     ) -> List[JpnArticleSearchResult]:
-        """Searches for articles that match the query using only the db.
+        """Search for articles that match the query using only the db.
 
         Does not use the search result cache in any case.
 
@@ -806,7 +806,7 @@ class CrawlDb(object):
     def search_articles(
         self, query: str, query_type: JpnArticleQueryType, page: int = 1
     ) -> List[JpnArticleSearchResult]:
-        """Searches the db for articles that match the lexical item query.
+        """Search the db for articles that match the lexical item query.
 
         The search results are in ranked order by quality score. See the scorer
         module for more info on how quality scores are determined.
@@ -833,7 +833,7 @@ class CrawlDb(object):
     def read_found_lexical_items(
         self, base_forms: List[str], starts_with: bool = False
     ) -> List[FoundJpnLexicalItem]:
-        """Reads found lexical items that match base form from the database.
+        """Read found lexical items that match base form from the database.
 
         Args:
             base_forms: Base forms of Japanese lexical items to query the
@@ -861,11 +861,11 @@ class CrawlDb(object):
         return found_lexical_items
 
     def get_article_count(self) -> int:
-        """Returns the total number of articles in the db."""
+        """Return the total number of articles in the db."""
         return self._article_collection.count_documents({})
 
     def read_all_articles(self) -> Iterator[JpnArticle]:
-        """Returns generator that yields all articles from the database."""
+        """Return generator that yields all articles from the database."""
         _log.debug(
             'Will query %s for all documents',
             self._article_collection.full_name
@@ -895,7 +895,7 @@ class CrawlDb(object):
     def _write_blogs(
         self, blogs: List[JpnArticleBlog]
     ) -> Dict[int, ObjectId]:
-        """Writes the blogs to the database.
+        """Write the blogs to the database.
 
         Args:
             blogs: Blogs to write to the database.
@@ -918,7 +918,7 @@ class CrawlDb(object):
     def _write_articles(
         self, articles: List[JpnArticle]
     ) -> Dict[int, ObjectId]:
-        """Writes the articles to the database.
+        """Write the articles to the database.
 
         Args:
             articles: Articles to write to the database.
@@ -940,7 +940,7 @@ class CrawlDb(object):
     def _read_article_oids(
         self, articles: List[JpnArticle]
     ) -> Dict[int, ObjectId]:
-        """Reads the ObjectIds for the articles from the database.
+        """Read the ObjectIds for the articles from the database.
 
         Args:
             articles: Articles to read from the database.
@@ -964,7 +964,7 @@ class CrawlDb(object):
     def _read_articles(
         self, object_ids: List[ObjectId]
     ) -> Dict[ObjectId, JpnArticle]:
-        """Reads the articles for the given ObjectIds from the database.
+        """Read the articles for the given ObjectIds from the database.
 
         Args:
             object_ids: ObjectIds for articles to read from the database.
@@ -995,7 +995,7 @@ class CrawlDb(object):
 
     @require_write_permission
     def delete_article_found_lexical_items(self, article: JpnArticle) -> None:
-        """Deletes found lexical items from article from the database."""
+        """Delete found lexical items from article from the database."""
         _log.debug(
             'Will delete found lexical items for "%s" article from "%s"',
             article, self._found_lexical_item_collection.full_name
@@ -1010,7 +1010,7 @@ class CrawlDb(object):
 
     @require_write_permission
     def delete_base_form_excess(self) -> None:
-        """Deletes found lexical items with base forms in excess in the db.
+        """Delete found lexical items with base forms in excess in the db.
 
         A base form is considered in excess if over a certain limit
         (_BASE_FORM_COUNT_LIMIT) of found lexical items with the base form are
@@ -1036,7 +1036,7 @@ class CrawlDb(object):
         self._delete_articles_with_no_found_lexical_items()
 
     def _get_base_forms_in_excess(self) -> List[str]:
-        """Queries db to get base forms currently in excess.
+        """Query db to get base forms currently in excess.
 
         See delete_base_form_excess docstring for info on how base forms in
         excess is defined.
@@ -1063,7 +1063,7 @@ class CrawlDb(object):
     def _make_base_form_mapping(
         self, found_lexical_items: List[FoundJpnLexicalItem]
     ) -> Dict[str, List[FoundJpnLexicalItem]]:
-        """Returns mapping from base forms to the given found lexical items.
+        """Return mapping from base forms to the given found lexical items.
 
         Returns:
             A dictionary where the keys are base form strings and the values
@@ -1080,7 +1080,7 @@ class CrawlDb(object):
     def _delete_low_quality(
         self, excess_flis: List[FoundJpnLexicalItem]
     ) -> None:
-        """Deletes found lexical items from the db if they are too low quality.
+        """Delete found lexical items from the db if they are too low quality.
 
         See FoundJpnLexicalItem quality key for info on how low quality is
         determined.
@@ -1118,7 +1118,7 @@ class CrawlDb(object):
 
     @require_write_permission
     def _delete_articles_with_no_found_lexical_items(self) -> None:
-        """Deletes articles with no stored found lexical items from the db.
+        """Delete articles with no stored found lexical items from the db.
 
         Curently, only simulated deletion without actually deleting anything.
         """
@@ -1147,7 +1147,7 @@ class CrawlDb(object):
         )
 
     def close(self) -> None:
-        """Closes the connection to the database."""
+        """Close the connection to the database."""
         try:
             if self._update_first_page_cache_on_exit:
                 self.update_first_page_cache()
@@ -1155,18 +1155,18 @@ class CrawlDb(object):
             self._mongo_client.close()
 
     def __enter__(self) -> 'CrawlDb':
-        """Initializes the connection to the database."""
+        """Initialize the connection to the database."""
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
-        """Closes the connection to the database."""
+        """Close the connection to the database."""
         self.close()
 
     def _read_with_log(
         self, lookup_field_name: str, lookup_values: Union[Any, List[Any]],
         collection: Collection, projection: _Document = None
     ) -> List[_Document]:
-        """Reads docs from collection with before and after logging.
+        """Read docs from collection with before and after logging.
 
         Args:
             lookup_field_name: The field to query on. Should be an indexed
@@ -1202,7 +1202,7 @@ class CrawlDb(object):
     def _write_with_log(
         self, docs: List[_Document], collection: Collection
     ) -> InsertManyResult:
-        """Writes docs to collection with logging."""
+        """Write docs to collection with logging."""
         _log.debug(
             'Will write %s documents to "%s" collection',
             len(docs), collection.full_name
@@ -1219,7 +1219,7 @@ class CrawlDb(object):
     def _replace_write_with_log(
         self, docs: List[_Document], collection: Collection, id_field: str
     ) -> List[ObjectId]:
-        """Writes or replaces with docs with logging.
+        """Write or replace with docs with logging.
 
         If a doc exists in the collection, replaces it with the given doc, and
         if a doc does not exists in the collection, writes it to the
@@ -1258,7 +1258,7 @@ class CrawlDb(object):
     def _convert_blogs_to_docs(
         self, blogs: List[JpnArticleBlog]
     ) -> List[_Document]:
-        """Converts blogs to dicts for inserting into MongoDB."""
+        """Convert blogs to dicts for inserting into MongoDB."""
         docs = []
         for blog in blogs:
             docs.append({
@@ -1288,7 +1288,7 @@ class CrawlDb(object):
     def _convert_articles_to_docs(
         self, articles: List[JpnArticle], blog_oid_map: Dict[int, ObjectId]
     ) -> List[_Document]:
-        """Converts articles to dicts for inserting into MongoDB."""
+        """Convert articles to dicts for inserting into MongoDB."""
         docs = []
         for article in articles:
             docs.append({
@@ -1320,7 +1320,7 @@ class CrawlDb(object):
     def _convert_mecab_interp_to_doc(
         self, mecab_interp: MecabLexicalItemInterp
     ) -> _Document:
-        """Converts MeCab interp to a dict for inserting into MongoDB."""
+        """Convert MeCab interp to a dict for inserting into MongoDB."""
         doc = {
             'parts_of_speech': mecab_interp.parts_of_speech,
             'conjugated_type': mecab_interp.conjugated_type,
@@ -1333,7 +1333,7 @@ class CrawlDb(object):
     def _convert_lexical_item_interps_to_docs(
         self, interps: List[JpnLexicalItemInterp]
     ) -> List[_Document]:
-        """Converts interps to dicts for inserting into MongoDB."""
+        """Convert interps to dicts for inserting into MongoDB."""
         docs = []
         for interp in interps:
             interp_sources = [s.value for s in interp.interp_sources]
@@ -1356,7 +1356,7 @@ class CrawlDb(object):
     def _convert_found_positions_to_docs(
         self, found_positions: List[ArticleTextPosition]
     ) -> List[_Document]:
-        """Converts found positions to dicts for inserting into MongoDB."""
+        """Convert found positions to dicts for inserting into MongoDB."""
         docs = []
         for found_position in found_positions:
             docs.append({
@@ -1370,7 +1370,7 @@ class CrawlDb(object):
     def _convert_interp_pos_map_to_doc(
         self, fli: FoundJpnLexicalItem
     ) -> _Document:
-        """Converts a found lexical item interp position map to a doc."""
+        """Convert a found lexical item interp position map to a doc."""
         interp_pos_map_doc = {}
         for i, interp in enumerate(fli.possible_interps):
             if interp not in fli.interp_position_map:
@@ -1391,7 +1391,7 @@ class CrawlDb(object):
         self, found_lexical_items: List[FoundJpnLexicalItem],
         article_oid_map: Dict[int, ObjectId]
     ) -> List[_Document]:
-        """Converts found lexical items to dicts for inserting into MongoDB.
+        """Convert found lexical items to dicts for inserting into MongoDB.
 
         The given article to ObjectId map must contain all of the articles for
         the given found lexical items.
@@ -1436,7 +1436,7 @@ class CrawlDb(object):
     def _convert_docs_to_blogs(
         self, docs: List[_Document]
     ) -> Dict[ObjectId, JpnArticleBlog]:
-        """Converts MongoDB docs to blog objects.
+        """Convert MongoDB docs to blog objects.
 
         Returns:
             A mapping from each blog document's ObjectId to the created
@@ -1471,7 +1471,7 @@ class CrawlDb(object):
         self, docs: List[_Document],
         oid_blog_map: Dict[ObjectId, JpnArticleBlog]
     ) -> Dict[ObjectId, JpnArticle]:
-        """Converts MongoDB docs to article objects.
+        """Convert MongoDB docs to article objects.
 
         Returns:
             A mapping from each article document's ObjectId to the created
@@ -1508,7 +1508,7 @@ class CrawlDb(object):
     def _convert_doc_to_mecab_interp(
         self, doc: _Document
     ) -> MecabLexicalItemInterp:
-        """Converts MongoDB doc to MeCab interp."""
+        """Convert MongoDB doc to MeCab interp."""
         mecab_interp = MecabLexicalItemInterp(
             parts_of_speech=utils.tuple_or_none(doc['parts_of_speech']),
             conjugated_type=doc['conjugated_type'],
@@ -1521,7 +1521,7 @@ class CrawlDb(object):
     def _convert_docs_to_lexical_item_interps(
         self, docs: List[_Document]
     ) -> List[JpnLexicalItemInterp]:
-        """Converts MongoDB docs to lexical item interps."""
+        """Convert MongoDB docs to lexical item interps."""
         interps = []
         for doc in docs:
             if doc['interp_sources'] is None:
@@ -1550,7 +1550,7 @@ class CrawlDb(object):
     def _convert_docs_to_found_positions(
         self, docs: List[_Document]
     ) -> List[ArticleTextPosition]:
-        """Converts MongoDB docs to found positions."""
+        """Convert MongoDB docs to found positions."""
         found_positions = []
         for doc in docs:
             found_positions.append(ArticleTextPosition(
@@ -1565,7 +1565,7 @@ class CrawlDb(object):
         self, docs: List[_Document],
         oid_article_map: Dict[ObjectId, JpnArticle]
     ) -> List[FoundJpnLexicalItem]:
-        """Converts MongoDB docs to found lexical items.
+        """Convert MongoDB docs to found lexical items.
 
         The given ObjectId to article map must contain the created article
         objects for all of found lexical item documents.
@@ -1605,7 +1605,7 @@ class CrawlDb(object):
         self, docs: List[_Document],
         oid_article_map: Dict[ObjectId, JpnArticle]
     ) -> List[JpnArticleSearchResult]:
-        """Converts MongoDB docs to article search results.
+        """Convert MongoDB docs to article search results.
 
         The given ObjectId to article map must contain the created article
         objects for all of the given search result docs.

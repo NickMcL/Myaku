@@ -23,7 +23,7 @@ _PAGES_TO_CRAWL_ENV_VAR = 'KAKUYOMU_CRAWLER_PAGE_TO_CRAWL'
 
 @enum.unique
 class KakuyomuGenre(enum.Enum):
-    """The genre categories used by Kakuyomu.
+    """Genre categories used by Kakuyomu.
 
     Kakuyomu has several more genres available than those in this enum, but
     this enum only covers the categories crawled by the KakuyomuCrawler.
@@ -38,7 +38,7 @@ class KakuyomuGenre(enum.Enum):
 
 @enum.unique
 class KakuyomuSortOrder(enum.Enum):
-    """The series sort orders available on Kakuyomu.
+    """Series sort orders available on Kakuyomu.
 
     Attributes:
         POPULAR: Sorts from most popular series to least popular.
@@ -54,7 +54,7 @@ class KakuyomuSortOrder(enum.Enum):
 
 @utils.add_method_debug_logging
 class KakuyomuCrawler(CrawlerABC):
-    """Crawls articles from the Kakuyomu website.
+    """Crawler for articles from the Kakuyomu website.
 
     Only crawls for articles in the non-fiction and essay sections of Kakuyomu.
     """
@@ -121,14 +121,14 @@ class KakuyomuCrawler(CrawlerABC):
 
     @property
     def _SOURCE_BASE_URL(self) -> str:
-        """The base url for accessing the source."""
+        """Return then base url for accessing the source."""
         return self.__SOURCE_BASE_URL
 
     def _create_search_url(
         self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
         page_num: int = 1
     ) -> str:
-        """Creates a URL for making a search on the search page.
+        """Create a URL for making a search on the search page.
 
         Args:
             genre: Series genre to search for.
@@ -142,13 +142,13 @@ class KakuyomuCrawler(CrawlerABC):
         )
 
     def _is_empty_search_results_page(self, page_soup: BeautifulSoup) -> bool:
-        """Returns True if the page is the empty search results page."""
+        """Return True if the page is the empty search results page."""
         return html.descendant_with_class_exists(
             page_soup, self._EMPTY_SEARCH_RESULTS_CLASS
         )
 
     def _parse_search_result_datetime(self, datetime_str: str) -> datetime:
-        """Parses a datetime string from the search results page.
+        """Parse a datetime string from the search results page.
 
         Raises:
             HtmlParsingError: The datetime string could not be parsed.
@@ -173,7 +173,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _parse_search_results_page(
         self, page_soup: BeautifulSoup
     ) -> List[JpnArticleBlog]:
-        """Parses the series blog info from a search results page.
+        """Parse the series blog info from a search results page.
 
         Args:
             page_soup: A BeautifulSoup initialized with the content from a
@@ -221,7 +221,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _parse_count_string(
         self, count_str: str, count_regex: Pattern
     ) -> Optional[int]:
-        """Parses a data count string for a series into an int.
+        """Parse a data count string for a series into an int.
 
         Also checks if the count string indicates that the count is hidden by
         preference of the author of the series.
@@ -260,7 +260,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _parse_series_rating_info(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
     ) -> None:
-        """Parses the rating info for a series.
+        """Parse the rating info for a series.
 
         Args:
             series_page_soup: A BeautifulSoup initialized with the content from
@@ -280,7 +280,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _parse_series_tags(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
     ) -> None:
-        """Parses the tags for a series.
+        """Parse the tags for a series.
 
         Args:
             series_page_soup: A BeautifulSoup initialized with the content from
@@ -309,7 +309,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _parse_series_intro(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
     ) -> None:
-        """Parses the intro and catchphrase for a series.
+        """Parse the intro and catchphrase for a series.
 
         Both the intro and catchphrase are optional, so a series might not have
         them set.
@@ -341,7 +341,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _parse_series_meta_info_list(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
     ) -> None:
-        """Parses the data in the meta info list for a series.
+        """Parse the data in the meta info list for a series.
 
         Args:
             series_page_soup: A BeautifulSoup initialized with the content from
@@ -391,7 +391,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _parse_series_review_info_list(
         self, series_page_soup: BeautifulSoup, series_blog: JpnArticleBlog
     ) -> None:
-        """Parses the data in the review info list for a series.
+        """Parse the data in the review info list for a series.
 
         Args:
             series_page_soup: A BeautifulSoup initialized with the content from
@@ -452,7 +452,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _select_table_of_contents_items(
         self, series_page_soup: BeautifulSoup
     ) -> List[Tag]:
-        """Selects the table of contents list items from a series homepage.
+        """Select the table of contents list items from a series homepage.
 
         Args:
             series_page_soup: A BeautifulSoup initialized with the content from
@@ -473,14 +473,14 @@ class KakuyomuCrawler(CrawlerABC):
 
     @utils.skip_method_debug_logging
     def _is_section_li(self, li_tag: Tag) -> bool:
-        """Returns True if the tag is a table of contents section name."""
+        """Return True if the tag is a table of contents section name."""
         if 'class' not in li_tag.attrs or not li_tag.attrs['class']:
             return False
         return self._SECTION_LI_CLASS in li_tag.attrs['class']
 
     @utils.skip_method_debug_logging
     def _is_episode_li(self, li_tag: Tag) -> bool:
-        """Returns True if the tag is a table of contents episode name."""
+        """Return True if the tag is a table of contents episode name."""
         if 'class' not in li_tag.attrs or not li_tag.attrs['class']:
             return False
         return self._EPISODE_LI_CLASS in li_tag.attrs['class']
@@ -491,7 +491,7 @@ class KakuyomuCrawler(CrawlerABC):
         ep_order_num: int, section_name: str, section_order_num: int,
         section_ep_order_num: int
     ) -> JpnArticle:
-        """Parses the metadata for an episode from a series table of contents.
+        """Parse the metadata for an episode from a series table of contents.
 
         Args:
             episode_li_tag: The episode li tag from a series table of contents
@@ -566,7 +566,7 @@ class KakuyomuCrawler(CrawlerABC):
         return article_metas
 
     def crawl_blog(self, page_url: str) -> CrawlGenerator:
-        """Crawls a series homepage.
+        """Crawl a series homepage.
 
         Args:
             page_url: Url of the series homepage.
@@ -587,7 +587,7 @@ class KakuyomuCrawler(CrawlerABC):
         self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
         page_num: int = 1
     ) -> CrawlGenerator:
-        """Crawls a single page of series search results.
+        """Crawl a single page of series search results.
 
         Args:
             genre: Series genre to search for.
@@ -612,7 +612,7 @@ class KakuyomuCrawler(CrawlerABC):
         self, genre: KakuyomuGenre, sort_order: KakuyomuSortOrder,
         pages_to_crawl: int = 1, start_page: int = 1
     ) -> CrawlGenerator:
-        """Makes a series search on Kakuyomu and then crawls the results.
+        """Make a series search on Kakuyomu and then crawl the results.
 
         Args:
             genre: Series genre to search for.
@@ -637,7 +637,7 @@ class KakuyomuCrawler(CrawlerABC):
             yield from self._crawl_search_results_page(genre, sort_order, i)
 
     def get_crawls_for_most_recent(self) -> List[Crawl]:
-        """Gets a list of Crawls for the most recent Kakuyomu articles.
+        """Get a list of Crawls for the most recent Kakuyomu articles.
 
         Only crawls for articles in the non-fiction section of Kakuyomu.
         """
@@ -657,7 +657,7 @@ class KakuyomuCrawler(CrawlerABC):
         return [nonfiction_crawl]
 
     def _parse_episode_text(self, episode_page_soup: BeautifulSoup) -> str:
-        """Parses the full text for an episode.
+        """Parse the full text for an episode.
 
         Args:
             episode_page_soup: A BeautifulSoup initialized with the content
@@ -690,7 +690,7 @@ class KakuyomuCrawler(CrawlerABC):
     def _parse_episode_last_updated_datetime(
         self, episode_page_soup: BeautifulSoup
     ) -> datetime:
-        """Parses the last update time for an episode.
+        """Parse the last update time for an episode.
 
         Args:
             episode_page_soup: A BeautifulSoup initialized with the content
@@ -713,7 +713,7 @@ class KakuyomuCrawler(CrawlerABC):
     def crawl_article(
         self, article_url: str, article_meta: JpnArticle
     ) -> JpnArticle:
-        """Crawls a Kakuyomu episode article.
+        """Crawl a Kakuyomu episode article.
 
         Args:
             article_url: Url to a page containing a Kakuyomu episode.

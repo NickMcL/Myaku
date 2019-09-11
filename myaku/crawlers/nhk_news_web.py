@@ -19,7 +19,7 @@ _log = logging.getLogger(__name__)
 
 @utils.add_method_debug_logging
 class NhkNewsWebCrawler(CrawlerABC):
-    """Crawls articles from the NHK News Web website."""
+    """Crawler for articles from the NHK News Web website."""
     # Nhk News Web only makes these max numbers of pages of history available
     # for the Most Recent and Douga pages.
     MAX_MOST_RECENT_PAGES = 10
@@ -58,12 +58,12 @@ class NhkNewsWebCrawler(CrawlerABC):
 
     @property
     def _SOURCE_BASE_URL(self) -> str:
-        """The base url for accessing the source."""
+        """Return the base url for accessing the source."""
         return self.__SOURCE_BASE_URL
 
     @utils.skip_method_debug_logging
     def _parse_body_div(self, tag: Tag) -> Optional[str]:
-        """Parses the body text from a division of an NHK article.
+        """Parse the body text from a division of an NHK article.
 
         Args:
             tag: Tag containing a division of an NHK article.
@@ -95,7 +95,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         return '\n'.join(text_sections) if len(text_sections) > 0 else None
 
     def _parse_body_text(self, article_tag: Tag) -> Optional[str]:
-        """Parses the body text from NHK article HTML.
+        """Parse the body text from NHK article HTML.
 
         Args:
             article_tag: Tag containing NHK article HTML.
@@ -132,7 +132,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         return '\n\n'.join(body_text_sections)
 
     def _has_news_video(self, article_page_soup: BeautifulSoup) -> bool:
-        """Returns True if there is a news video on the article page."""
+        """Return True if there is a news video on the article page."""
         main_tag = html.select_one_descendant_by_tag(article_page_soup, 'main')
         article_json_tag = html.select_one_descendant_by_tag(
             main_tag, 'script'
@@ -150,7 +150,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     def _parse_article(
         self, article_tag: Tag, article_meta: JpnArticle
     ) -> JpnArticle:
-        """Parses data from NHK article HTML.
+        """Parse data from NHK article HTML.
 
         Args:
             article_tag: Tag containing NHK article HTML.
@@ -172,14 +172,14 @@ class NhkNewsWebCrawler(CrawlerABC):
 
     @utils.skip_method_debug_logging
     def _get_summary_json_url(self, url_prefix: str, page_num: int) -> str:
-        """Gets the url for a page of the JSON for a summary page."""
+        """Get the url for a page of the JSON for a summary page."""
         if page_num == 1 and url_prefix in self._JSON_PREFIX_FIRST_PAGE_MAP:
             return self._JSON_PREFIX_FIRST_PAGE_MAP[url_prefix]
         return '{}_{}.json'.format(url_prefix, str(page_num).zfill(3))
 
     @utils.skip_method_debug_logging
     def _parse_json_datetime_str(self, dt_str: str) -> datetime:
-        """Parses a datetime string from NHK article metadata json.
+        """Parse a datetime string from NHK article metadata json.
 
         The datetime strings in NHK article metadata json are stored as JST, so
         this function also converts the datetime to UTC.
@@ -200,7 +200,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     def _crawl_summary_page_json(
         self, json_url_prefix: str, max_pages_to_crawl
     ) -> List[JpnArticle]:
-        """Crawls summary page JSON to get the article metadata for the page.
+        """Crawl summary page JSON to get the article metadata for the page.
 
         Args:
             json_url_prefix: Url prefix for the summary page JSON urls to
@@ -255,7 +255,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     def _crawl_summary_page(
         self, json_url_prefix: str, max_pages_to_crawl: int
     ) -> CrawlGenerator:
-        """Crawls all not yet crawled articles for a summary page.
+        """Crawl all not yet crawled articles for a summary page.
 
         Args:
             json_url_prefix: Url prefix for the summary page JSON urls to
@@ -280,7 +280,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         yield from self._crawl_uncrawled_articles(metadatas)
 
     def crawl_most_recent(self, pages_to_crawl: int = 1) -> CrawlGenerator:
-        """Gets all not yet crawled articles from the 'Most Recent' page.
+        """Get all not yet crawled articles from the 'Most Recent' page.
 
         Args:
             pages_to_crawl: Number of pages to crawl of the Most Recent
@@ -298,7 +298,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         )
 
     def crawl_douga(self, pages_to_crawl: int = 1) -> CrawlGenerator:
-        """Gets all not yet crawled articles from the 'Douga' page.
+        """Get all not yet crawled articles from the 'Douga' page.
 
         Args:
             pages_to_crawl: Number of pages to crawl of the Douga page. Each
@@ -316,7 +316,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         )
 
     def crawl_news_up(self, pages_to_crawl: int = 1) -> CrawlGenerator:
-        """Gets all not yet crawled articles from the 'News Up' page.
+        """Get all not yet crawled articles from the 'News Up' page.
 
         Args:
             pages_to_crawl: Number of pages to crawl of the News Up page. Each
@@ -334,7 +334,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         )
 
     def crawl_tokushu(self, pages_to_crawl: int = 1) -> CrawlGenerator:
-        """Gets all not yet crawled articles from the 'Tokushu' page.
+        """Get all not yet crawled articles from the 'Tokushu' page.
 
         Args:
             pages_to_crawl: Number of pages to crawl of the Tokushu page. Each
@@ -352,7 +352,7 @@ class NhkNewsWebCrawler(CrawlerABC):
         )
 
     def get_crawls_for_most_recent(self) -> List[Crawl]:
-        """Gets a list of Crawls for the most recent NHK News Web articles.
+        """Get a list of Crawls for the most recent NHK News Web articles.
 
         An article will not be crawled again if it has been previously crawled
         during any previous crawl recorded in the MyakuDb.
@@ -377,7 +377,7 @@ class NhkNewsWebCrawler(CrawlerABC):
     def crawl_article(
         self, article_url: str, article_meta: JpnArticle
     ) -> JpnArticle:
-        """Crawls an NHK News Web article.
+        """Crawl an NHK News Web article.
 
         Args:
             article_url: Url to a page containing an NHK News Web article.

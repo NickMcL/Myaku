@@ -21,7 +21,7 @@ ENV RESCORE_SRC_DIR $RESCORE_BASE_DIR/src
 
 COPY ./LICENSE $RESCORE_SRC_DIR/
 
-COPY ./requirements.txt $RESCORE_SRC_DIR/
+COPY ./myaku/requirements.txt $RESCORE_SRC_DIR/
 RUN $PYTHON_BIN -m pip install -U pip \
     && $PYTHON_BIN -m pip install -r $RESCORE_SRC_DIR/requirements.txt
 

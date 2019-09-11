@@ -24,14 +24,14 @@ _ALLOWABLE_HTML_TAGS_IN_TEXT = {
 
 
 def _raise_parsing_error(error_msg: str) -> None:
-    """Handler for errors encountered during HTML parsing."""
+    """Raise and log error encountered during HTML parsing."""
     utils.log_and_raise(_log, HtmlParsingError, error_msg)
 
 
 def parse_valid_child_text(
     parent: Tag, raise_on_no_text: bool = True
 ) -> Optional[str]:
-    """Parses the child text within an HTML tag if valid.
+    """Parse the child text within an HTML tag if valid.
 
     The child text of an HTML tag is considered invalid and will not be
     parsed by this function if any of the descendants of the tag are
@@ -78,7 +78,7 @@ def parse_text_from_descendant_by_class(
     parent: Tag, classes: Union[str, List[str]], tag_name: str = '',
     tag_index: int = 0, expected_tag_count: int = 1
 ) -> str:
-    """Parses the text from a tag_name descendant of parent with classes.
+    """Parse the text from a tag_name descendant of parent with classes.
 
     Args:
         parent: Tag whose descendants to search.
@@ -133,7 +133,7 @@ def parse_text_from_descendant_by_class(
 
 
 def parse_text_from_descendant_by_id(parent: Tag, tag_id: str) -> str:
-    """Parses the text from a tag_name descendant with id.
+    """Parse the text from a tag_name descendant with id.
 
     Args:
         parent: Tag whose descendants to search.
@@ -170,7 +170,7 @@ def parse_text_from_descendant_by_tag(
     parent: Tag, tag_name: str = '', tag_index: int = 0,
     expected_tag_count: int = 1
 ) -> str:
-    """Parses the text from a tag_name descendant of parent.
+    """Parse the text from a tag_name descendant of parent.
 
     Args:
         parent: Tag whose descendants to search.
@@ -219,7 +219,7 @@ def parse_time_descendant(
     parent: Tag, datetime_format: str, convert_from_jst: bool = False,
     tag_index: int = 0, expected_tag_count: int = 1
 ) -> datetime:
-    """Parses the datetime from a time tag descendant.
+    """Parse the datetime from a time tag descendant.
 
     If no timezone is specified in the datetime attr of the time element,
     assumes the time JST (Japan Standard Time) and coverts to UTC.
@@ -288,7 +288,7 @@ def parse_time_descendant(
 def parse_link_descendant(
     parent: Tag, tag_index: int = 0, expected_tag_count: int = 1
 ) -> str:
-    """Parses the href link from an <a> tag descendant.
+    """Parse the href link from an <a> tag descendant.
 
     Args:
         parent: Tag whose descendants to search for a <a> tag.
@@ -332,7 +332,7 @@ def parse_link_descendant(
 
 
 def parse_desc_list_data_text(desc_list: Tag, term_text: str) -> str:
-    """Parses the associated data text for a term in a description list.
+    """Parse the associated data text for a term in a description list.
 
     Args:
         desc_list: Description list tag containing the entry to parse.
@@ -373,7 +373,7 @@ def parse_desc_list_data_text(desc_list: Tag, term_text: str) -> str:
 
 
 def select_desc_list_data(desc_list: Tag, term_text: str) -> str:
-    """Selects the associated data tag for a term in a description list.
+    """Select the associated data tag for a term in a description list.
 
     Args:
         desc_list: Description list tag containing the entry to parse.
@@ -411,7 +411,7 @@ def select_descendants_by_class(
     parent: Tag, classes: Union[str, List[str]], tag_name: str = '',
     expected_tag_count: int = None
 ) -> List[Tag]:
-    """Selects tag_name descendant(s) with classes within parent.
+    """Select tag_name descendant(s) with classes within parent.
 
     Args:
         parent: Tag whose descendants to search.
@@ -457,7 +457,7 @@ def select_descendants_by_class(
 def select_one_descendant_by_class(
     parent: Tag, classes: Union[str, List[str]], tag_name: str = ''
 ) -> Tag:
-    """Selects a single tag_name descendant with classes within parent.
+    """Select a single tag_name descendant with classes within parent.
 
     Raises an error if more or less than exactly 1 tag_name descendant exists
     within parent with classes.
@@ -481,7 +481,7 @@ def select_one_descendant_by_class(
 def select_descendants_by_tag(
     parent: Tag, tag_name: str, expected_tag_count: int = None
 ) -> List[Tag]:
-    """Selects tag_name descendant(s) within parent.
+    """Select tag_name descendant(s) within parent.
 
     Args:
         parent: Tag whose descendants to search.
@@ -516,7 +516,7 @@ def select_descendants_by_tag(
 
 
 def select_one_descendant_by_tag(parent: Tag, tag_name: str) -> Tag:
-    """Selects a single tag_name descendant within parent.
+    """Select a single tag_name descendant within parent.
 
     Raises an error if more or less than exactly 1 tag_name descendant exists
     within parent.
@@ -536,7 +536,7 @@ def select_one_descendant_by_tag(parent: Tag, tag_name: str) -> Tag:
 
 
 def select_descendant_by_id(parent: Tag, id_: str) -> Tag:
-    """Selects the descendant with the given id within parent.
+    """Select the descendant with the given id within parent.
 
     Args:
         parent: Tag whose descendants to search.
@@ -561,7 +561,7 @@ def select_descendant_by_id(parent: Tag, id_: str) -> Tag:
 def descendant_with_class_exists(
     parent: Tag, classes: Union[str, List[str]], tag_name: str = ''
 ) -> bool:
-    """Checks if a tag_name descendent exists with classes within parent.
+    """Check if a tag_name descendent exists with classes within parent.
 
     Args:
         parent: Tag whose descendants to search.
@@ -581,7 +581,7 @@ def descendant_with_class_exists(
 
 
 def strip_ruby_tags(tag: Tag) -> Tag:
-    """Strips ruby tags from within the given tag.
+    """Strip ruby tags from within the given tag.
 
     Leaves the normal text within the ruby tag while striping out any
     content in the rt and rp tags.

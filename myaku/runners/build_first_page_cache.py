@@ -9,6 +9,7 @@ _log = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """Build the full search result first page cache."""
     utils.toggle_myaku_package_log(filename_base='build_cache')
     with CrawlDb() as db:
         db.build_first_page_cache()

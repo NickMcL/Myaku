@@ -29,7 +29,7 @@ _CACHE_PASSWORD_FILE_ENV_VAR = 'MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE'
 
 @utils.add_method_debug_logging
 class FirstPageCache(object):
-    """Caches the first page of queries for articles crawled by Mayku."""
+    """Cache for the first page of queries for articles crawled by Mayku."""
 
     # Gzip compress level to use when compressing serialized bytes to store in
     # the cache.
@@ -42,7 +42,7 @@ class FirstPageCache(object):
         self._redis_client = self._init_redis_client()
 
     def _init_redis_client(self) -> redis.Redis:
-        """Inits and returns the client for connecting to the Redis cache.
+        """Init and return the client for connecting to the Redis cache.
 
         Returns:
             A client object connected and authenticated with the Redis cache.
@@ -71,7 +71,7 @@ class FirstPageCache(object):
         )
 
     def is_built(self) -> bool:
-        """Returns True if the cache has been fully built previously."""
+        """Return True if the cache has been fully built previously."""
         last_built_time = self._redis_client.get(
             self._CACHE_LAST_BUILT_DATETIME_KEY
         )
@@ -81,7 +81,7 @@ class FirstPageCache(object):
     def _serialize_search_result(
         self, search_result: JpnArticleSearchResult
     ) -> List[bytes]:
-        """Serializes a single search result.
+        """Serialize a single search result.
 
         Does not serialize the full article for the search result. Only
         serializes the ID for the article.
@@ -108,7 +108,7 @@ class FirstPageCache(object):
     def _serialize_text(
         self, text: str, size_bytes: int, encoding: str = 'utf-8'
     ) -> List[bytes]:
-        """Serializes text.
+        """Serialize text.
 
         Args:
             text: Text to serialize.
@@ -129,7 +129,7 @@ class FirstPageCache(object):
 
     @utils.skip_method_debug_logging
     def _serialize_article(self, article: JpnArticle) -> List[bytes]:
-        """Serializes a single article for a search result.
+        """Serialize a single article for a search result.
 
         Does not serialize all attributes of the article. Only serializes the
         attributes used in displaying search results.
@@ -169,7 +169,7 @@ class FirstPageCache(object):
         self, query: str, search_results: List[JpnArticleSearchResult],
         compress_level: int
     ) -> None:
-        """Serializes query search results and caches them.
+        """Serialize query search results and cache them.
 
         Args:
             query: Query to cache the search results for.
@@ -205,7 +205,7 @@ class FirstPageCache(object):
         self, query: str,
         first_page_search_results: List[JpnArticleSearchResult]
     ) -> None:
-        """Caches the first page of search results for the given query."""
+        """Cache the first page of search results for the given query."""
         self._cache_serialized_search_results(
             query, first_page_search_results,
             self._SERIALIZED_BYTES_COMPRESS_LEVEL
@@ -216,7 +216,7 @@ class FirstPageCache(object):
         self, buffer: bytes, start_offset: int,
         out_list: List[ArticleTextPosition]
     ) -> int:
-        """Deserializes text positions from a buffer of bytes.
+        """Deserialize text positions from a buffer of bytes.
 
         Args:
             buffer: Buffer of bytes containing the text positions to
@@ -247,7 +247,7 @@ class FirstPageCache(object):
         self, buffer: bytes, start_offset: int, size_bytes: int,
         encoding: str = 'utf-8'
     ) -> Tuple[str, int]:
-        """Deserializes text from a buffer of bytes.
+        """Deserialize text from a buffer of bytes.
 
         Args:
             buffer: Buffer of bytes containing the text to deserialize.
@@ -278,7 +278,7 @@ class FirstPageCache(object):
     def _deserialize_article(
         self, buffer: bytes, out_article: JpnArticle
     ) -> None:
-        """Deserializes an article from a buffer of bytes.
+        """Deserialize an article from a buffer of bytes.
 
         Args:
             buffer: Buffer of bytes containing the full serialization of an
@@ -322,7 +322,7 @@ class FirstPageCache(object):
         )
 
     def _get_article(self, oid: ObjectId) -> Optional[JpnArticle]:
-        """Gets the cached article for the given object ID.
+        """Get the cached article for the given object ID.
 
         Args:
             oid: ObjectId for the article to get from the cache.
@@ -346,7 +346,7 @@ class FirstPageCache(object):
     def _deserialize_search_results(
         self, serialized_search_results: bytes
     ) -> List[JpnArticleSearchResult]:
-        """Deserializes search results.
+        """Deserialize search results.
 
         Args:
             serialized_search_results: Decompressed serialization of a list of
@@ -384,7 +384,7 @@ class FirstPageCache(object):
     def get(
         self, query: str
     ) -> Optional[List[JpnArticleSearchResult]]:
-        """Gets the cached first page of search results for the given query.
+        """Get the cached first page of search results for the given query.
 
         Args:
             query: Query to get the cached first page of search results for.

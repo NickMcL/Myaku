@@ -14,17 +14,17 @@ LOG_NAME = 'rescore'
 
 
 class Timer(object):
-    """Measures and logs a time duration."""
+    """Timer for measuring and logging a duration."""
 
     def __init__(self, task_name: str) -> None:
-        """Starts the timer."""
+        """Start the timer."""
         self._task_name = task_name
 
         _log.info('\nStarting {}\n'.format(task_name))
         self._start_time = time.perf_counter()
 
     def stop(self) -> None:
-        """Stops the timer and logs the duration."""
+        """Stop the timer and log the duration."""
         duration = time.perf_counter() - self._start_time
         _log.info(
             '\n{} took {:.2f} minutes\n'.format(
@@ -34,7 +34,7 @@ class Timer(object):
 
 
 def rescore_articles(db: CrawlDb, scorer: MyakuArticleScorer) -> None:
-    """Rescores all articles in the Myaku db.
+    """Rescore all articles in the Myaku db.
 
     Args:
         db: Database client to use to update the articles.
@@ -63,6 +63,7 @@ def rescore_articles(db: CrawlDb, scorer: MyakuArticleScorer) -> None:
 
 
 def main() -> None:
+    """Update the scores of the articles in the crawl db."""
     utils.toggle_myaku_package_log(filename_base=LOG_NAME)
     timer = Timer('rescore')
 

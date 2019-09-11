@@ -22,23 +22,23 @@ _MAX_FACTOR_SCORE = 1000
 class SameTypeComparable(Protocol):
     """Protocol for supporting same type order comparison operators."""
     @abstractmethod
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: Any) -> bool:  # noqa: D105
         pass
 
     @abstractmethod
-    def __lt__(self: T, other: T) -> bool:
+    def __lt__(self: T, other: T) -> bool:  # noqa: D105
         pass
 
     @abstractmethod
-    def __le__(self: T, other: T) -> bool:
+    def __le__(self: T, other: T) -> bool:  # noqa: D105
         pass
 
     @abstractmethod
-    def __gt__(self: T, other: T) -> bool:
+    def __gt__(self: T, other: T) -> bool:  # noqa: D105
         pass
 
     @abstractmethod
-    def __ge__(self: T, other: T) -> bool:
+    def __ge__(self: T, other: T) -> bool:  # noqa: D105
         pass
 
 
@@ -46,7 +46,7 @@ class ValueRangeMultipliers(Generic[C]):
     """Stores the multipliers for all ranges of a value."""
 
     def __init__(self, value_range_tuples: List[Tuple[C, float]]) -> None:
-        """Sets the value ranges the scores should used.
+        """Set the value ranges the scores should used.
 
         Args:
             value_range_tuples: A list of 2-tuples that defines the value
@@ -78,7 +78,7 @@ class ValueRangeMultipliers(Generic[C]):
         self._value_range_tuples = value_range_tuples
 
     def get_value_multiplier(self, value: C) -> float:
-        """Gets multiplier for a value based on which value range it is in."""
+        """Get multiplier for a value based on which value range it is in."""
         for (range_upper_bound, multiplier) in self._value_range_tuples:
             if range_upper_bound is None:
                 return multiplier
@@ -98,7 +98,7 @@ class ArticleFactorScorer(ABC):
 
     @abstractmethod
     def score_article(self, article: JpnArticle) -> int:
-        """Scores an article for the factor for this class.
+        """Score an article for the factor for this class.
 
         Args:
             article: The article to be scored.
@@ -112,10 +112,10 @@ class ArticleFactorScorer(ABC):
 
 
 class HasVideoScorer(ArticleFactorScorer):
-    """Scores based on whether an article has a video or not."""
+    """Scorer based on whether an article has a video or not."""
 
     def score_article(self, article: JpnArticle) -> int:
-        """Scores an article based on whether it has a video or not.
+        """Score an article based on whether it has a video or not.
 
         Args:
             article: The article to be scored.
@@ -129,7 +129,7 @@ class HasVideoScorer(ArticleFactorScorer):
 
 
 class ArticleLengthScorer(ArticleFactorScorer):
-    """Scores based on alnum length of article."""
+    """Scorer based on alnum length of article."""
 
     _LENGTH_RANGE_MULTIPLIERS = ValueRangeMultipliers([
         (100, -1),
@@ -149,7 +149,7 @@ class ArticleLengthScorer(ArticleFactorScorer):
     ])
 
     def score_article(self, article: JpnArticle) -> int:
-        """Scores an article based on its alnum length.
+        """Score an article based on its alnum length.
 
         An alnum length around 500-800 characters is considered the best
         because it is long enough to have plenty of context around lexical item
@@ -169,7 +169,7 @@ class ArticleLengthScorer(ArticleFactorScorer):
 
 
 class PublicationRecencyScorer(ArticleFactorScorer):
-    """Scores based on how recently the article was published."""
+    """Scorer based on how recently the article was published."""
 
     _RECENCY_RANGE_MULTIPLIERS = ValueRangeMultipliers([
         (7, 1),
@@ -182,7 +182,7 @@ class PublicationRecencyScorer(ArticleFactorScorer):
     ])
 
     def score_article(self, article: JpnArticle) -> int:
-        """Scores an article based on the recency of its publication.
+        """Score an article based on the recency of its publication.
 
         The more recently an article was published, the higher it is scored. If
         an article is many years old, it will get a slight negative score.
@@ -200,13 +200,13 @@ class PublicationRecencyScorer(ArticleFactorScorer):
 
 
 class BlogArticleOrderScorer(ArticleFactorScorer):
-    """Scores based on the order position of an article in its blog."""
+    """Scorer based on the order position of an article in its blog."""
 
     _BLOG_FIRST_ARTICLE_MULTIPLIER = 1
     _SECTION_FIRST_ARTICLE_MULTIPLIER = 0.5
 
     def score_article(self, article: JpnArticle) -> int:
-        """Scores an article based on its order position in its blog.
+        """Score an article based on its order position in its blog.
 
         If an article is the first article in a section of a blog, it generally
         will require less context to understand and enjoy reading compared to
@@ -241,7 +241,7 @@ class BlogArticleOrderScorer(ArticleFactorScorer):
 
 
 class BlogRatingScorer(ArticleFactorScorer):
-    """Scores based on the rating of the blog for an article."""
+    """Scorer based on the rating of the blog for an article."""
 
     _FIXED_SOURCE_MULTIPLIER_MAP = {
         'NHK News Web': 0.25,
@@ -260,7 +260,7 @@ class BlogRatingScorer(ArticleFactorScorer):
     ])
 
     def score_article(self, article: JpnArticle) -> int:
-        """Scores an article based on the rating of its blog.
+        """Score an article based on the rating of its blog.
 
         The way blogs are rated depends on the source of the article, so a
         different scheme is used for each source, but generally, articles with
@@ -288,7 +288,7 @@ class BlogRatingScorer(ArticleFactorScorer):
             )
 
     def _score_kakuyomu_article(self, article: JpnArticle) -> int:
-        """Scores a Kakuyomu article based on the star rating of its series.
+        """Score a Kakuyomu article based on the star rating of its series.
 
         Args:
             article: The Kakuyomu article to be scored.
@@ -313,7 +313,7 @@ class FoundLexicalItemModifierFactorScorer(ABC):
 
     @abstractmethod
     def score_fli_modifier(self, fli: FoundJpnLexicalItem) -> int:
-        """Scores a found lexical item modifier for the factor for this class.
+        """Score a found lexical item modifier for the factor for this class.
 
         Args:
             fli: The found lexical item whose modifier to score.
@@ -328,7 +328,7 @@ class FoundLexicalItemModifierFactorScorer(ABC):
 
 
 class TermFrequencyScorer(FoundLexicalItemModifierFactorScorer):
-    """Scores based on how many times the fli is used in its article."""
+    """Scorer based on how many times the fli is used in its article."""
 
     _TERM_FREQUENCY_RANGE_MULTIPLIERS = ValueRangeMultipliers([
         (1, 0),
@@ -339,7 +339,7 @@ class TermFrequencyScorer(FoundLexicalItemModifierFactorScorer):
     ])
 
     def score_fli_modifier(self, fli: FoundJpnLexicalItem) -> int:
-        """Scores an fli modifier based on its term frequency in its article.
+        """Score an fli modifier based on its term frequency in its article.
 
         If the found lexical item is used more times in an article, then it
         will have a higher modifier score.

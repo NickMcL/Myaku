@@ -108,7 +108,7 @@ class JpnArticleBlog(Crawlable):
     in_serialization: bool = None
 
     def __str__(self) -> str:
-        """Returns the title and author in string format."""
+        """Return the title and author in string format."""
         return '{}|{}'.format(self.title, self.author)
 
 
@@ -127,7 +127,7 @@ class ArticleTextPosition(NamedTuple):
     len: int
 
     def slice(self) -> slice:
-        """Returns slice for getting the text segment from its article text."""
+        """Return slice for getting the text segment from its article text."""
         return slice(self.start, self.start + self.len)
 
 
@@ -158,7 +158,7 @@ class JpnArticle(Crawlable):
         quality_score: Quality score for this article determined by Myaku.
         text_hash: The hex digest of the SHA-256 hash of full_text. Evaluated
             automatically lazily after changes to full_text. Read-only.
-        """
+    """
     title: str = None
     author: str = None
     full_text: str = None
@@ -205,7 +205,7 @@ class JpnArticle(Crawlable):
         return self._text_hash
 
     def __str__(self) -> str:
-        """Returns the identifying data for the article in string format."""
+        """Return the identifying data for the article in string format."""
         return '|'.join([
             self.title,
             self.source_url,
@@ -217,7 +217,7 @@ class JpnArticle(Crawlable):
     def get_containing_sentence(
         self, item_pos: ArticleTextPosition
     ) -> Tuple[str, int]:
-        """Gets the sentence containing the lexical item at item_pos.
+        """Get the sentence containing the lexical item at item_pos.
 
         Args:
             item_pos: The position whose containing sentence to get.
@@ -244,7 +244,7 @@ class JpnArticle(Crawlable):
     def group_text_positions_by_sentence(
         self, text_positions: List[ArticleTextPosition]
     ) -> List[SentenceGroup]:
-        """Groups a list of text positions by their containing sentences.
+        """Group a list of text positions by their containing sentences.
 
         Args:
             text_positions: List of of text positions in this article.
@@ -375,7 +375,7 @@ class FoundJpnLexicalItem(object):
         self._base_form = utils.normalize_char_width(set_value)
 
     def get_first_surface_form(self) -> str:
-        """Returns surface form at the first position in found_positions."""
+        """Return surface form at the first position in found_positions."""
         first_pos = self.found_positions[0]
         if first_pos in self._surface_form_cache:
             return self._surface_form_cache[first_pos]
@@ -391,14 +391,14 @@ class FoundJpnLexicalItem(object):
     def cache_surface_form(
         self, surface_form: str, text_pos: ArticleTextPosition
     ) -> None:
-        """Adds surface form to a cache for quick retrieval later."""
+        """Add surface form to a cache for quick retrieval later."""
         self._surface_form_cache[text_pos] = surface_form
 
 
 def _convert_fli_interp_map_to_flis(
     fli_interp_map: FliInterpMap, article_id_map: Dict[int, JpnArticle]
 ) -> List[FoundJpnLexicalItem]:
-    """Converts a found lexical item interpretation map to found lexical items.
+    """Convert a found lexical item interpretation map to found lexical items.
 
     Args:
         fli_interp_map: A mapping from (base form, article) tuples to all of
@@ -437,7 +437,7 @@ def _convert_fli_interp_map_to_flis(
 def reduce_found_lexical_items(
         found_lexical_items: List[FoundJpnLexicalItem]
 ) -> List[FoundJpnLexicalItem]:
-    """Reduces the found lexical items to the minimum size equivalent set.
+    """Reduce the found lexical items to the minimum size equivalent set.
 
     Combines all found lexical items in the set with the same base form and
     article into one item each.

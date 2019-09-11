@@ -10,7 +10,7 @@ APP_DATA_DIR_ENV_VAR = 'MYAKU_APP_DATA_DIR'
 
 
 def get_version_info() -> Dict[str, str]:
-    """Returns a dict with all Myaku-related version info.
+    """Return a dict with all Myaku-related version info.
 
     In addition to the version of this myaku Python package, the returned dict
     includes the versions of the resources outside of the module such as

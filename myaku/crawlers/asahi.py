@@ -18,10 +18,7 @@ _log = logging.getLogger(__name__)
 
 @utils.add_method_debug_logging
 class AsahiCrawler(CrawlerABC):
-    """Crawls articles from the Asahi Shinbun website.
-
-    Only crawls for articles in the non-fiction and essay sections of Kakuyomu.
-    """
+    """Crawler for articles from the Asahi Shinbun website."""
 
     SOURCE_NAME = 'Asahi Shinbun'
     __SOURCE_BASE_URL = 'https://www.asahi.com'
@@ -55,14 +52,14 @@ class AsahiCrawler(CrawlerABC):
 
     @property
     def _SOURCE_BASE_URL(self) -> str:
-        """The base url for accessing the source."""
+        """Return the base url for accessing the source."""
         return self.__SOURCE_BASE_URL
 
     @utils.skip_method_debug_logging
     def _parse_most_recent_article_list_li(
         self, li_tag: Tag, check_ids: bool
     ) -> Optional[JpnArticle]:
-        """Parses the article metadata from a li tag from a most recent list.
+        """Parse the article metadata from a li tag from a most recent list.
 
         Does not parse the article metadata from the li if the article is
         marked as being behind a paywall.
@@ -107,7 +104,7 @@ class AsahiCrawler(CrawlerABC):
     def _crawl_most_recent_page(
         self, url: str, uses_li_ids: bool
     ) -> CrawlGenerator:
-        """Crawls all not yet crawled articles from a most recent page.
+        """Crawl all not yet crawled articles from a most recent page.
 
         Args:
             url: Url for a summary page.
@@ -145,7 +142,7 @@ class AsahiCrawler(CrawlerABC):
     def _parse_editorial_list_dd(
         self, dd_tag: Tag,
     ) -> Optional[JpnArticle]:
-        """Parses the article metadata from a dd tag from an editorial list.
+        """Parse the article metadata from a dd tag from an editorial list.
 
         Does not parse the article metadata from the dd tag if the article is
         marked as being behind a paywall.
@@ -178,7 +175,7 @@ class AsahiCrawler(CrawlerABC):
     def _parse_editorial_archive_tab(
         self, page_soup: BeautifulSoup, tab_id: str
     ) -> List[JpnArticle]:
-        """Parses the article metas from a tab of the editorial archive page.
+        """Parse the article metas from a tab of the editorial archive page.
 
         Args:
             page_soup: BeautifulSoup of the editorial summary page.
@@ -210,7 +207,7 @@ class AsahiCrawler(CrawlerABC):
         return tab_article_metas
 
     def crawl_editorial_archive(self) -> CrawlGenerator:
-        """Crawls not yet crawled articles from the editorial archive page.
+        """Crawl not yet crawled articles from the editorial archive page.
 
         Returns:
             A generator that will yield the data for a not previously crawled
@@ -226,7 +223,7 @@ class AsahiCrawler(CrawlerABC):
         yield from self._crawl_uncrawled_articles(article_metas)
 
     def crawl_column_most_recent(self) -> CrawlGenerator:
-        """Crawls not yet crawled articles from the column most recent page.
+        """Crawl not yet crawled articles from the column most recent page.
 
         Returns:
             A generator that will yield the data for a not previously crawled
@@ -237,7 +234,7 @@ class AsahiCrawler(CrawlerABC):
         )
 
     def crawl_news_daily(self, news_date: date) -> CrawlGenerator:
-        """Crawls not yet crawled articles from a daily news page.
+        """Crawl not yet crawled articles from a daily news page.
 
         Args:
             date: Date of the daily news page to crawl. Only considers the
@@ -252,7 +249,7 @@ class AsahiCrawler(CrawlerABC):
         )
 
     def crawl_news_most_recent(self) -> CrawlGenerator:
-        """Crawls not yet crawled articles from the news most recent page.
+        """Crawl not yet crawled articles from the news most recent page.
 
         Returns:
             A generator that will yield the data for a not previously crawled
@@ -263,7 +260,7 @@ class AsahiCrawler(CrawlerABC):
         )
 
     def get_crawls_for_most_recent(self) -> List[Crawl]:
-        """Gets a list of Crawls for the most recent Asahi articles."""
+        """Get a list of Crawls for the most recent Asahi articles."""
         crawls = []
         news_most_recent_crawl = Crawl(
             self.SOURCE_NAME, 'News most recent', self.crawl_news_most_recent()
@@ -285,7 +282,7 @@ class AsahiCrawler(CrawlerABC):
         return crawls
 
     def _is_paywall_article_page(self, page_soup: BeautifulSoup) -> bool:
-        """Returns True if the given page is a paywall article page."""
+        """Return True if the given page is a paywall article page."""
         title_div = html.select_one_descendant_by_class(
             page_soup, self._ARTICLE_TITLE_DIV_CLASS, 'div'
         )
@@ -301,7 +298,7 @@ class AsahiCrawler(CrawlerABC):
     def _parse_article_title_div(
         self, page_soup: BeautifulSoup, article: JpnArticle
     ) -> None:
-        """Parses the title and datetime for the article from its title div.
+        """Parse the title and datetime for the article from its title div.
 
         Args:
             page_soup: BeautifulSoup of an article page.
@@ -322,7 +319,7 @@ class AsahiCrawler(CrawlerABC):
     def _parse_article_tags(
         self, page_soup: BeautifulSoup, article: JpnArticle
     ) -> None:
-        """Parses the tags for the article from an article page.
+        """Parse the tags for the article from an article page.
 
         Args:
             page_soup: BeautifulSoup of an article page.
@@ -344,7 +341,7 @@ class AsahiCrawler(CrawlerABC):
     def _parse_article_body_text(
         self, page_soup: BeautifulSoup, article: JpnArticle
     ) -> None:
-        """Parses the body text for the article from an article page.
+        """Parse the body text for the article from an article page.
 
         Assumes the title attr is already set on the given article object.
 
@@ -377,7 +374,7 @@ class AsahiCrawler(CrawlerABC):
     def crawl_article(
         self, article_url: str, article_meta: JpnArticle
     ) -> Optional[JpnArticle]:
-        """Crawls an Asahi article page.
+        """Crawl an Asahi article page.
 
         If the page is partially behind a paywall, will not parse the page and
         returns None.

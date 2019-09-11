@@ -5,6 +5,7 @@ import sys
 
 
 def main():
+    """Import Django settings and execute args from the command line."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myakuweb.settings')
     try:
         from django.core.management import execute_from_command_line

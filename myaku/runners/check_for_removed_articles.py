@@ -13,7 +13,7 @@ Usage: check_for_removed_articles.py <source_name> [<last_checked_id>]
 
 import logging
 import sys
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pymongo
 import requests
@@ -26,10 +26,10 @@ from myaku.errors import ScriptArgsError
 
 
 class ArticleRemovedChecker(object):
-    """Tests if articles have been removed from their site."""
+    """Checker for if articles have been removed from their site."""
 
     def __init__(self, request_timeout: int = 30) -> None:
-        """Inits the requests session to use for 404 checks.
+        """Init the requests session to use for 404 checks.
 
         Args:
             request_timeout: Timeout to use for web requests.
@@ -40,7 +40,7 @@ class ArticleRemovedChecker(object):
     @utils.rate_limit(1.5, 3)
     @utils.retry_on_exception(8, utils.REQUEST_RETRY_EXCEPTIONS)
     def check_if_404(self, url: str) -> bool:
-        """Checks if a request to the article url returns a 404 response."""
+        """Check if a request to the article url returns a 404 response."""
         _log.debug('Making GET request to url "%s"', url)
         response = self._session.get(url, timeout=self._timeout)
         _log.debug('Response received with code %s', response.status_code)
@@ -51,7 +51,7 @@ class ArticleRemovedChecker(object):
 
 
 def parse_script_args() -> Tuple[str, Optional[ObjectId]]:
-    """Parses the args given to this script.
+    """Parse the args given to this script.
 
     Returns:
         A 2-tuple with these elements:
@@ -72,9 +72,10 @@ def parse_script_args() -> Tuple[str, Optional[ObjectId]]:
 
 
 def main() -> None:
+    """Check if any articles in the crawl db are no longer reachable."""
     source_name, last_checked_id = parse_script_args()
     with CrawlDb(DataAccessMode.READ_UPDATE) as db:
-        query = {'source_name': source_name}
+        query: Dict[str, Any] = {'source_name': source_name}
         if last_checked_id:
             query['_id'] = {'$gt': ObjectId(last_checked_id)}
         cursor = db._article_collection.find(query, {'source_url': 1})

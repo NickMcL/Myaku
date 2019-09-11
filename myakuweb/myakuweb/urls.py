@@ -1,4 +1,4 @@
-"""myakuweb root URL Configuration"""
+"""myakuweb root URL configuration."""
 from django.urls import include, path
 
 urlpatterns = [

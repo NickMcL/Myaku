@@ -4,14 +4,13 @@ import logging
 import math
 
 from myaku.datatypes import FoundJpnLexicalItem, JpnArticle
-
 from myaku.scorer.factor_scorers import (
     ArticleLengthScorer,
     BlogArticleOrderScorer,
     BlogRatingScorer,
     HasVideoScorer,
     PublicationRecencyScorer,
-    TermFrequencyScorer
+    TermFrequencyScorer,
 )
 
 _log = logging.getLogger(__name__)
@@ -39,7 +38,7 @@ class MyakuArticleScorer(object):
     ]
 
     def score_article(self, article: JpnArticle) -> None:
-        """Scores the quality of an article.
+        """Score the quality of an article.
 
         Sets the score as the quality_score attr of the article.
 
@@ -61,7 +60,7 @@ class MyakuArticleScorer(object):
         article.quality_score = article_score
 
     def score_fli_modifier(self, fli: FoundJpnLexicalItem) -> None:
-        """Determines the article score modifier for a found lexical item.
+        """Determine the article score modifier for a found lexical item.
 
         Sets the score as the quality_score_mod attr of the found lexical item.
 

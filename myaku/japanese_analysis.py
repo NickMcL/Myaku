@@ -23,12 +23,12 @@ from myaku.datatypes import (
     JpnArticle,
     JpnLexicalItemInterp,
     MecabLexicalItemInterp,
-    reduce_found_lexical_items
+    reduce_found_lexical_items,
 )
 from myaku.errors import (
     ResourceLoadError,
     ResourceNotReadyError,
-    TextAnalysisError
+    TextAnalysisError,
 )
 
 _log = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ MecabTags = Tuple[str, ...]
 
 
 def get_resource_version_info() -> Dict[str, str]:
-    """Returns the version info of the resources used by this module.
+    """Return the version info of the resources used by this module.
 
     Includes versions of resources such as Japanese dictionaries and
     morphological analyzers used by this module.
@@ -67,7 +67,7 @@ def get_resource_version_info() -> Dict[str, str]:
 
 
 def _get_mecab_version() -> str:
-    """Returns version of MeCab on the system."""
+    """Return version of MeCab on the system."""
     output = subprocess.run(
         ['mecab-config', '--version'], capture_output=True
     )
@@ -82,7 +82,7 @@ def _get_mecab_version() -> str:
 
 
 def _get_jmdict_version() -> str:
-    """Returns version of JMdict currently used by this module.
+    """Return version of JMdict currently used by this module.
 
     The version for JMdict will be in the form of a date "yyyy.mm.dd". For
     example, 2019.06.11 for the JMdict generated on June 11th, 2019.
@@ -116,7 +116,7 @@ def _get_jmdict_version() -> str:
 
 
 def _get_ipadic_neologd_version() -> str:
-    """Returns version of ipadic-NEologd used by this module.
+    """Return version of ipadic-NEologd used by this module.
 
     The version for ipadic-NEologd will be in the form of a date "yyyy.mm.dd".
     For example, 2019.06.11 for the ipadic-NEologd generated on June 11th,
@@ -154,12 +154,12 @@ def _get_ipadic_neologd_version() -> str:
 
 @utils.singleton_per_config
 class JapaneseTextAnalyzer(object):
-    """Analyzes Japanese text to determine used lexical items."""
+    """Analyzer for Japanese text to determine used lexical items."""
 
     _SYMBOL_PART_OF_SPEECH = '記号'  # Japanese word for symbol (kigou)
 
     def __init__(self) -> None:
-        """Loads the external resources needed for text analysis."""
+        """Load the external resources needed for text analysis."""
         jmdict_xml_filepath = utils.get_value_from_env_variable(
             _JMDICT_XML_FILEPATH_ENV_VAR
         )
@@ -173,7 +173,7 @@ class JapaneseTextAnalyzer(object):
     def find_article_lexical_items(
         self, article: JpnArticle
     ) -> List[FoundJpnLexicalItem]:
-        """Finds all Japanese lexical items in an article.
+        """Find all Japanese lexical items in an article.
 
         Args:
             article: Japnaese article whose full_text will be analyzed to find
@@ -213,7 +213,7 @@ class JapaneseTextAnalyzer(object):
     def _find_lexical_items(
         self, text: str, offset: int, article: JpnArticle
     ) -> List[FoundJpnLexicalItem]:
-        """Finds all Japanese lexical items in a block of text.
+        """Find all Japanese lexical items in a block of text.
 
         Args:
             text: Text block that will be analyzed for lexical items.
@@ -248,7 +248,7 @@ class JapaneseTextAnalyzer(object):
     def _find_meta_lexical_items(
         self, base_lexical_items: List[FoundJpnLexicalItem]
     ) -> List[FoundJpnLexicalItem]:
-        """Finds the meta lexical items within a series of base lexical items.
+        """Find the meta lexical items within a series of base lexical items.
 
         Base lexical items are lexical items that cannot be subdivided into
         multiple lexical items. Meta lexical items are lexical items that
@@ -283,7 +283,7 @@ class JapaneseTextAnalyzer(object):
     def _within_jmdict_max_entry_len(
         self, flis: List[FoundJpnLexicalItem]
     ) -> bool:
-        """Checks if a lexical item series len is <= max JMdict entry len.
+        """Check if a lexical item series len is <= max JMdict entry len.
 
         There are several ways to measure the length of a lexical item series
         (i.e. # of items, len of surface forms, len of base forms), so this
@@ -318,7 +318,7 @@ class JapaneseTextAnalyzer(object):
     def _lookup_meta_lexical_item(
         self, base_decomp: List[FoundJpnLexicalItem]
     ) -> List[FoundJpnLexicalItem]:
-        """Looks up the meta lexical item in JMdict.
+        """Look up the meta lexical item in JMdict.
 
         Args:
             base_decomp: The decomposition of the meta lexical item into base
@@ -370,7 +370,7 @@ class JapaneseTextAnalyzer(object):
 
     @utils.skip_method_debug_logging
     def _is_symbol(self, fli: FoundJpnLexicalItem) -> bool:
-        """Returns True if the Japanese lexical item is a non-alnum symbol.
+        """Return True if the Japanese lexical item is a non-alnum symbol.
 
         Symbols include things like periods, commas, quote characters, etc.
         """
@@ -386,7 +386,7 @@ class JapaneseTextAnalyzer(object):
 
 @dataclass
 class JMdictEntry(object):
-    """Stores the data for an entry from JMdict.
+    """The data for an entry from JMdict.
 
     This class does NOT map exactly to the format official JMdict XML uses to
     store entries. A proper entry from JMdict XML contains all text form
@@ -529,7 +529,7 @@ class JMdict(object):
 
     @dataclass
     class _JMdictSense(object):
-        """Stores the data for a sense element for a JMdict entry.
+        """The data for a sense element for a JMdict entry.
 
         A sense of a JMdict entry holds various info about the entry that can
         apply to some or all of the representational elements of the entry.
@@ -553,6 +553,11 @@ class JMdict(object):
         misc: Tuple[str, ...] = None
 
     def __init__(self, jmdict_xml_filepath: str = None) -> None:
+        """Initialize the JMdict dictionary lookup data structures.
+
+        Args:
+            jmdict_xml_filepath: JMdict XML file to load the JMdict data from.
+        """
         self._entry_map: JMdict.EntryMap = None
         self._mecab_decomp_map: JMdict.MecabDecompMap = None
         self._max_text_form_len: int = None
@@ -625,7 +630,7 @@ class JMdict(object):
     def _add_sense_data(
         self, entries: List[JMdictEntry], senses: List['JMdict._JMdictSense']
     ) -> None:
-        """Adds the data from the sense objs to the entry objs."""
+        """Add the data from the sense objs to the entry objs."""
         for sense in senses:
             for entry in entries:
                 if (sense.applicable_elements is not None
@@ -643,7 +648,7 @@ class JMdict(object):
         self, storage_obj: Any, parent_element: ElementTree.Element,
         element_tags: List[str], required: bool = False
     ) -> None:
-        """Parses text-containing elements and stores the data in a object.
+        """Parse text-containing elements and stores the data in a object.
 
         Args:
             storage_obj: An object with attribute names mapped to by the
@@ -679,7 +684,7 @@ class JMdict(object):
     def _append_to_tuple_attr(
         self, storage_obj: Any, attr_name: str, append_item: str
     ) -> None:
-        """Creates new tuple for attr of storage object with item appended."""
+        """Create new tuple for attr of storage object with item appended."""
         current_val = getattr(storage_obj, attr_name)
         if current_val is None:
             setattr(storage_obj, attr_name, (append_item,))
@@ -690,7 +695,7 @@ class JMdict(object):
     def _find_all_raise_if_none(
         self, tag: str, parent_element: ElementTree.Element
     ) -> List[ElementTree.Element]:
-        """Finds all tag elements in parent, and raises error if none.
+        """Find all tag elements in parent, and raises error if none.
 
         Raises ResourceLoadError if no tag elements are found.
         """
@@ -709,7 +714,7 @@ class JMdict(object):
     def _raise_if_no_text(
         self, element: ElementTree.Element, parent_element: ElementTree.Element
     ) -> None:
-        """Raises ResourceLoadError if no accessible text in element."""
+        """Raise ResourceLoadError if no accessible text in element."""
         if element.text is not None and len(element.text) > 0:
             return
 
@@ -721,7 +726,7 @@ class JMdict(object):
         )
 
     def load_jmdict(self, xml_filepath: str) -> None:
-        """Loads data from a JMdict XML file.
+        """Load data from a JMdict XML file.
 
         Args:
             xml_filepath: Path to an JMdict XML file.
@@ -765,7 +770,7 @@ class JMdict(object):
         return tuple(base_forms)
 
     def _set_max_entry_lens(self) -> None:
-        """Sets the properties for max entry lengths."""
+        """Set the properties for max entry lengths."""
         self._max_text_form_len = max(
             len(text_form) for text_form in self._entry_map.keys()
         )
@@ -774,7 +779,7 @@ class JMdict(object):
         )
 
     def _get_shelf_filepath(self) -> str:
-        """Returns the file path used for the JMdict shelf."""
+        """Return the file path used for the JMdict shelf."""
         shelf_dir = utils.get_value_from_env_variable(
             myaku.APP_DATA_DIR_ENV_VAR
         )
@@ -782,7 +787,7 @@ class JMdict(object):
         return os.path.join(shelf_dir, self._SHELF_FILENAME)
 
     def _load_from_shelf_if_newer(self, comp_timestamp: float) -> bool:
-        """Loads JMdict maps from shelf if shelf is newer than given timestamp.
+        """Load JMdict maps from shelf if shelf is newer than given timestamp.
 
         If the shelf file for JMdict exists and was last modified after the
         given timestamp, loads JMdict data from the shelf.
@@ -836,7 +841,7 @@ class JMdict(object):
         return True
 
     def _write_to_shelf(self) -> None:
-        """Writes current JMdict objects to shelf."""
+        """Write current JMdict objects to shelf."""
         shelf_path = self._get_shelf_filepath()
         _log.debug(
             'Writing current JMdict maps to shelf at "%s"', shelf_path
@@ -847,7 +852,7 @@ class JMdict(object):
             )
 
     def contains_entry(self, entry: Union[str, Tuple[str, ...]]) -> bool:
-        """Tests if entry is in the JMdict entries.
+        """Test if entry is in the JMdict entries.
 
         Args:
             entry: value to check for in the loaded JMdict entries. If a
@@ -872,14 +877,14 @@ class JMdict(object):
         return entry in self._mecab_decomp_map
 
     def __contains__(self, entry: Union[str, Tuple[str, ...]]) -> bool:
-        """Simply calls self.contains_entry."""
+        """Simply call self.contains_entry."""
         return self.contains_entry(entry)
 
     @utils.skip_method_debug_logging
     def get_entries(
         self, entry: Union[str, Tuple[str, ...]]
     ) -> List[JMdictEntry]:
-        """Gets the list of JMdict entries that match the give entry.
+        """Get the list of JMdict entries that match the give entry.
 
         Args:
             entry: value to get matching JMdict entries for. If a string, gets
@@ -907,7 +912,7 @@ class JMdict(object):
     def __getitem__(
         self, entry: Union[str, Tuple[str, ...]]
     ) -> List[JMdictEntry]:
-        """Simply calls self.get_entries."""
+        """Simply call self.get_entries."""
         return self.get_entries(entry)
 
 
@@ -935,7 +940,7 @@ class MecabTagger:
     }
 
     def __init__(self, use_default_ipadic: bool = False) -> None:
-        """Inits the MeCab tagger wrapper.
+        """Init the MeCab tagger wrapper.
 
         Unless use_default_ipadic is True, uses the ipadic-NEologd dictionary
         and will raise a ResourceLoadError if NEologd is not available on the
@@ -959,7 +964,7 @@ class MecabTagger:
     def parse(
         self, text: str, text_offset: int = 0
     ) -> List[FoundJpnLexicalItem]:
-        """Returns the lexical items found by MeCab in the text.
+        """Return the lexical items found by MeCab in the text.
 
         MeCab will give exactly one lexical item interpretation (its best
         guess) for each lexical item found in the text.
@@ -1008,7 +1013,7 @@ class MecabTagger:
         return found_lexical_items
 
     def _parse_mecab_output(self, output: str) -> List[List[str]]:
-        """Parses the individual tags from MeCab chasen output.
+        """Parse the individual tags from MeCab chasen output.
 
         Adjusts some values from the output if they are known problems.
 
@@ -1032,7 +1037,7 @@ class MecabTagger:
         return parsed_tokens
 
     def _adjust_if_known_problem(self, tags: List[str]) -> None:
-        """Adjusts tags for token if known MeCab parsing problem.
+        """Adjust tags for token if known MeCab parsing problem.
 
         MeCab parses some Japanese tokens in ways that cause problems for
         finding lexical items. This function adjusts tags in these cases to fix
@@ -1056,7 +1061,7 @@ class MecabTagger:
     def _create_mecab_interp(
         self, parsed_token_tags: List[str]
     ) -> JpnLexicalItemInterp:
-        """Creates a MecabLexicalItemInterp from the parsed token tags."""
+        """Create a MecabLexicalItemInterp from the parsed token tags."""
         parts_of_speech = tuple(
             parsed_token_tags[3].split(self._POS_SPLITTER)
         )
@@ -1085,7 +1090,7 @@ class MecabTagger:
         self, parsed_token_tags: List[str], interp: JpnLexicalItemInterp,
         offset: int
     ) -> FoundJpnLexicalItem:
-        """Creates a found lexical item from the tags, interp, and offset."""
+        """Create a found lexical item from the tags, interp, and offset."""
         found_lexical_item = FoundJpnLexicalItem(
             base_form=parsed_token_tags[2],
             found_positions=[ArticleTextPosition(
@@ -1101,12 +1106,10 @@ class MecabTagger:
         return found_lexical_item
 
     def _get_mecab_neologd_dict_path(self) -> str:
-        """Finds the path to the NEologd dict in the system.
+        """Find the path to the NEologd dict in the system.
 
         Returns:
             The path to the directory containing the NEologd dictionary.
-
-        Raises:
         """
         output = subprocess.run(
             ['mecab-config', '--version'], capture_output=True

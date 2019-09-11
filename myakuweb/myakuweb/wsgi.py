@@ -1,5 +1,4 @@
-"""
-WSGI config for myakuweb project.
+"""WSGI config for myakuweb project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 

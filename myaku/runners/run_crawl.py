@@ -12,14 +12,14 @@ import math
 import sys
 import time
 from dataclasses import dataclass
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 import myaku.crawlers
 from myaku import utils
 from myaku.crawlers.abc import Crawl
 from myaku.datastore import DataAccessMode
 from myaku.datastore.database import CrawlDb
-from myaku.datatypes import JpnArticle, FoundJpnLexicalItem
+from myaku.datatypes import FoundJpnLexicalItem, JpnArticle
 from myaku.errors import ScriptArgsError
 from myaku.japanese_analysis import JapaneseTextAnalyzer
 from myaku.scorer import MyakuArticleScorer
@@ -48,6 +48,7 @@ class CrawlCounts(object):
     fli_count: int = 0
 
     def __iadd__(self, other) -> 'CrawlCounts':
+        """Add the counts from another CrawlCounts to this one."""
         if not isinstance(other, CrawlCounts):
             raise TypeError(f'Can not add type {type(other)} to CrawlCounts')
 
@@ -60,15 +61,15 @@ class CrawlCounts(object):
     def from_article(
         cls, article: JpnArticle, flis: List[FoundJpnLexicalItem]
     ) -> 'CrawlCounts':
-        """Creates counts for single article with given found lexical items."""
+        """Create counts for single article with given found lexical items."""
         return cls(1, article.alnum_count, len(flis))
 
 
 class CrawlStats(object):
-    """Keeps track of stats for web crawls."""
+    """Stat tracker for web crawls."""
 
     def __init__(self, start_now: bool = True) -> None:
-        """Inits stat tracking vars."""
+        """Init stat tracking vars."""
         self._crawl_counts: Dict[CrawlId, CrawlCounts] = {}
         self._crawl_start_times: Dict[CrawlId, float] = {}
         self._source_counts: Dict[str, CrawlCounts] = {}
@@ -80,17 +81,17 @@ class CrawlStats(object):
             self.start_stat_tracking()
 
     def start_stat_tracking(self) -> None:
-        """Starts stat tracking."""
+        """Start stat tracking."""
         self._overall_start_time = time.perf_counter()
 
     def add_crawl_source(self, source_name: str) -> None:
-        """Adds crawl source whose stats to track."""
+        """Add crawl source whose stats to track."""
         _log.info('\nCrawling %s\n', source_name)
         self._source_counts[source_name] = CrawlCounts()
         self._source_start_times[source_name] = time.perf_counter()
 
     def add_crawl(self, crawl: Crawl) -> None:
-        """Adds crawl whose stats to track."""
+        """Add crawl whose stats to track."""
         _log.info(
             '\nCrawling %s from %s\n', crawl.crawl_name, crawl.source_name
         )
@@ -101,7 +102,7 @@ class CrawlStats(object):
         self, crawl: Crawl, article: JpnArticle,
         flis: List[FoundJpnLexicalItem]
     ) -> None:
-        """Updates a crawl stats with given found article and lexical items."""
+        """Update a crawl stats with given found article and lexical items."""
         _log.info('Found %s lexical items in %s', len(flis), article)
         counts = CrawlCounts.from_article(article, flis)
         self._crawl_counts[crawl.get_id()] += counts
@@ -126,14 +127,14 @@ class CrawlStats(object):
         self._log_stats('{} crawl'.format(source_name), counts, run_secs)
 
     def finish_stat_tracking(self) -> None:
-        """Finializes and prints overall stats."""
+        """Finialize and print overall stats."""
         run_secs = time.perf_counter() - self._overall_start_time
         self._log_stats('Overall', self._overall_counts, run_secs)
 
     def _log_stats(
         self, name: str, counts: CrawlCounts, run_secs: float
     ) -> None:
-        """Logs the given stats in an easily readable format."""
+        """Log the given stats in an easily readable format."""
         str_list = []
         str_list.append(f'{name} stats')
         str_list.append('-' * len(str_list[-1]))
@@ -149,7 +150,7 @@ class CrawlStats(object):
 
 
 def parse_crawler_types_arg() -> List[abc.ABCMeta]:
-    """Parses the crawler types from the argument given to this script."""
+    """Parse the crawler types from the argument given to this script."""
     if len(sys.argv) != 2:
         raise ScriptArgsError(
             'run_crawl.py script given {} args instead of 2: {}'.format(
@@ -175,7 +176,7 @@ def crawl_most_recent(
     crawler_type: abc.ABCMeta, jta: JapaneseTextAnalyzer,
     scorer: MyakuArticleScorer, stats: CrawlStats
 ) -> None:
-    """Runs the most recent articles crawl for the given crawler type."""
+    """Run the most recent articles crawl for the given crawler type."""
     read_write_access = DataAccessMode.READ_WRITE
     with CrawlDb(read_write_access, True) as db, crawler_type() as crawler:
         stats.add_crawl_source(crawler.SOURCE_NAME)
@@ -202,7 +203,7 @@ def crawl_most_recent(
 
 
 def main() -> None:
-    """Runs a full crawl of the top NHK News Web pages."""
+    """Run a most recent crawl for the script arg-specified crawlers."""
     utils.toggle_myaku_package_log(filename_base=LOG_NAME)
     stats = CrawlStats()
     jta = JapaneseTextAnalyzer()

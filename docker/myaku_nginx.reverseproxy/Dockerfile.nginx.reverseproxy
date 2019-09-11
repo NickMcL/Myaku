@@ -2,7 +2,7 @@
 
 FROM nginx:1.17.3 AS base
 
-RUN apt-get update && apt-get install -y wait-for-it
+RUN apt-get update && apt-get install -y netcat
 
 ENV NGINX_STATIC_URL /static/
 ENV NGINX_STATIC_URL_ALIAS /www/static/

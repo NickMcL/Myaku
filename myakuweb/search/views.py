@@ -10,8 +10,11 @@ from django.http.request import HttpRequest
 from django.shortcuts import render
 
 import myaku
-from myaku.datastore import (DataAccessMode, JpnArticleQueryType,
-                             JpnArticleSearchResult)
+from myaku.datastore import (
+    DataAccessMode,
+    JpnArticleQueryType,
+    JpnArticleSearchResult,
+)
 from myaku.datastore.database import CrawlDb
 from myaku.datatypes import JpnArticle
 from search.article_preview import SearchResultArticlePreview
@@ -34,13 +37,13 @@ myaku.utils.toggle_myaku_package_log()
 
 
 def is_very_recent(dt: datetime) -> bool:
-    """Returns True if the datetime is considered very recent."""
+    """Return True if the datetime is considered very recent."""
     days_since_dt = (datetime.utcnow() - dt).days
     return days_since_dt <= _VERY_RECENT_DAYS
 
 
 def get_day_ordinal_suffix(day: int) -> str:
-    """Gets the ordinal suffix for a day (e.g. 1 -> st, 2 -> nd, ...)."""
+    """Get the ordinal suffix for a day (e.g. 1 -> st, 2 -> nd, ...)."""
     if not (1 <= day <= 31):
         raise ValueError('Not a valid day of the month: {}'.format(day))
 
@@ -50,7 +53,7 @@ def get_day_ordinal_suffix(day: int) -> str:
 
 
 def humanize_date(dt: datetime) -> str:
-    """Converts the datetime to a string with a nice human-readable date.
+    """Convert the datetime to a string with a nice human-readable date.
 
     Args:
         dt: datetime to convert.
@@ -126,7 +129,7 @@ class SearchResultMatchingSentence(object):
     segments: List[SearchResultMatchingSentenceSegment]
 
     def trim_whitespace(self):
-        """Strips surrounding whitespace from the edge segments."""
+        """Strip surrounding whitespace from the edge segments."""
         self.segments[0].segment_text = (
             self.segments[0].segment_text.lstrip()
         )
@@ -136,10 +139,10 @@ class SearchResultMatchingSentence(object):
 
 
 class QueryResourceLinks(object):
-    """Creates and manages all resource links for a query."""
+    """Manager for all resource links for a query."""
 
     def __init__(self, query: str) -> None:
-        """Creates the resource link sets for the given query."""
+        """Create the resource link sets for the given query."""
         self._query = query
         self._match_type = QueryMatchType.EXACT_MATCH
 
@@ -149,7 +152,7 @@ class QueryResourceLinks(object):
         self.resource_link_sets.append(self._create_jpn_dict_links())
 
     def _create_jpn_eng_dict_links(self) -> ResourceLinkSet:
-        """Creates link set for Jpn->Eng dictionary sites."""
+        """Create link set for Jpn->Eng dictionary sites."""
         link_set = ResourceLinkSet('Jpn-Eng Dictionaries', [])
         link_set.resource_links.append(self._create_jisho_query_link())
         link_set.resource_links.append(self._create_weblio_ejje_query_link())
@@ -157,7 +160,7 @@ class QueryResourceLinks(object):
         return link_set
 
     def _create_jisho_query_link(self) -> ResourceLink:
-        """Creates a link to query Jisho.org."""
+        """Create a link to query Jisho.org."""
         website_name = 'Jisho.org'
         template_url = 'https://jisho.org/search/{}'
 
@@ -168,7 +171,7 @@ class QueryResourceLinks(object):
         return ResourceLink(website_name, template_url.format(self._query))
 
     def _create_alc_query_link(self) -> ResourceLink:
-        """Creates a link to query ALC.
+        """Create a link to query ALC.
 
         ALC doesn't support different query types, so match_type is not used.
         """
@@ -178,7 +181,7 @@ class QueryResourceLinks(object):
         )
 
     def _create_weblio_ejje_query_link(self) -> ResourceLink:
-        """Creates a link to query Weblio's Jpn->Eng dictionary."""
+        """Create a link to query Weblio's Jpn->Eng dictionary."""
         website_name = 'Weblio EJJE'
         template_url = 'https://ejje.weblio.jp/content{{}}/{}'.format(
             self._query
@@ -196,7 +199,7 @@ class QueryResourceLinks(object):
             )
 
     def _create_sample_sentence_links(self) -> ResourceLinkSet:
-        """Creates link set for Jpn->Eng sample sentence sites."""
+        """Create link set for Jpn->Eng sample sentence sites."""
         link_set = ResourceLinkSet('Jpn-Eng Sample Sentences', [])
         link_set.resource_links.append(self._create_tatoeba_query_link())
         link_set.resource_links.append(
@@ -206,7 +209,7 @@ class QueryResourceLinks(object):
         return link_set
 
     def _create_weblio_sentences_query_link(self) -> ResourceLink:
-        """Creates a link to query Weblio's Jpn->Eng sample sentence search.
+        """Create a link to query Weblio's Jpn->Eng sample sentence search.
 
         Weblio's sample sentence search doesn't support different query types,
         so match_type is not used.
@@ -217,7 +220,7 @@ class QueryResourceLinks(object):
         )
 
     def _create_tatoeba_query_link(self) -> ResourceLink:
-        """Creates a link to query the Tatoeba sample sentence project."""
+        """Create a link to query the Tatoeba sample sentence project."""
         website_name = 'Tatoeba'
         template_url = (
             'https://tatoeba.org/eng/sentences/search?query={}'
@@ -238,7 +241,7 @@ class QueryResourceLinks(object):
             )
 
     def _create_jpn_dict_links(self) -> ResourceLinkSet:
-        """Creates link set for Japanese dictionary sites."""
+        """Create link set for Japanese dictionary sites."""
         link_set = ResourceLinkSet('Jpn Dictionaries', [])
         link_set.resource_links.append(self._create_goo_query_link())
         link_set.resource_links.append(self._create_weblio_jpn_query_link())
@@ -246,7 +249,7 @@ class QueryResourceLinks(object):
         return link_set
 
     def _create_goo_query_link(self) -> ResourceLink:
-        """Creates a link to query Goo."""
+        """Create a link to query Goo."""
         website_name = 'Goo'
         template_url = 'https://dictionary.goo.ne.jp/srch/all/{}/{{}}/'.format(
             self._query
@@ -259,7 +262,7 @@ class QueryResourceLinks(object):
             return ResourceLink(website_name, template_url.format('m2u'))
 
     def _create_weblio_jpn_query_link(self) -> ResourceLink:
-        """Creates a link to query Weblio's JPN dictionary."""
+        """Create a link to query Weblio's JPN dictionary."""
         website_name = 'Weblio'
         template_url = 'https://www.weblio.jp/content{{}}/{}'.format(
             self._query
@@ -281,7 +284,7 @@ class QueryArticleResultSet(object):
     """The set of article results of a query of the Myaku db."""
 
     def __init__(self, query: str, match_type: JpnArticleQueryType) -> None:
-        """Queries the Myaku db to get the article result set for query."""
+        """Query the Myaku db to get the article result set for query."""
         if query:
             with CrawlDb(DataAccessMode.READ) as db:
                 self._result_articles = db.search_articles(
@@ -304,7 +307,7 @@ class QueryArticleResult(object):
     """A single article result of a query of the Myaku db."""
 
     def __init__(self, search_result: JpnArticleSearchResult) -> None:
-        """Populates article result data using given search result."""
+        """Populate article result data using given search result."""
         self.article = search_result.article
         self.matched_base_forms = search_result.matched_base_forms
         self.quality_score = search_result.quality_score
@@ -325,7 +328,7 @@ class QueryArticleResult(object):
     def _should_display_last_updated_datetime(
         self, article: JpnArticle
     ) -> bool:
-        """Determines if last updated datetime should be displayed for article.
+        """Determine if last updated datetime should be displayed for article.
 
         The last updated datetime is not worth displaying if it's close to the
         publication date.
@@ -363,7 +366,7 @@ class QueryArticleResult(object):
         return False
 
     def _get_tags(self, article: JpnArticle) -> List[str]:
-        """Gets the tags applicable for the article."""
+        """Get the tags applicable for the article."""
         tag_strs = []
         for len_group in _ARTICLE_LEN_GROUPS:
             if article.alnum_count < len_group[0]:

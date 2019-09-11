@@ -75,27 +75,27 @@ arg_parser.add_argument(
 
 
 def red_text(text: str) -> str:
-    """Makes text green in console output."""
+    """Make text green in console output."""
     return _RED + text + _ENDC
 
 
 def green_text(text: str) -> str:
-    """Makes text green in console output."""
+    """Make text green in console output."""
     return _GREEN + text + _ENDC
 
 
 def blue_text(text: str) -> str:
-    """Makes text blue in console output."""
+    """Make text blue in console output."""
     return _BLUE + text + _ENDC
 
 
 def log_blue(msg: str, *args, **kwargs) -> None:
-    """Logs an info message in blue in the console output."""
+    """Log an info message in blue in the console output."""
     _log.info(blue_text(msg), *args, **kwargs)
 
 
 def setup_logger() -> logging.Logger:
-    """Sets up the logger for the script.
+    """Set up the logger for the script.
 
     Writes the log to stdout.
 
@@ -124,7 +124,7 @@ def setup_logger() -> logging.Logger:
 
 
 def run_docker_subprocess(cmd: List[str], **kwargs) -> CompletedProcess:
-    """Runs a subprocess for a docker CLI command.
+    """Run a subprocess for a docker CLI command.
 
     Suppresses output of the command and checks the return code.
 
@@ -150,7 +150,7 @@ def run_docker_subprocess(cmd: List[str], **kwargs) -> CompletedProcess:
 
 
 def init_docker_swarm() -> None:
-    """Initializes docker swarm on the docker engine for the tests."""
+    """Initialize docker swarm on the docker engine for the tests."""
     docker_client = docker.from_env()
 
     # If swarm.attrs is not empty, the docker engine is already part of a
@@ -162,7 +162,7 @@ def init_docker_swarm() -> None:
 
 
 def get_test_stacks() -> List[str]:
-    """Gets a list of all of the currently live test stacks.
+    """Get a list of all of the currently live test stacks.
 
     A stack is considered a test stack if its name begins with
     _TEST_STACK_NAME_PREFIX.
@@ -180,7 +180,7 @@ def get_test_stacks() -> List[str]:
 
 
 def attempt_remove_docker_obj(docker_obj: Any) -> None:
-    """Attempts to remove the given docker object.
+    """Attempt to remove the given docker object.
 
     Can remove any docker object as long as it has a remove() method.
 
@@ -196,7 +196,7 @@ def attempt_remove_docker_obj(docker_obj: Any) -> None:
 
 
 def teardown_test_stacks() -> None:
-    """Attempts to removes any docker objects created by test stacks.
+    """Attempt to removes any docker objects created by test stacks.
 
     Attempts to remove all stacks, services, containers, secrets, configs,
     networks, and volumes created by test stacks.
@@ -240,7 +240,7 @@ class TestMyakuStack(object):
 
     # Seconds to wait for all of the containers for the stack to be running
     # before raising an error.
-    _CONTAINER_STARTUP_TIMEOUT = 20
+    _CONTAINER_STARTUP_TIMEOUT = 30
 
     # Paths are relative to the Myaku project root directory.
     _STACK_IMAGE_BUILD_SPECS = [
@@ -293,7 +293,7 @@ class TestMyakuStack(object):
 
     @staticmethod
     def apply_script_args(script_args: argparse.Namespace) -> None:
-        """Applys the script args related to test stack creation.
+        """Apply the script args related to test stack creation.
 
         Args:
             config_args: A argparse.Namespace with the args given to this
@@ -302,7 +302,7 @@ class TestMyakuStack(object):
         TestMyakuStack.use_existing_images = script_args.use_existing_images
 
     def __init__(self) -> None:
-        """Deploys a new Myaku docker stack for testing."""
+        """Deploy a new Myaku docker stack for testing."""
         self._docker_client = docker.from_env()
         self._myaku_project_dir = os.environ[_MYAKU_PROJECT_DIR_ENV_VAR]
 
@@ -327,15 +327,15 @@ class TestMyakuStack(object):
             raise
 
     def __enter__(self) -> 'TestMyakuStack':
-        """Builds and deploys a Myaku test stack."""
+        """Build and deploy a Myaku test stack."""
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
-        """Tears down the deployed test stack."""
+        """Tear down the deployed test stack."""
         self.teardown()
 
     def teardown(self) -> None:
-        """Tears down the deployed test stack.
+        """Tear down the deployed test stack.
 
         Does NOT remove the volumes for the test stack.
         """
@@ -343,7 +343,7 @@ class TestMyakuStack(object):
         run_docker_subprocess(['docker', 'stack', 'rm', self.stack_name])
 
     def _build_stack_images(self) -> None:
-        """Builds the test prod images to use in the stack."""
+        """Build the test prod images to use in the stack."""
         if TestMyakuStack._test_images_built:
             return
 
@@ -367,7 +367,7 @@ class TestMyakuStack(object):
         TestMyakuStack._test_images_built = True
 
     def _get_no_image_test_compose(self) -> str:
-        """Gets the test docker compose file data without the image: lines.
+        """Get the test docker compose file data without the image: lines.
 
         The file data can then be used with the base docker compose file to run
         the Myaku stack with the current prod images.
@@ -386,7 +386,7 @@ class TestMyakuStack(object):
         return ''.join(no_image_test_compose_lines)
 
     def _deploy_stack_using_prod_images(self) -> None:
-        """Deploys the Myaku test stack using current prod images.
+        """Deploy the Myaku test stack using current prod images.
 
         The images specified in the current base docker compose file
         (./docker/docker-compose.yml) are used.
@@ -409,7 +409,7 @@ class TestMyakuStack(object):
         log_blue('Stack %s created', self.stack_name)
 
     def _deploy_stack_using_test_images(self) -> None:
-        """Deploys the Myaku test stack using the :test tagged images."""
+        """Deploy the Myaku test stack using the :test tagged images."""
         _log.debug('Using :test tagged images')
         test_compose_filepath = os.path.join(
             self._myaku_project_dir, 'docker/docker-compose.test.yml'
@@ -431,7 +431,7 @@ class TestMyakuStack(object):
         log_blue('Stack %s created', self.stack_name)
 
     def _log_stack_debug_info(self) -> None:
-        """Logs debug info for all of the services in the stack."""
+        """Log debug info for all of the services in the stack."""
         services = self._docker_client.services.list(
             filters={'name': self.stack_name}
         )
@@ -447,7 +447,7 @@ class TestMyakuStack(object):
             _log.debug('\n%s service logs:\n%s', service.name, logs)
 
     def _wait_for_all_containers_running(self) -> None:
-        """Waits for all containers for the test stack to be running.
+        """Wait for all containers for the test stack to be running.
 
         Deploying a docker stack creates all the services for the stack, but it
         can still take some time after the services are created for all of
@@ -493,7 +493,7 @@ class TestMyakuStack(object):
         _log.debug('Stack %s containers all started', self.stack_name)
 
     def _get_container(self, name_prefix: str) -> Container:
-        """Gets the running container with the given name prefix."""
+        """Get the running container with the given name prefix."""
         for container in self._docker_client.containers.list():
             if container.name.startswith(name_prefix):
                 return container
@@ -501,11 +501,11 @@ class TestMyakuStack(object):
         raise RuntimeError(f'Could not get {name_prefix} container')
 
     def get_crawler_container(self) -> Container:
-        """Gets the crawler service container for this test stack."""
+        """Get the crawler service container for this test stack."""
         return self._get_container(self.stack_name + '_crawler')
 
     def link_to_reverseproxy(self) -> str:
-        """Creates a network linking to the reverseproxy service.
+        """Create a network linking to the reverseproxy service.
 
         Creates a bridge network with docker between the test runner container
         running this script and the reverseproxy service container in the test
@@ -535,10 +535,10 @@ class TestMyakuStack(object):
 
 
 class TestRunner(object):
-    """Runs the Myaku test suites and tracks their results."""
+    """Run the Myaku test suites and track their results."""
 
     def __init__(self, use_existing_images: bool) -> None:
-        """Sets up the test runner to track test results.
+        """Set up the test runner to track test results.
 
         Args:
             use_existing_images: Instead of building new prod images for the
@@ -551,14 +551,14 @@ class TestRunner(object):
         self._myaku_project_dir = os.environ[_MYAKU_PROJECT_DIR_ENV_VAR]
 
     def run_crawler_tests(self) -> None:
-        """Runs all of the tests for the crawler service."""
+        """Run all of the tests for the crawler service."""
         with TestMyakuStack() as test_stack:
             crawler_container = test_stack.get_crawler_container()
             self._run_crawler_unit_tests(crawler_container)
             self._run_crawler_end_to_end_test(crawler_container)
 
     def run_web_tests(self) -> None:
-        """Runs all of the tests for the Myaku web services."""
+        """Run all of the tests for the Myaku web services."""
         with TestMyakuStack() as test_stack:
             reverseproxy_host = test_stack.link_to_reverseproxy()
             os.environ[_REVERSEPROXY_HOST_ENV_VAR] = reverseproxy_host
@@ -566,7 +566,7 @@ class TestRunner(object):
             self._run_web_selenium_tests()
 
     def _run_crawler_unit_tests(self, container: Container) -> None:
-        """Runs the unit test suite for the crawler.
+        """Run the unit test suite for the crawler.
 
         Args:
             container: The crawler container to run the tests in.
@@ -584,7 +584,7 @@ class TestRunner(object):
         self._log_test_result('crawler unit', completed.returncode)
 
     def _run_crawler_end_to_end_test(self, container: Container) -> None:
-        """Runs the end to end test for the crawler.
+        """Run the end to end test for the crawler.
 
         Args:
             container: The crawler container to run the tests in.
@@ -602,7 +602,7 @@ class TestRunner(object):
         self._log_test_result('crawler end-to-end', completed.returncode)
 
     def _run_web_selenium_tests(self) -> None:
-        """Runs the selenium web driver tests for Myaku web.
+        """Run the selenium web driver tests for Myaku web.
 
         Unlike the crawler tests, these tests are run inside the test runner
         container, but the tests use selenium to make http requests to the test
@@ -621,7 +621,7 @@ class TestRunner(object):
         self._log_test_result('web selenium', returncode)
 
     def _log_test_result(self, test_name: str, returncode: int) -> None:
-        """Logs the results for a test.
+        """Log the results for a test.
 
         Args:
             test_name: Name of the test.
@@ -636,7 +636,7 @@ class TestRunner(object):
             self._test_results[test_name] = 'FAILED'
 
     def log_overall_results(self) -> int:
-        """Logs the overall test results.
+        """Log the overall test results.
 
         Returns:
             0 if all tests passed, 1 if not all tests passed.
@@ -657,6 +657,7 @@ class TestRunner(object):
 
 
 def main() -> None:
+    """Run all of the test suites for the Myaku project."""
     script_args = arg_parser.parse_args()
     TestMyakuStack.apply_script_args(script_args)
 

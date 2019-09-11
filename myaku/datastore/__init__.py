@@ -52,14 +52,14 @@ class DataAccessMode(enum.Enum):
     READ_WRITE = 3
 
     def has_update_permission(self) -> bool:
-        """Returns True if the access mode as update permission."""
+        """Return True if the access mode as update permission."""
         return (
             self is DataAccessMode.READ_UPDATE
             or self is DataAccessMode.READ_WRITE
         )
 
     def has_write_permission(self) -> bool:
-        """Returns True if the access mode as write permission."""
+        """Return True if the access mode as write permission."""
         return self is DataAccessMode.READ_WRITE
 
 
@@ -108,7 +108,7 @@ class JpnArticleQueryType(enum.Enum):
 
 
 def require_write_permission(func: Callable) -> Callable:
-    """Checks that the client has db write permission before running func.
+    """Check that the client has db write permission before running func.
 
     Can only be used to wrap db class methods for a db class with a access_mode
     member variable.
@@ -133,7 +133,7 @@ def require_write_permission(func: Callable) -> Callable:
 
 
 def require_update_permission(func: Callable) -> Callable:
-    """Checks that the client has db update permission before running func.
+    """Check that the client has db update permission before running func.
 
     Can only be used to wrap db class methods for a db class with a access_mode
     member variable.

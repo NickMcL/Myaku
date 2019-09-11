@@ -43,7 +43,7 @@ class Crawl(object):
     crawl_gen: CrawlGenerator
 
     def get_id(self) -> Tuple[str, str]:
-        """Gets the unique id tuple for this crawl."""
+        """Get the unique id tuple for this crawl."""
         return (self.source_name, self.crawl_name)
 
 
@@ -66,12 +66,12 @@ class CrawlerABC(ABC):
     @property
     @abstractmethod
     def _SOURCE_BASE_URL(self) -> str:
-        """The base url for accessing the source."""
+        """Return the base url for accessing the source."""
         raise NotImplementedError()
 
     @abstractmethod
     def get_crawls_for_most_recent(self) -> List[Crawl]:
-        """Gets a list of Crawls for the most recent articles from the source.
+        """Get a list of Crawls for the most recent articles from the source.
 
         The returned crawls should cover new articles from the source from the
         last 24 hours at minimum.
@@ -82,7 +82,7 @@ class CrawlerABC(ABC):
     def crawl_article(
         self, article_url: str, article_meta: JpnArticle
     ) -> JpnArticle:
-        """Crawls a article page for a single article from the source.
+        """Crawl a article page for a single article from the source.
 
         Args:
             article_url: Url for the article page.
@@ -96,7 +96,7 @@ class CrawlerABC(ABC):
         raise NotImplementedError()
 
     def crawl_blog(self, blog_url: str) -> CrawlGenerator:
-        """Crawls a blog page for a single blog from the source.
+        """Crawl a blog page for a single blog from the source.
 
         Unlike crawl_article which is abstract and needs to be overriden by any
         child Crawler class, only sources with a blog concept need to override
@@ -113,7 +113,7 @@ class CrawlerABC(ABC):
 
     @utils.add_debug_logging
     def __init__(self, timeout: int = 30) -> None:
-        """Initializes the resources used by the crawler.
+        """Initialize the resources used by the crawler.
 
         Args:
             timeout: The timeout to use on all web requests.
@@ -124,7 +124,7 @@ class CrawlerABC(ABC):
 
     @utils.add_debug_logging
     def _init_web_driver(self) -> webdriver.Firefox:
-        """Inits the web driver for the crawler."""
+        """Init the web driver for the crawler."""
         if not self._REQUIRES_WEB_DRIVER:
             return None
 
@@ -137,7 +137,7 @@ class CrawlerABC(ABC):
 
     @utils.add_debug_logging
     def close(self) -> None:
-        """Closes the resources used by the crawler."""
+        """Close the resources used by the crawler."""
         if self._session:
             self._session.close()
         if self._web_driver:
@@ -145,17 +145,17 @@ class CrawlerABC(ABC):
 
     @utils.add_debug_logging
     def __enter__(self) -> 'CrawlerABC':
-        """Returns an initialized instance of the crawler."""
+        """Return an initialized instance of the crawler."""
         return self
 
     @utils.add_debug_logging
     def __exit__(self, exc_type, exc_value, exc_traceback) -> None:
-        """Closes the resources used by the crawler."""
+        """Close the resources used by the crawler."""
         self.close()
 
     @utils.add_debug_logging
     def _get_url_json(self, url: str) -> Dict[str, Any]:
-        """Makes a GET request to get JSON from a url.
+        """Make a GET request to get JSON from a url.
 
         Args:
             url: Url to get the JSON from.
@@ -174,7 +174,7 @@ class CrawlerABC(ABC):
     def _get_url_html_soup(
         self, url: str, raise_on_404: bool = True
     ) -> BeautifulSoup:
-        """Makes a GET request and returns a BeautifulSoup of the contents.
+        """Make a GET request and returns a BeautifulSoup of the contents.
 
         Args:
             url: Url to make the GET request to.
@@ -204,7 +204,7 @@ class CrawlerABC(ABC):
     def _make_get_request(
         self, url: str, raise_on_404: bool = True
     ) -> requests.Response:
-        """Makes a GET request to given url and returns the response.
+        """Make a GET request to given url and returns the response.
 
         Args:
             url: Url to make the GET request to.
@@ -238,7 +238,7 @@ class CrawlerABC(ABC):
     def _prep_uncrawled_items_for_crawl(
         self, crawlable_items: List[Crawlable_co]
     ) -> List[Crawlable_co]:
-        """Gets uncrawled items from the list and preps them for crawling.
+        """Get uncrawled items from the list and preps them for crawling.
 
         Args:
             crawlable_items: List of crawlable items.
@@ -270,7 +270,7 @@ class CrawlerABC(ABC):
     def _crawl_uncrawled_articles(
         self, article_metas: List[JpnArticle]
     ) -> CrawlGenerator:
-        """Crawls not yet crawled articles specified by the article metas.
+        """Crawl not yet crawled articles specified by the article metas.
 
         Args:
             article_metas: List of article metadatas whose articles to crawl if
@@ -303,7 +303,7 @@ class CrawlerABC(ABC):
     def _crawl_updated_blogs(
         self, blogs: List[JpnArticleBlog]
     ) -> CrawlGenerator:
-        """Crawls the blogs that have been updated since last crawled.
+        """Crawl the blogs that have been updated since last crawled.
 
         Args:
             blogs: List of blogs to check. The blogs that have been updated

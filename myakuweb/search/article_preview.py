@@ -4,7 +4,7 @@ import logging
 import re
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Iterable, List, Tuple, Set
+from typing import Deque, Iterable, List, Set, Tuple
 
 from myaku import utils
 from myaku.datastore import JpnArticleSearchResult
@@ -27,7 +27,7 @@ _WHITESPACE_REGEX = re.compile(r'\s+')
 
 
 def _collapse_whitespace(text: str) -> str:
-    """Collapses blocks of whitespace in text into single spaces.
+    r"""Collapse blocks of whitespace in text into single spaces.
 
     Collapses whitespace into a full-width space (\u3000).
     """
@@ -37,7 +37,7 @@ def _collapse_whitespace(text: str) -> str:
 def _sentence_group_preview_quality_key(
     sentence_group: Tuple[ArticleTextPosition, Tuple[ArticleTextPosition, ...]]
 ) -> Tuple[int, int]:
-    """Determines preview quality value of article sentence for sorting.
+    """Determine preview quality value of article sentence for sorting.
 
     Args:
         sentence_group: Sentence group returned by
@@ -91,7 +91,7 @@ class PreviewSampleText(object):
     segments: List[PreviewSampleTextSegment]
 
     def get_humanized_text_position(self) -> str:
-        """Gets a humanized string of the position of the text in article."""
+        """Get a humanized string of the position of the text in article."""
         if self.text_start_index < len(self.article.title):
             return 'Article title'
 
@@ -102,12 +102,12 @@ class PreviewSampleText(object):
 
 
 def _segments_len(segments: Iterable[PreviewSampleTextSegment]) -> int:
-    """Returns the summed len of all of the segments in the list."""
+    """Return the summed len of all of the segments in the list."""
     return sum(len(s.text) for s in segments)
 
 
 class SearchResultArticlePreview(object):
-    """Creates an appropriate preview of the article for a search result.
+    """Preview of the article for a search result.
 
     An appropriate preview of an article is one that gives a decent view of how
     the queried term is used in the article without showing too much of the
@@ -123,7 +123,7 @@ class SearchResultArticlePreview(object):
     """
 
     def __init__(self, search_result: JpnArticleSearchResult) -> None:
-        """Creates an article preview for the given search result."""
+        """Create an article preview for the given search result."""
         self._article = search_result.article
         sentence_groups = self._article.group_text_positions_by_sentence(
             search_result.found_positions
@@ -147,7 +147,7 @@ class SearchResultArticlePreview(object):
             Tuple[ArticleTextPosition, Tuple[ArticleTextPosition, ...]]
         ]
     ) -> List[PreviewSampleText]:
-        """Creates all the samples texts to use for the preview.
+        """Create all the samples texts to use for the preview.
 
         Args:
             sentence_groups: List of tuples mapping the positions of each
@@ -183,7 +183,7 @@ class SearchResultArticlePreview(object):
         self, sentence_position: ArticleTextPosition,
         found_positions: Tuple[ArticleTextPosition, ...]
     ) -> PreviewSampleText:
-        """Creates a sample text from a sentence and matching text positions.
+        """Create a sample text from a sentence and matching text positions.
 
         Args:
             sentence_positions: Position of a sentence in the article for the
@@ -217,7 +217,7 @@ class SearchResultArticlePreview(object):
         self, sample_position: ArticleTextPosition,
         found_positions: Tuple[ArticleTextPosition, ...]
     ) -> List[PreviewSampleTextSegment]:
-        """Creates the text segments for a preview sample text.
+        """Create the text segments for a preview sample text.
 
         Args:
             sample_position: Article position of the sampel text.
@@ -255,7 +255,7 @@ class SearchResultArticlePreview(object):
     def _get_max_query_match_bounds(
         self, sample_text: PreviewSampleText
     ) -> Tuple[int, int]:
-        """Gets the bounds of the segments for the max acceptable query match.
+        """Get the bounds of the segments for the max acceptable query match.
 
         The max acceptable query match section is the continuous section of the
         sample text segments that has the most text positions matching the
@@ -303,7 +303,7 @@ class SearchResultArticlePreview(object):
         sub_segs: Deque[PreviewSampleTextSegment],
         sub_start_index: int, sub_end_index: int
     ) -> int:
-        """Appends segs to sub segs using full left remainder right strategy.
+        """Append segs to sub segs using full left remainder right strategy.
 
         In this strategy, all segments to the left of the sub segment list are
         appended to its left, then characters from the segments to the right of
@@ -339,7 +339,7 @@ class SearchResultArticlePreview(object):
         sub_segs: Deque[PreviewSampleTextSegment],
         sub_start_index: int, sub_end_index: int
     ) -> int:
-        """Appends segs to sub segs using full right remainder left strategy.
+        """Append segs to sub segs using full right remainder left strategy.
 
         In this strategy, all segments to the right of the sub segment list are
         appended to its right, then characters from the segments to the left of
@@ -378,7 +378,7 @@ class SearchResultArticlePreview(object):
         sub_segs: Deque[PreviewSampleTextSegment],
         sub_start_index: int, sub_end_index: int
     ) -> int:
-        """Appends segs to sub segs using left right balance strategy.
+        """Append segs to sub segs using left right balance strategy.
 
         In this strategy, characters from the segments to the left and right of
         sub segment list are evenly appended until the total length of the sub
@@ -419,7 +419,7 @@ class SearchResultArticlePreview(object):
         return left_added_chars
 
     def _trim_sample_text(self, sample_text: PreviewSampleText) -> None:
-        """Trims the sample text to be within the acceptable max length.
+        """Trim the sample text to be within the acceptable max length.
 
         Potentially can modify the text_len, text_start_index, and segments
         attrs of the given sample text object.
@@ -440,14 +440,14 @@ class SearchResultArticlePreview(object):
         if trimmed_len >= _MAX_ACCEPTABLE_SAMPLE_LEN:
             left_added_chars = 0
         elif (trimmed_len + chars_from_start
-                + _MIN_CHARS_BETWEEN_MATCH_AND_TRIM
-                <= _MAX_ACCEPTABLE_SAMPLE_LEN):
+              + _MIN_CHARS_BETWEEN_MATCH_AND_TRIM
+              <= _MAX_ACCEPTABLE_SAMPLE_LEN):
             left_added_chars = self._append_segments_full_left_remainder_right(
                 segs, trimmed_segs, max_match_start, max_match_end
             )
         elif (trimmed_len + chars_to_end
-                + _MIN_CHARS_BETWEEN_MATCH_AND_TRIM
-                <= _MAX_ACCEPTABLE_SAMPLE_LEN):
+              + _MIN_CHARS_BETWEEN_MATCH_AND_TRIM
+              <= _MAX_ACCEPTABLE_SAMPLE_LEN):
             left_added_chars = self._append_segments_full_right_remainder_left(
                 segs, trimmed_segs, max_match_start, max_match_end
             )
@@ -464,7 +464,7 @@ class SearchResultArticlePreview(object):
         self, segs: Iterable[PreviewSampleTextSegment],
         expand_segs: Iterable[PreviewSampleTextSegment]
     ) -> bool:
-        """Checks if a segment expansion will improve the sample text quality.
+        """Check if a segment expansion will improve the sample text quality.
 
         Args:
             segs: Current segments for a sample text.
@@ -496,7 +496,7 @@ class SearchResultArticlePreview(object):
             return True
 
     def _can_expand_left(self, pos: ArticleTextPosition) -> bool:
-        """Returns True if it's possible to expand sample text to the left.
+        """Return True if it's possible to expand sample text to the left.
 
         Returns False when:
             - The start of the article is immediately to the left.
@@ -520,7 +520,7 @@ class SearchResultArticlePreview(object):
         return True
 
     def _paragraph_continues_left(self, pos: ArticleTextPosition) -> bool:
-        """Returns True if the paragraph continues to the left of pos."""
+        """Return True if the paragraph continues to the left of pos."""
         if pos.start == 0:
             return False
         return not self._article.full_text[pos.start - 1].isspace()
@@ -528,7 +528,7 @@ class SearchResultArticlePreview(object):
     def _get_left_sentence_segs(
         self, pos: ArticleTextPosition
     ) -> Tuple[List[PreviewSampleTextSegment], int]:
-        """Gets the segments and start index of the sentence left of pos."""
+        """Get the segments and start index of the sentence left of pos."""
         left_start = utils.find_jpn_sentence_start(
             self._article.full_text, pos.start - 1
         )
@@ -546,7 +546,7 @@ class SearchResultArticlePreview(object):
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition,
         only_if_paragraph_continues: bool
     ) -> ArticleTextPosition:
-        """Expands the sample text to the left to be closer to ideal length.
+        """Expand the sample text to the left to be closer to ideal length.
 
         Only expands by adding full sentences.
 
@@ -582,7 +582,7 @@ class SearchResultArticlePreview(object):
         return current_pos
 
     def _can_expand_right(self, pos: ArticleTextPosition) -> bool:
-        """Returns True if it's possible to expand sample text to the right.
+        """Return True if it's possible to expand sample text to the right.
 
         Only returns False when expanding right would expand outside the title
         of the article or outside of the end of the article.
@@ -611,7 +611,7 @@ class SearchResultArticlePreview(object):
         return True
 
     def _paragraph_continues_right(self, pos: ArticleTextPosition) -> bool:
-        """Returns True if the paragraph continues to the right of pos."""
+        """Return True if the paragraph continues to the right of pos."""
         pos_end = pos.start + pos.len
         if pos_end == len(self._article.full_text):
             return False
@@ -620,7 +620,7 @@ class SearchResultArticlePreview(object):
     def _get_right_sentence_segs(
         self, pos: ArticleTextPosition
     ) -> Tuple[List[PreviewSampleTextSegment], int]:
-        """Gets the segments and end index of the sentence right of pos."""
+        """Get the segments and end index of the sentence right of pos."""
         right_start = pos.start + pos.len
         right_end = utils.find_jpn_sentence_end(
             self._article.full_text, right_start
@@ -641,7 +641,7 @@ class SearchResultArticlePreview(object):
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition,
         only_if_paragraph_continues: bool
     ) -> ArticleTextPosition:
-        """Expands the sample text to the right to be closer to ideal length.
+        """Expand the sample text to the right to be closer to ideal length.
 
         Only expands by adding full sentences.
 
@@ -680,7 +680,7 @@ class SearchResultArticlePreview(object):
     def _force_expand_left_up_to_max(
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition
     ) -> ArticleTextPosition:
-        """Expands the sample text to the left up to max acceptable lengt.
+        """Expand the sample text to the left up to max acceptable lengt.
 
         Unlike expand_left, will expand using only part of the sentence to the
         left.
@@ -728,7 +728,7 @@ class SearchResultArticlePreview(object):
     def _force_expand_right_up_to_max(
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition
     ) -> ArticleTextPosition:
-        """Expands the sample text to the right up to max acceptable lengt.
+        """Expand the sample text to the right up to max acceptable lengt.
 
         Unlike expand_right, will expand using only part of the sentence to the
         right.
@@ -777,7 +777,7 @@ class SearchResultArticlePreview(object):
     def _expand_sample_text(
         self, sample_text: PreviewSampleText, sample_pos: ArticleTextPosition
     ) -> None:
-        """Expands the sample text to be closer to the ideal length.
+        """Expand the sample text to be closer to the ideal length.
 
         Potentially can modify the text_len, text_start_index, and segments
         attrs of the given sample text object.

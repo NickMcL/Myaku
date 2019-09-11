@@ -1,4 +1,4 @@
-"""Builds a shelf for quick loading of JMdict data."""
+"""Builder for a shelf for quick loading of JMdict data."""
 
 import logging
 
@@ -9,6 +9,7 @@ _log = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """Build a shelf for JMdict data."""
     utils.toggle_myaku_package_log(filename_base='build_shelf')
 
     # Creating a JapanenTextAnalyzer object will automatically create the

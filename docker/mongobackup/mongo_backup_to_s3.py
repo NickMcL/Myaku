@@ -41,8 +41,8 @@ import os
 import posixpath
 import subprocess
 import sys
-import time
 import threading
+import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from operator import itemgetter
@@ -98,12 +98,12 @@ _BACKUP_FILENAME_SUFFIX = '_backup.gz'
 
 
 class UploadProgressLogger(object):
-    """Logs the progress of an upload to S3."""
+    """Logger for the progress of an upload to S3."""
 
     MIN_TIME_BETWEEN_LOGS = 1  # in seconds
 
     def __init__(self, filepath: str) -> None:
-        """Inits the progress tracking."""
+        """Init the progress tracking."""
         self._filepath = filepath
         self._file_size = os.path.getsize(filepath)
         self._uploaded_so_far = 0
@@ -111,7 +111,7 @@ class UploadProgressLogger(object):
         self._lock = threading.Lock()
 
     def __call__(self, bytes_uploaded: int) -> None:
-        """Adds bytes_uploaded to upload progress and logs current progress."""
+        """Add bytes_uploaded to upload progress and log current progress."""
         with self._lock:
             self._uploaded_so_far += bytes_uploaded
 
@@ -132,7 +132,7 @@ class UploadProgressLogger(object):
 
 
 def setup_logger() -> logging.Logger:
-    """Sets up the logger for the script.
+    """Set up the logger for the script.
 
     Writes the log to both stderr and to a rotating file.
 
@@ -172,7 +172,7 @@ def setup_logger() -> logging.Logger:
 
 
 def read_value_from_env_file(env_file_var: str) -> str:
-    """Reads a value from a file specified by an environment variable.
+    """Read a value from a file specified by an environment variable.
 
     Args:
         env_file_var: Environment variable specifying the path to the file to
@@ -209,7 +209,7 @@ def read_value_from_env_file(env_file_var: str) -> str:
 
 
 def load_script_config() -> Dict:
-    """Loads the yaml config for the script.
+    """Load the yaml config for the script.
 
     If a value is not explictly definited in the loaded config file, sets the
     default value for it in the returned config dict.
@@ -240,7 +240,7 @@ def load_script_config() -> Dict:
 
 
 def setup_aws_s3_client(config: Dict) -> client.BaseClient:
-    """Sets up the client for accessing AWS S3.
+    """Set up the client for accessing AWS S3.
 
     Args:
         config: Complete config for the script.
@@ -266,7 +266,7 @@ def setup_aws_s3_client(config: Dict) -> client.BaseClient:
 
 
 def create_local_backup(config: Dict) -> str:
-    """Creates a local backup of the mongo instance.
+    """Create a local backup of the mongo instance.
 
     Args:
         config: Complete config for the script.
@@ -294,7 +294,7 @@ def create_local_backup(config: Dict) -> str:
         'Running mongodump to create mongo instance backup at "%s"',
         backup_path
     )
-    proc = subprocess.Popen(
+    proc = subprocess.Popen(  # type: ignore
         mongodump_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True
     )
@@ -316,9 +316,9 @@ def create_local_backup(config: Dict) -> str:
 def upload_backup_to_s3(
     backup_path: str, s3_client: client.BaseClient, config: Dict
 ) -> None:
-    """Uploads a local backup to S3.
+    """Upload a local backup to S3.
 
-    Deletes the local backup file if the upload to S3 was successful.
+    Delete the local backup file if the upload to S3 was successful.
 
     Args:
         backup_path: Local path to the backup file.
@@ -358,7 +358,7 @@ def delete_backups_from_s3(
     backup_objs: List[Dict[str, Any]], s3_client: client.BaseClient,
     config: Dict
 ) -> None:
-    """Deletes backups from S3.
+    """Delete backups from S3.
 
     Args:
         backup_objs: Object JSON return by a list_objects_v2 call for each of
@@ -388,7 +388,7 @@ def delete_backups_from_s3(
 def delete_excess_backups_from_s3(
     s3_client: client.BaseClient, config: Dict
 ) -> None:
-    """Deletes backups in excess of the allowed max from S3.
+    """Delete backups in excess of the allowed max from S3.
 
     If there are more backups stored in S3 than the allowed max, deletes
     the oldest backups until the backup count is equal to the allowed max.
@@ -432,7 +432,7 @@ def delete_excess_backups_from_s3(
 
 
 def main() -> None:
-    """Runs the full mongo backup to AWS S3 script."""
+    """Run the full mongo backup to AWS S3 script."""
     _log.info('Started mongo backup to S3 script')
 
     config = load_script_config()
