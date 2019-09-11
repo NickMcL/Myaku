@@ -22,10 +22,6 @@ NO_DEV_TARGET_IMAGE_TYPES=(\
     "ubuntu.cron" \
 )
 
-NO_PROD_TARGET_IMAGE_TYPES=(\
-    "run-tests" \
-)
-
 
 function usage()
 {
@@ -121,12 +117,6 @@ if [[ " ${NO_DEV_TARGET_IMAGE_TYPES[@]} " =~ " $image_type " ]] && \
         [[ "$tag" == "dev" ]]; then
     error_handler $LINENO \
         "Image type \"$image_type\" does not have a dev target for building"
-fi
-
-if [[ " ${NO_PROD_TARGET_IMAGE_TYPES[@]} " =~ " $image_type " ]] && \
-        [[ "$tag" != "dev" ]]; then
-    error_handler $LINENO \
-        "Image type \"$image_type\" does not have a prod target for building"
 fi
 
 # Check if given tag matches versioning scheme for given image type
