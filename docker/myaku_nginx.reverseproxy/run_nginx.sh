@@ -12,6 +12,7 @@ do
         uwsgi_available=1
         break
     fi
+    sleep 1
 done
 if [ $uwsgi_available -eq 0 ]; then
     echo "ERROR: uWSGI not available after 20 seconds"
