@@ -31,7 +31,7 @@ REQUEST_RETRY_EXCEPTIONS = {
     requests.RequestException,
     requests.ConnectionError,
     requests.HTTPError,
-    requests.Timeout
+    requests.Timeout,
 }
 
 _JAPAN_TIMEZONE = pytz.timezone('Japan')
