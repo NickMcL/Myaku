@@ -3,8 +3,8 @@ python: "3.7"
 dist: bionic
 
 install:
-  - pip install pre-commit==1.18.3
-  - ./docker/setup_scripts/ubuntu_bootstrap.sh
+  - ./docker/setup_scripts/pre_commit_setup.sh
+  - ./docker/setup_scripts/install_docker.sh
 script:
   - pre-commit run --all-files
   - ./docker/setup_scripts/build_all_test_images.sh && ./run_tests.sh -e test

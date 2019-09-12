@@ -4,7 +4,7 @@
 
 set -ev
 
-cd "$(dirname "${BASH_SOURCE[0]}")"/../..
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 # Pull the latest prod images first so that their layers can be used if
 # possible instead of rebuilding all of the layers for all images.
