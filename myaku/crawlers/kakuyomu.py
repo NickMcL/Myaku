@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 
 from myaku import utils
-from myaku.crawlers.abc import Crawl, CrawlerABC, CrawlGenerator
+from myaku.crawlers.base import Crawl, CrawlerABC, CrawlGenerator
 from myaku.datatypes import JpnArticle, JpnArticleBlog
 from myaku.errors import HtmlParsingError
 from myaku.utils import html

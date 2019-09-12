@@ -16,7 +16,7 @@ from typing import Dict, List, Tuple
 
 import myaku.crawlers
 from myaku import utils
-from myaku.crawlers.abc import Crawl
+from myaku.crawlers.base import Crawl
 from myaku.datastore import DataAccessMode
 from myaku.datastore.database import CrawlDb
 from myaku.datatypes import FoundJpnLexicalItem, JpnArticle
