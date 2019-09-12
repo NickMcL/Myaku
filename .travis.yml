@@ -1,10 +1,13 @@
-# All tests run in docker containers, so no language setup is necessary on the
-# travis CI host VM.
-language: minimal
+language: python
+python: "3.7"
 dist: bionic
 
-install: ./docker/setup_scripts/ubuntu_bootstrap.sh
-script: ./docker/setup_scripts/build_all_test_images.sh && ./run_tests.sh -e test
+install:
+  - pip install pre-commit==1.18.3
+  - ./docker/setup_scripts/ubuntu_bootstrap.sh
+script:
+  - pre-commit run --all-files
+  - ./docker/setup_scripts/build_all_test_images.sh && ./run_tests.sh -e test
 
 services:
   - docker

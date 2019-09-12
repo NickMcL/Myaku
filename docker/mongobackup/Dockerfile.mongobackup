@@ -1,6 +1,6 @@
 # Makes routine data backups of a full MongoDB instance and stores the backups
 # in AWS S3.
-# 
+#
 # Requires a yaml file to be supplied as a docker config and several docker
 # secrets to be set in order to connect to the MongoDB instance and to AWS.
 # See the mongo_backup_to_s3.py script for details on these needed paramaters.

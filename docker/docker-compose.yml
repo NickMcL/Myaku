@@ -14,7 +14,7 @@ services:
     environment:
       # A cron schedule of "#" will comment out the line for the crawl job in
       # the crontab file so that it will not run during testing.
-      CRAWL_CRON_SCHEDULE: "#"  
+      CRAWL_CRON_SCHEDULE: "#"
       CRAWLER_LIST: "Asahi,Kakuyomu"
       KAKUYOMU_CRAWLER_PAGE_TO_CRAWL: 5
       MYAKU_CRAWLDB_HOST: crawldb
@@ -39,7 +39,7 @@ services:
     environment:
       # A cron schedule of "#" will comment out the line for the rescore job in
       # the crontab file so that it will not run during testing.
-      RESCORE_CRON_SCHEDULE: "#"  
+      RESCORE_CRON_SCHEDULE: "#"
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_crawler_username
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password

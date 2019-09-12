@@ -129,7 +129,7 @@ def test_log_rotate(custom_log_environment, caplog):
 
 
 def get_dir_size(dir_path):
-    """Returns size in bytes of all files in a directory without sub dirs."""
+    """Return size in bytes of all files in a directory without sub dirs."""
     return sum(
         os.path.getsize(f) for f in os.listdir(dir_path) if os.path.isfile(f)
     )
@@ -397,7 +397,7 @@ def assert_toggle_myaku_package_log_off_on_off(log_environment, capsys):
 
 
 def log_all_levels_once(log):
-    """Logs one debug, info, warning, error, and critical entry for the log."""
+    """Log one debug, info, warning, error, and critical entry for the log."""
     log.debug(DEBUG_LOG_MESSAGE)
     log.info(INFO_LOG_MESSAGE)
     log.warning(WARNING_LOG_MESSAGE)
@@ -408,7 +408,7 @@ def log_all_levels_once(log):
 def assert_log_existence(
     log_entries, log_environment, capsys, stderr_has_half=False
 ):
-    """Asserts that the given log entries exist in all expected locations.
+    """Assert that the given log entries exist in all expected locations.
 
     Args:
         log_entries: A list of some combination of the characters 'd', 'i',
@@ -451,7 +451,7 @@ def assert_log_existence(
 
 
 def assert_no_logs(log_environment, capsys):
-    """Asserts that no logs were written in any log locations."""
+    """Assert that no logs were written in any log locations."""
     info_log_filepath = log_environment.filepath_base + '.info.log'
     debug_log_filepath = log_environment.filepath_base + '.debug.log'
 

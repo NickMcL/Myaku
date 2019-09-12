@@ -76,7 +76,7 @@ tag=""
 while [[ $# -gt 0 ]]
 do
     key="$1"
-    case $key in 
+    case $key in
         -n|--no-cache)
             no_cache_flag="--no-cache"
             shift

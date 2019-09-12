@@ -1,7 +1,7 @@
 # Development overrides for the Myaku stack.
 #
 # Uses the images tagged "dev" for each service.
-# 
+#
 # The dev tagged version of the image for each service is built using the same
 # Dockerfile as the prod versions, but the dev target is used instead of the
 # prod target.

@@ -1615,7 +1615,7 @@ class SourceUpdateState(enum.Enum):
 
 
 class MockRequestsSession(object):
-    """Mocks a requests session used by a crawler."""
+    """Mock of a requests session used by a crawler."""
 
     _INITIAL_CRAWL_RESPONSE_HTML = {
         'https://kakuyomu.jp/search?genre_name=nonfiction'
@@ -1950,7 +1950,7 @@ class MockRequestsSession(object):
         ]
 
     def get(self, url: str, timeout: int) -> requests.Response:
-        """Returns a response with the test HTML for the given url."""
+        """Return a response with the test HTML for the given url."""
         if url not in self._response_html:
             raise AssertionError(
                 f'Unexpected request to url "{url}" with source update state '
@@ -1975,7 +1975,7 @@ class MockRequestsSession(object):
 
     @staticmethod
     def start_request_tracking(update_state: SourceUpdateState) -> None:
-        """Starts request tracking for all MockRequestsSession instances.
+        """Start request tracking for all MockRequestsSession instances.
 
         Resets requests tracking if it had been started previously.
 
@@ -1989,7 +1989,7 @@ class MockRequestsSession(object):
 
     @staticmethod
     def assert_request_counts() -> None:
-        """Asserts that the tracked request counts match the expected counts.
+        """Assert that the tracked request counts match the expected counts.
 
         Checks that every URL that should have been requested for the currently
         set source update state was requested exactly once since the last call
@@ -2007,7 +2007,7 @@ def assert_doc_field_value(
     field: str, value: Any, expected_doc: _Document,
     oid_map: Dict[str, ObjectId]
 ) -> None:
-    """Asserts a given field value pair for a doc matches an expected doc.
+    """Assert a given field value pair for a doc matches an expected doc.
 
     Args:
         field: A field from a MongoDB doc.
@@ -2049,7 +2049,7 @@ def assert_blog_db_data(
     db: CrawlDb, blog_expected_docs: List[_Document],
     oid_map: Dict[str, ObjectId]
 ) -> None:
-    """Asserts blog data in db matches the given documents.
+    """Assert blog data in db matches the given documents.
 
     Args:
         db: CrawlDb client to use to access the db data.
@@ -2080,7 +2080,7 @@ def assert_article_db_data(
     db: CrawlDb, article_expected_docs: List[_Document],
     oid_map: Dict[str, ObjectId]
 ) -> None:
-    """Asserts article data in db matches the given documents.
+    """Assert article data in db matches the given documents.
 
     Args:
         db: CrawlDb client to use to access the db data.
@@ -2112,7 +2112,7 @@ def assert_found_lexical_item_db_data(
     db: CrawlDb, fli_query_expected_docs: Dict[str, List[_Document]],
     oid_map: Dict[str, ObjectId]
 ) -> None:
-    """Asserts found lexical item data in db matches the given documents.
+    """Assert found lexical item data in db matches the given documents.
 
     Args:
         db: CrawlDb client to use to access the db data.
@@ -2142,7 +2142,7 @@ def assert_found_lexical_item_db_data(
 def assert_crawl_skip_db_data(
     db: CrawlDb, crawl_skip_expected_docs: List[_Document]
 ) -> None:
-    """Asserts crawl skip data in db matches the given documents.
+    """Assert crawl skip data in db matches the given documents.
 
     Args:
         db: CrawlDb client to use to access the db data.
@@ -2162,7 +2162,7 @@ def assert_crawl_skip_db_data(
 
 
 def assert_initial_crawl_db_data() -> None:
-    """Asserts the db data matches the expected initial crawl data."""
+    """Assert the db data matches the expected initial crawl data."""
     oid_map: Dict[str, ObjectId] = {}
     with CrawlDb() as db:
         assert_blog_db_data(db, INITIAL_CRAWL_EXPECTED_BLOG_DOCS, oid_map)
@@ -2176,7 +2176,7 @@ def assert_initial_crawl_db_data() -> None:
 
 
 def assert_update_crawl_db_data() -> None:
-    """Asserts the db data matches the expected update crawl data."""
+    """Assert the db data matches the expected update crawl data."""
     oid_map: Dict[str, ObjectId] = {}
     with CrawlDb() as db:
         assert_blog_db_data(db, UPDATE_CRAWL_EXPECTED_BLOG_DOCS, oid_map)
@@ -2192,7 +2192,7 @@ def assert_update_crawl_db_data() -> None:
 def assert_search_results(
     search_results: List[JpnArticleSearchResult], fli_docs: List[_Document]
 ) -> None:
-    """Asserts search results match a list of found lexical item documents."""
+    """Assert search results match a list of found lexical item documents."""
     assert len(search_results) == len(fli_docs)
     for search_result, fli_doc in zip(search_results, fli_docs):
         assert search_result.article.database_id == str(fli_doc['article_oid'])
@@ -2212,7 +2212,7 @@ def assert_search_results(
 def assert_first_page_cache_query_keys(
     cache: FirstPageCache, db: CrawlDb
 ) -> Set[ObjectId]:
-    """Asserts first page cache query keys are consistent with db data.
+    """Assert first page cache query keys are consistent with db data.
 
     Args:
         cache: First page cache whose query keys to check.
@@ -2254,7 +2254,7 @@ def assert_first_page_cache_query_keys(
 def assert_first_page_cache_article_keys(
     cache: FirstPageCache, db: CrawlDb, expected_article_oids: Set[ObjectId]
 ) -> None:
-    """Asserts first page cache article keys are consistent with db data.
+    """Assert first page cache article keys are consistent with db data.
 
     Args:
         cache: First page cache whose query keys to check.
@@ -2282,7 +2282,7 @@ def assert_first_page_cache_article_keys(
 
 
 def assert_first_page_cache_data() -> None:
-    """Asserts first page cache data is consistent with crawl db data."""
+    """Assert first page cache data is consistent with crawl db data."""
     cache = FirstPageCache()
     with CrawlDb() as db:
         expected_article_oids = assert_first_page_cache_query_keys(cache, db)

@@ -1,5 +1,5 @@
 # Test overrides for the Myaku stack.
-# 
+#
 # Uses the images tagged "test" for each service. These images are
 # automatically built when running run_tests.sh, and they are functionally
 # built the exact same way as the prod images for each service.
@@ -44,4 +44,3 @@ services:
     deploy:
       restart_policy:
         condition: none
-

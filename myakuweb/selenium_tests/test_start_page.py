@@ -27,7 +27,7 @@ FULL_SEARCH_PLACEHOLDER = 'Japanese word, set phrase, idiom, etc.'
 
 @pytest.fixture
 def web_driver():
-    """Inits a headless Firefox web driver for testing."""
+    """Init a headless Firefox web driver for testing."""
     options = firefox.options.Options()
     options.headless = True
     test_web_driver = webdriver.Firefox(options=options)
@@ -43,53 +43,53 @@ def web_driver():
 
 @pytest.fixture
 def web_driver_xs(web_driver):
-    """Sets up a web driver with an extram small viewport for testing."""
+    """Set up a web driver with an extram small viewport for testing."""
     web_driver.set_window_size(SM_MIN_WIDTH - 100, 720)
     return web_driver
 
 
 @pytest.fixture
 def web_driver_sm(web_driver):
-    """Sets up a web driver with a small viewport for testing."""
+    """Set up a web driver with a small viewport for testing."""
     web_driver.set_window_size(SM_MIN_WIDTH, 720)
     return web_driver
 
 
 @pytest.fixture
 def web_driver_md(web_driver):
-    """Sets up a web driver with a medium viewport for testing."""
+    """Set up a web driver with a medium viewport for testing."""
     web_driver.set_window_size(MD_MIN_WIDTH, 720)
     return web_driver
 
 
 @pytest.fixture
 def web_driver_lg(web_driver):
-    """Sets up a web driver with a small viewport for testing."""
+    """Set up a web driver with a small viewport for testing."""
     web_driver.set_window_size(LG_MIN_WIDTH, 720)
     return web_driver
 
 
 @pytest.fixture
 def web_driver_xl(web_driver):
-    """Sets up a web driver with an extra large viewport for testing."""
+    """Set up a web driver with an extra large viewport for testing."""
     web_driver.set_window_size(XL_MIN_WIDTH, 720)
     return web_driver
 
 
 def _go_to_start_page(web_driver) -> None:
-    """Goes to the MyakuWeb start page with the web driver."""
+    """Go to the MyakuWeb start page with the web driver."""
     host = os.environ[REVERSEPROXY_HOST_ENV_VAR]
     web_driver.get(f'http://{host}/')
 
 
 def _go_to_search_result_page(web_driver, query: str) -> None:
-    """Goes to the MyakuWeb start page with the web driver."""
+    """Go to the MyakuWeb start page with the web driver."""
     host = os.environ[REVERSEPROXY_HOST_ENV_VAR]
     web_driver.get(f'http://{host}/?q={query}')
 
 
 def filter_to_displayed(tags: List[WebElement]) -> List[WebElement]:
-    """Filters out tags that are not being displayed on the page."""
+    """Filter out tags that are not being displayed on the page."""
     filtered_tags = []
     for tag in tags:
         if not tag.is_displayed():
@@ -108,7 +108,7 @@ def filter_to_displayed(tags: List[WebElement]) -> List[WebElement]:
 
 
 def filter_by_attrs(tags: List[WebElement], attrs: Dict) -> List[WebElement]:
-    """Filters out tags that do not have all of the given attributes."""
+    """Filter out tags that do not have all of the given attributes."""
     if attrs is None:
         return tags
 
@@ -126,7 +126,7 @@ def filter_by_attrs(tags: List[WebElement], attrs: Dict) -> List[WebElement]:
 def filter_by_properties(
     tags: List[WebElement], props: Dict
 ) -> List[WebElement]:
-    """Filters out tags that do not have all of the given properties."""
+    """Filter out tags that do not have all of the given properties."""
     if props is None:
         return tags
 
@@ -145,7 +145,7 @@ def assert_element_text(
     tags: List[WebElement], expected_text: Union[str, bool],
     include_only_displayed: bool
 ) -> None:
-    """Asserts the text for the given tag elements is as expected.
+    """Assert the text for the given tag elements is as expected.
 
     Args:
         tags: Elements whose text to check.
@@ -170,7 +170,7 @@ def assert_element(
     expected_text: str = None, include_only_displayed: bool = True,
     expected_count: int = 1, attrs: Dict = None, properties: Dict = None
 ) -> None:
-    """Asserts that the specified element(s) are in the current webdriver page.
+    """Assert that the specified element(s) are in the current webdriver page.
 
     Args:
         we: WebElement containing the desired content to assert.
@@ -200,7 +200,7 @@ def assert_element(
 def assert_element_by_tag(
     we: WebElement, tag_name: str, *args, **kwargs
 ) -> None:
-    """Asserts that a single element with tag is in the webdriver page.
+    """Assert that a single element with tag is in the webdriver page.
 
     Args:
         we: WebElement containing the desired content to assert.
@@ -215,7 +215,7 @@ def assert_element_by_classes(
     we: WebElement, tag_name: str, classes: Union[str, List[str]],
     *args, **kwargs
 ) -> None:
-    """Asserts that a single element with classes is in the webdriver page.
+    """Assert that a single element with classes is in the webdriver page.
 
     Args:
         we: WebElement containing the desired content to assert.
@@ -236,7 +236,7 @@ def assert_element_by_classes(
 def assert_element_by_id(
     we: WebElement, tag_name: str, id_: str, *args, **kwargs
 ) -> None:
-    """Asserts that a single element with id is in the webdriver page.
+    """Assert that a single element with id is in the webdriver page.
 
     Args:
         we: WebElement containing the desired content to assert.
@@ -247,7 +247,7 @@ def assert_element_by_id(
 
 
 def assert_search_header(we: WebElement, window_width: int) -> None:
-    """Asserts that the search header part of the page is as expected.
+    """Assert that the search header part of the page is as expected.
 
     Args:
         we: WebElement containing the desired content to assert.
@@ -280,7 +280,7 @@ def assert_search_header(we: WebElement, window_width: int) -> None:
 
 
 def assert_start_tiles(we: WebElement) -> None:
-    """Asserts that the start page tiles are as expected.
+    """Assert that the start page tiles are as expected.
 
     Args:
         we: WebElement containing the desired content to assert.
@@ -294,7 +294,7 @@ def assert_start_tiles(we: WebElement) -> None:
 
 
 def assert_css_loaded(we: WebElement) -> None:
-    """Asserts that the custom CSS used by Myaku web has loaded.
+    """Assert that the custom CSS used by Myaku web has loaded.
 
     Args:
         we: WebElement containing the desired content to assert.
@@ -307,7 +307,7 @@ def assert_css_loaded(we: WebElement) -> None:
 
 
 def assert_start_page(web_driver: webdriver):
-    """Tests the MyakuWeb start page with the web driver."""
+    """Test the MyakuWeb start page with the web driver."""
     viewport_width = web_driver.get_window_size()['width']
     _go_to_start_page(web_driver)
 
@@ -319,25 +319,25 @@ def assert_start_page(web_driver: webdriver):
 
 
 def test_start_page_xs(web_driver_xs):
-    """Tests the MyakuWeb start page with an extra small web driver."""
+    """Test the MyakuWeb start page with an extra small web driver."""
     assert_start_page(web_driver_xs)
 
 
 def test_start_page_sm(web_driver_sm):
-    """Tests the MyakuWeb start page with a small web driver."""
+    """Test the MyakuWeb start page with a small web driver."""
     assert_start_page(web_driver_sm)
 
 
 def test_start_page_md(web_driver_md):
-    """Tests the MyakuWeb start page with a medium web driver."""
+    """Test the MyakuWeb start page with a medium web driver."""
     assert_start_page(web_driver_md)
 
 
 def test_start_page_lg(web_driver_lg):
-    """Tests the MyakuWeb start page with a large web driver."""
+    """Test the MyakuWeb start page with a large web driver."""
     assert_start_page(web_driver_lg)
 
 
 def test_start_page_xl(web_driver_xl):
-    """Tests the MyakuWeb start page with an extra large web driver."""
+    """Test the MyakuWeb start page with an extra large web driver."""
     assert_start_page(web_driver_xl)

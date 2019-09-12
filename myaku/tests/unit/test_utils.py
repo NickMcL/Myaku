@@ -61,7 +61,7 @@ class UnhashableDataClass(object):
 
 @dataclass
 class BeforeAfterLists(Generic[T]):
-    """Stores the before and after values for an operation."""
+    """Before and after values for an operation."""
     before: List[T]
     after: List[T]
 
@@ -102,7 +102,7 @@ UNIQUE_BEFORE_AFTERS = [
 
 
 def test_unique_unhashable():
-    """Tests utils.unique with various lists of an unhashable object."""
+    """Test utils.unique with various lists of an unhashable object."""
     for before_after in UNIQUE_BEFORE_AFTERS:
         after = utils.unique(before_after.before)
         assert len(after) == len(before_after.after)
@@ -115,7 +115,7 @@ def test_unique_unhashable():
 
 
 def assert_sentence_start_ends(text, ends):
-    """Asserts find_jpn_sentence_(start|end) works for all of the text.
+    """Assert find_jpn_sentence_(start|end) works for all of the text.
 
     This is done by checking that the correct sentence start and end is given
     when the functions are run on every character in the text.
@@ -140,35 +140,35 @@ def assert_sentence_start_ends(text, ends):
 
 
 def test_find_jpn_setence_start_end_consec_punc():
-    """Tests find_jpn_setence_(start|end) with consecutive punctuation."""
+    """Test find_jpn_setence_(start|end) with consecutive punctuation."""
     assert_sentence_start_ends(
         SAMPLE_JPN_SENTENCES_CONSEC_PUNC, SAMPLE_JPN_SENTENCES_CONSEC_PUNC_ENDS
     )
 
 
 def test_find_jpn_setence_start_end_no_punc():
-    """Tests find_jpn_setence_(start|end) with no punctuation."""
+    """Test find_jpn_setence_(start|end) with no punctuation."""
     assert_sentence_start_ends(
         SAMPLE_JPN_SENTENCE_NO_PUNC, SAMPLE_JPN_SENTENCE_NO_PUNC_ENDS
     )
 
 
 def test_find_jpn_setence_start_end_short():
-    """Tests find_jpn_setence_(start|end) with short, simple text."""
+    """Test find_jpn_setence_(start|end) with short, simple text."""
     assert_sentence_start_ends(
         SAMPLE_JPN_SENTENCES_SHORT, SAMPLE_JPN_SENTENCES_SHORT_ENDS
     )
 
 
 def test_find_jpn_setence_start_end_long():
-    """Tests find_jpn_setence_(start|end) with long, complex text."""
+    """Test find_jpn_setence_(start|end) with long, complex text."""
     assert_sentence_start_ends(
         SAMPLE_JPN_SENTENCES_LONG, SAMPLE_JPN_SENTENCES_LONG_ENDS
     )
 
 
 def test_tuple_or_none():
-    """Tests that tuple_or_none handles tuple conversion and None."""
+    """Test that tuple_or_none handles tuple conversion and None."""
     tuple_from_list = utils.tuple_or_none([1, 2, 3])
     tuple_from_dict = utils.tuple_or_none({'a': 1, 'b': 2, 'c': 3}.items())
     tuple_from_none = utils.tuple_or_none(None)
@@ -181,7 +181,7 @@ def test_tuple_or_none():
 
 
 def test_convert_jst_to_utc():
-    """Tests converting JST datetimes to UTC with convert_jst_to_utc.
+    """Test converting JST datetimes to UTC with convert_jst_to_utc.
 
     JST is always UTC+9:00. Japan does not do daylight savings time.
     """
@@ -204,7 +204,7 @@ def test_convert_jst_to_utc():
 
 
 def test_get_alnum_count():
-    """Tests get_alnum_count on various strings."""
+    """Test get_alnum_count on various strings."""
     empty = ''
     assert utils.get_alnum_count(empty) == 0
 
@@ -222,7 +222,7 @@ def test_get_alnum_count():
 
 
 def test_normalize_char_width():
-    """Tests normalize_char_width with half and full width chars."""
+    """Test normalize_char_width with half and full width chars."""
     all_half_kata = 'ﾃｽﾄﾔｯﾀﾈｫｫ'
     assert utils.normalize_char_width(
         all_half_kata,
