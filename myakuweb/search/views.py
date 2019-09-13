@@ -1,5 +1,6 @@
 """Views for the search for Myaku web."""
 
+import math
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -15,14 +16,11 @@ from myaku.datastore import (
     JpnArticleQueryType,
     JpnArticleSearchResult,
 )
-from myaku.datastore.database import CrawlDb
+from myaku.datastore.database import CrawlDb, JpnArticleSearchResultPage
 from myaku.datatypes import JpnArticle
 from search.article_preview import SearchResultArticlePreview
 
-# If a found article for a query has many instances of the query in its text,
-# the max number of instance sentences to show on the results page for that
-# article.
-_MAX_ARTICLE_INSTANCE_SAMPLES = 3
+MAX_PAGE_NUM = 20
 
 _ARTICLE_LEN_GROUPS = [
     (700, 'Short length'),
@@ -99,45 +97,6 @@ class ResourceLinkSet(object):
 
 
 @dataclass
-class SearchResultMatchingSentenceSegment(object):
-    """A single segment of a sample sentence for an article search result.
-
-    Attributes:
-        is_match_segment: True if the text of this segment matches the searched
-            query, and False otherwise.
-        segment_text: Text for this segment of the sample sentence.
-    """
-    is_query_match: bool
-    segment_text: str
-
-
-@dataclass
-class SearchResultMatchingSentence(object):
-    """Data for a sample sentence for an article search result.
-
-    Attributes:
-        sentence_len: Total length of the sample sentence.
-        article_pos_humanized: Human-readable string of the position of the
-            matching sentence in the article.
-        match_instance_count: How many instances of the searched query are in
-            this sample sentence.
-        segments: Segments that make up the sample sentence.
-    """
-    sentence_len: int
-    article_pos_humanized: str
-    match_instance_count: int
-    segments: List[SearchResultMatchingSentenceSegment]
-
-    def trim_whitespace(self):
-        """Strip surrounding whitespace from the edge segments."""
-        self.segments[0].segment_text = (
-            self.segments[0].segment_text.lstrip()
-        )
-        self.segments[-1].segment_text = (
-            self.segments[-1].segment_text.rstrip()
-        )
-
-
 class QueryResourceLinks(object):
     """Manager for all resource links for a query."""
 
@@ -283,23 +242,34 @@ class QueryResourceLinks(object):
 class QueryArticleResultSet(object):
     """The set of article results of a query of the Myaku db."""
 
-    def __init__(self, query: str, match_type: JpnArticleQueryType) -> None:
+    def __init__(
+        self, query: str, match_type: JpnArticleQueryType, page_num: int
+    ) -> None:
         """Query the Myaku db to get the article result set for query."""
         if query:
             with CrawlDb(DataAccessMode.READ) as db:
-                self._result_articles = db.search_articles(
-                    query, match_type, 1
-                )
+                result_page = db.search_articles(query, match_type, page_num)
         else:
-            self._result_articles = []
+            result_page = JpnArticleSearchResultPage(
+                query='', page_num=1, total_results=0, search_results=[]
+            )
 
-        self.article_count = len(self._result_articles)
-        self.instance_count = sum(
-            len(a.found_positions) for a in self._result_articles
+        total_pages = math.ceil(
+            result_page.total_results / CrawlDb.SEARCH_RESULTS_PAGE_SIZE
         )
+        if result_page.page_num < total_pages:
+            self.next_page_num = result_page.page_num + 1
+        else:
+            self.next_page_num = None
 
+        if result_page.page_num > 1:
+            self.previous_page_num = result_page.page_num - 1
+        else:
+            self.previous_page_num = None
+
+        self.total_results = result_page.total_results
         self.ranked_article_results = [
-            QueryArticleResult(a) for a in self._result_articles
+            QueryArticleResult(a) for a in result_page.search_results
         ]
 
 
@@ -383,20 +353,46 @@ class QueryArticleResult(object):
         return tag_strs
 
 
+def get_request_page_num(request: HttpRequest) -> int:
+    """Get the page number for a request.
+
+    If the page number given in the GET parameters for the request is not a
+    valid page number, will return 1.
+
+    If the page number given in the GET parameters for the request is large
+    than MAX_PAGE_NUMBER, will return MAX_PAGE_NUMBER.
+    """
+    page_num_str = request.GET.get('p', '1')
+    try:
+        page_num = int(page_num_str)
+    except ValueError:
+        page_num = 1
+
+    if page_num < 1:
+        page_num = 1
+    elif page_num > MAX_PAGE_NUM:
+        page_num = MAX_PAGE_NUM
+
+    return page_num
+
+
 def index(request: HttpRequest) -> HttpResponse:
     """Search page handler."""
     if len(request.GET.get('q', '')) == 0:
         return render(request, 'search/start.html', {})
 
     query = request.GET['q']
+    page_num = get_request_page_num(request)
     match_type = JpnArticleQueryType.EXACT
-    query_result_set = QueryArticleResultSet(query, match_type)
+    query_result_set = QueryArticleResultSet(query, match_type, page_num)
     resource_links = QueryResourceLinks(query)
 
     return render(
         request, 'search/results.html',
         {
             'query': query,
+            'page_num': page_num,
+            'max_page_num': MAX_PAGE_NUM,
             'query_result_set': query_result_set,
             'resource_links': resource_links,
         }

@@ -6,17 +6,18 @@
   <div class="col-12 col-lg-9">
     <div class="mr-lg-3 h-100">
       <div class="row card h-100 my-auto py-2 shadow-sm">
-        <div class="col px-3">
+        <div class="col px-3 d-sm-inline-flex">
           <h3 class="d-inline">
             Articles
             <small class="text-muted">
-              — {{ query_result_set.article_count|intcomma }} found
-            </small>
-            <small class="text-muted d-none d-md-inline">
-              with {{ query_result_set.instance_count|intcomma }}
-              instance{{ query_result_set.instance_count|pluralize }} in total
+              — {{ query_result_set.total_results|intcomma }} found
             </small>
           </h3>
+          {% if query_result_set.total_results > 0 %}
+            <h3 class="ml-auto d-none d-sm-inline">
+              <small class="text-muted">Page {{ page_num }}</small>
+            </h3>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -129,6 +130,60 @@
           {% endif %}
         </div>
       {% endfor %}
+
+      {% if query_result_set.ranked_article_results %}
+        <div class="row h-100 mb-3 py-2 card shadow-sm">
+          <div class="col-12 d-inline-flex justify-content-between h-100 px-3 page-move-tile">
+            {% if query_result_set.previous_page_num %}
+              <a href="/?q={{ query }}&p={{ query_result_set.previous_page_num }}"
+                class="d-none d-sm-inline my-auto"
+              >
+                <i class="fa fa-arrow-left"></i> Previous Articles
+              </a>
+              <a href="/?q={{ query }}&p={{ query_result_set.previous_page_num }}"
+                class="d-inline d-sm-none my-auto"
+              >
+                <i class="fa fa-arrow-left"></i> Previous
+              </a>
+            {% endif %}
+
+            <a href="#" class="d-inline-flex">Top</a>
+
+            {% if query_result_set.next_page_num and page_num == max_page_num %}
+              <span class="d-none d-sm-inline-flex text-muted my-auto">
+                Max page reached
+              </span>
+              <span class="d-inline-flex d-sm-none text-muted my-auto">
+                Max page
+              </span>
+            {% elif query_result_set.next_page_num %}
+              <a href="/?q={{ query }}&p={{ query_result_set.next_page_num }}"
+                class="d-none d-sm-inline my-auto"
+              >
+                More Articles <i class="fa fa-arrow-right"></i>
+              </a>
+              <a href="/?q={{ query }}&p={{ query_result_set.next_page_num }}"
+                class="d-inline d-sm-none my-auto"
+              >
+                More <i class="fa fa-arrow-right"></i>
+              </a>
+            {% else %}
+              <span class="d-none d-sm-inline-flex text-muted my-auto">
+                End of results
+              </span>
+              {% if page_num == 1 %}
+                <span class="d-inline-flex d-sm-none text-muted my-auto">
+                  End of results
+                </span>
+              {% else %}
+                <span class="d-inline-flex d-sm-none text-muted my-auto">
+                  End
+                </span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
     </div>
   </div>
 

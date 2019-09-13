@@ -6,16 +6,15 @@ freely while keeping the access interface consistent.
 """
 
 import logging
-import zlib
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import redis
 from bson.objectid import ObjectId
 
 from myaku import utils
-from myaku.datastore import JpnArticleSearchResult
-from myaku.datatypes import ArticleTextPosition, JpnArticle
+from myaku.datastore import JpnArticleSearchResultPage, serialize
+from myaku.datatypes import JpnArticle
 from myaku.errors import DataAccessError
 
 _log = logging.getLogger(__name__)
@@ -77,325 +76,65 @@ class FirstPageCache(object):
         )
         return last_built_time is not None
 
-    @utils.skip_method_debug_logging
-    def _serialize_search_result(
-        self, search_result: JpnArticleSearchResult
-    ) -> List[bytes]:
-        """Serialize a single search result.
+    def flush_all(self) -> None:
+        """Remove everything stored in the cache."""
+        self._redis_client.flushall()
 
-        Does not serialize the full article for the search result. Only
-        serializes the ID for the article.
-
-        Args:
-            search_result: Search result to serialize.
-
-        Returns:
-            List of bytes that can be joined to get the full serialization of
-            the search result.
-        """
-        bytes_list = []
-        bytes_list.append(ObjectId(search_result.article.database_id).binary)
-        bytes_list.append(
-            len(search_result.found_positions).to_bytes(2, 'little')
-        )
-        for pos in search_result.found_positions:
-            bytes_list.append(pos.start.to_bytes(2, 'little'))
-            bytes_list.append(pos.len.to_bytes(1, 'little'))
-
-        return bytes_list
-
-    @utils.skip_method_debug_logging
-    def _serialize_text(
-        self, text: str, size_bytes: int, encoding: str = 'utf-8'
-    ) -> List[bytes]:
-        """Serialize text.
-
-        Args:
-            text: Text to serialize.
-            size_bytes: Number of bytes to use to store the size of the encoded
-                text.
-            encoding: Encoding to use to encode the text to bytes.
-
-        Returns:
-            List of bytes that can be joined to get the full serialization of
-            the text.
-        """
-        text_bytes = []
-        encoded_text = text.encode(encoding)
-        text_bytes.append(len(encoded_text).to_bytes(size_bytes, 'little'))
-        text_bytes.append(encoded_text)
-
-        return text_bytes
-
-    @utils.skip_method_debug_logging
-    def _serialize_article(self, article: JpnArticle) -> List[bytes]:
-        """Serialize a single article for a search result.
-
-        Does not serialize all attributes of the article. Only serializes the
-        attributes used in displaying search results.
-
-        Args:
-            article: Article from a search result to serialize.
-
-        Returns:
-            List of bytes that can be joined to get the full serialization of
-            the article.
-        """
-        article_bytes: List[bytes] = []
-
-        # Encode title and full text using utf-16 because it is more space
-        # efficient than utf-8 for Japanese characters.
-        title_bytes = self._serialize_text(article.title, 3, 'utf-16')
-        article_bytes.extend(title_bytes)
-        full_text_bytes = self._serialize_text(article.full_text, 3, 'utf-16')
-        article_bytes.extend(full_text_bytes)
-
-        # Encode source name and url using utf-8 because it is more space
-        # efficeient than utf-16 for ascii characters.
-        article_bytes.extend(self._serialize_text(article.source_name, 1))
-        article_bytes.extend(self._serialize_text(article.source_url, 2))
-
-        article_bytes.append(article.alnum_count.to_bytes(2, 'little'))
-        article_bytes.append(int(article.has_video).to_bytes(1, 'little'))
-
-        pub_dt_timestamp = int(article.publication_datetime.timestamp())
-        article_bytes.append(pub_dt_timestamp.to_bytes(4, 'little'))
-        up_dt_timestamp = int(article.last_updated_datetime.timestamp())
-        article_bytes.append(up_dt_timestamp.to_bytes(4, 'little'))
-
-        return article_bytes
-
-    def _cache_serialized_search_results(
-        self, query: str, search_results: List[JpnArticleSearchResult],
-        compress_level: int
-    ) -> None:
-        """Serialize query search results and cache them.
-
-        Args:
-            query: Query to cache the search results for.
-            search_results: Search results for the given query.
-            compress_level: Level to use for the gzip compression of the
-                serialized cache values. -1 is system default level, 0 is no
-                compression, 1-9 is increasingly slow compression in exchange
-                for higher compression ratio.
-        """
-        results_bytes = []
-        results_bytes.append(len(search_results).to_bytes(1, 'little'))
-        for result in search_results:
-            results_bytes.extend(self._serialize_search_result(result))
-
-            # Don't waste time serializing and caching articles already
-            # available in the cache.
-            article_key = f'article:{result.article.database_id}'
-            if self._redis_client.exists(article_key):
-                continue
-
-            article_bytes = self._serialize_article(result.article)
-            self._redis_client.set(
-                article_key,
-                zlib.compress(b''.join(article_bytes), compress_level)
-            )
+    def set(self, query: str, page: JpnArticleSearchResultPage) -> None:
+        """Cache the first page of search results for the given query."""
+        serialized_page = serialize.serialize_search_result_page(page)
 
         self._redis_client.set(
-            f'query:{query}',
-            zlib.compress(b''.join(results_bytes), compress_level)
+            f'query:{query}', serialized_page.search_results
         )
+        for article_id, article_bytes in serialized_page.article_map.items():
+            self._redis_client.set(f'article:{article_id}', article_bytes)
 
-    def set(
-        self, query: str,
-        first_page_search_results: List[JpnArticleSearchResult]
-    ) -> None:
-        """Cache the first page of search results for the given query."""
-        self._cache_serialized_search_results(
-            query, first_page_search_results,
-            self._SERIALIZED_BYTES_COMPRESS_LEVEL
-        )
-
-    @utils.skip_method_debug_logging
-    def _deserialize_text_positions(
-        self, buffer: bytes, start_offset: int,
-        out_list: List[ArticleTextPosition]
-    ) -> int:
-        """Deserialize text positions from a buffer of bytes.
+    def get_article(self, article_oid: ObjectId) -> JpnArticle:
+        """Get an article cached in the first page cache.
 
         Args:
-            buffer: Buffer of bytes containing the text positions to
-                deserialize.
-            start_offset: Offset in the buffer of the start of the section
-                containing the serialized text positions to deserialize.
-            out_list: List to append the deserialized text positions to.
+            article_oid: Database ID of the article to get from the first page
+                cache.
 
         Returns:
-            The number of bytes read from the buffer to deserialize the text
-            positions.
+            An article object populated with the article data stored for the
+            given ID in the first page cache, or None if no data is stored in
+            the first page cache for the given ID.
         """
-        offset = start_offset
-        text_pos_count = int.from_bytes(buffer[offset:offset + 2], 'little')
-        offset += 2
-        for _ in range(text_pos_count):
-            text_pos = ArticleTextPosition(
-                start=int.from_bytes(buffer[offset:offset + 2], 'little'),
-                len=int.from_bytes([buffer[offset + 2]], 'little')
-            )
-            out_list.append(text_pos)
-            offset += 3
-
-        return offset - start_offset
-
-    @utils.skip_method_debug_logging
-    def _deserialize_text(
-        self, buffer: bytes, start_offset: int, size_bytes: int,
-        encoding: str = 'utf-8'
-    ) -> Tuple[str, int]:
-        """Deserialize text from a buffer of bytes.
-
-        Args:
-            buffer: Buffer of bytes containing the text to deserialize.
-            start_offset: Offset in the buffer of the start of the section
-                containing the serialized text to deserialize.
-            size_bytes: Number of bytes used to store the size of the text in
-                the serialization of the text.
-            encoding: Encoding used for the text in the serialization.
-
-        Returns:
-            A 2-tuple containing:
-                - The deserialized text.
-                - The number of bytes read from the buffer to deserialize the
-                    text.
-        """
-        offset = start_offset
-        text_size = int.from_bytes(
-            buffer[offset:offset + size_bytes], 'little'
-        )
-        offset += size_bytes
-
-        text = buffer[offset:offset + text_size].decode(encoding)
-        offset += text_size
-
-        return (text, offset - start_offset)
-
-    @utils.skip_method_debug_logging
-    def _deserialize_article(
-        self, buffer: bytes, out_article: JpnArticle
-    ) -> None:
-        """Deserialize an article from a buffer of bytes.
-
-        Args:
-            buffer: Buffer of bytes containing the full serialization of an
-                article to deserialize.
-            out_article: Article object to write the deserialized article data
-                to.
-        """
-        offset = 0
-        out_article.title, read_bytes = self._deserialize_text(
-            buffer, offset, 3, 'utf-16'
-        )
-        offset += read_bytes
-        out_article.full_text, read_bytes = self._deserialize_text(
-            buffer, offset, 3, 'utf-16'
-        )
-        offset += read_bytes
-
-        out_article.source_name, read_bytes = self._deserialize_text(
-            buffer, offset, 1, 'utf-8'
-        )
-        offset += read_bytes
-        out_article.source_url, read_bytes = self._deserialize_text(
-            buffer, offset, 2, 'utf-8'
-        )
-        offset += read_bytes
-
-        out_article.alnum_count = int.from_bytes(
-            buffer[offset:offset + 2], 'little'
-        )
-        out_article.has_video = bool(int.from_bytes(
-            [buffer[offset + 2]], 'little'
-        ))
-        offset += 3
-
-        out_article.publication_datetime = datetime.fromtimestamp(
-            int.from_bytes(buffer[offset:offset + 4], 'little')
-        )
-        offset += 4
-        out_article.last_updated_datetime = datetime.fromtimestamp(
-            int.from_bytes(buffer[offset:offset + 4], 'little')
-        )
-
-    def _get_article(self, oid: ObjectId) -> Optional[JpnArticle]:
-        """Get the cached article for the given object ID.
-
-        Args:
-            oid: ObjectId for the article to get from the cache.
-
-        Returns:
-            An article object populated with the data for the article in the
-            cache if the article data exists in the cache, or None if no data
-            for the article exists in the cache for the given ObjectId.
-        """
-        cached_article = self._redis_client.get(f'article:{str(oid)}')
+        cached_article = self._redis_client.get(f'article:{article_oid!s}')
         if cached_article is None:
             return None
 
-        article = JpnArticle()
-        article.database_id = str(oid)
-        article_bytes = zlib.decompress(cached_article)
-        self._deserialize_article(article_bytes, article)
-
+        article = JpnArticle(database_id=str(article_oid))
+        serialize.deserialize_article(cached_article, article)
         return article
 
-    def _deserialize_search_results(
-        self, serialized_search_results: bytes
-    ) -> List[JpnArticleSearchResult]:
-        """Deserialize search results.
-
-        Args:
-            serialized_search_results: Decompressed serialization of a list of
-                search results to deserialize.
-
-        Returns:
-            A list of deserialized search results.
-        """
-        search_results = []
-
-        results_bytes = serialized_search_results
-        search_result_count = int.from_bytes([results_bytes[0]], 'little')
-        offset = 1
-        for _ in range(search_result_count):
-            search_result = JpnArticleSearchResult(JpnArticle(), [])
-
-            article_oid = ObjectId(results_bytes[offset:offset + 12])
-            offset += 12
-            search_result.article = self._get_article(article_oid)
-            if search_result.article is None:
-                utils.log_and_raise(
-                    _log, DataAccessError,
-                    'Article key for ID "{}" not found in Redis'.format(
-                        article_oid
-                    )
-                )
-
-            offset += self._deserialize_text_positions(
-                results_bytes, offset, search_result.found_positions
-            )
-            search_results.append(search_result)
-
-        return search_results
-
-    def get(
-        self, query: str
-    ) -> Optional[List[JpnArticleSearchResult]]:
+    def get(self, query: str) -> Optional[JpnArticleSearchResultPage]:
         """Get the cached first page of search results for the given query.
 
         Args:
             query: Query to get the cached first page of search results for.
 
         Returns:
-            A list of the cached first page search results if they exist in the
-            cache, or None if no search results exist in the cache for query.
+            The cached first page of search results for the query, or None if
+            the first page of search results is not in the cache for the query.
         """
         cached_results = self._redis_client.get(f'query:{query}')
         if cached_results is None:
             return None
 
-        serialized_results = zlib.decompress(cached_results)
-        return self._deserialize_search_results(serialized_results)
+        page = JpnArticleSearchResultPage(query=query, page_num=1)
+        serialize.deserialize_search_results(cached_results, page)
+        for result in page.search_results:
+            article_id = result.article.database_id
+            cached_article = self._redis_client.get(f'article:{article_id}')
+            if cached_article is None:
+                utils.log_and_raise(
+                    _log, DataAccessError,
+                    f'Article key for ID "{article_id}" not found in first '
+                    f'cache'
+                )
+            serialize.deserialize_article(cached_article, result.article)
+
+        return page

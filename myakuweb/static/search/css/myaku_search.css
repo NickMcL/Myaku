@@ -123,6 +123,10 @@ a {
   font-size: .9em;
 }
 
+.page-move-tile {
+  font-size: 1.2em;
+}
+
 .navbar a {
   text-decoration: underline;
 }

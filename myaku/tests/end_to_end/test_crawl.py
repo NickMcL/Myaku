@@ -36,6 +36,11 @@ from myaku.runners import run_crawl
 
 TEST_DIR = os.path.dirname(os.path.relpath(__file__))
 
+# Datetimes to mock out datetime.utcnow() with for each crawl test stage.
+INITIAL_DATETIME = datetime(2019, 9, 6, 5, 0, 0)
+UPDATE_DATETIME = datetime(2019, 9, 7, 16, 30, 0)
+NO_CHANGES_DATETIME = datetime(2019, 9, 8, 20, 1, 5)
+
 ARTICLE_CACHED_ATTRS = [
     'source_name',
     'source_url',
@@ -65,6 +70,7 @@ INITIAL_CRAWL_EXPECTED_BLOG_DOCS = [
         'source_url': 'https://kakuyomu.jp/series-link-1',
         'publication_datetime': datetime.fromisoformat('2018-04-28T01:10:28'),
         'last_updated_datetime': datetime.fromisoformat('2019-09-05T13:13:24'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'rating': 521,
         'rating_count': 221,
         'tags': ['Nonfiction', 'Watch out!', 'Tag 1', 'Tag 2', 'Tag 3'],
@@ -85,6 +91,7 @@ INITIAL_CRAWL_EXPECTED_BLOG_DOCS = [
         'source_url': 'https://kakuyomu.jp/series-link-2',
         'publication_datetime': datetime.fromisoformat('2015-02-20T08:10:47'),
         'last_updated_datetime': datetime.fromisoformat('2018-03-21T03:43:01'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'rating': 0,
         'rating_count': 0,
         'tags': ['Nonfiction'],
@@ -103,6 +110,7 @@ INITIAL_CRAWL_EXPECTED_BLOG_DOCS = [
         'source_url': 'https://kakuyomu.jp/series-link-3',
         'publication_datetime': datetime.fromisoformat('2015-07-11T11:47:00'),
         'last_updated_datetime': datetime.fromisoformat('2017-12-01T20:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'rating': 12,
         'rating_count': 5,
         'tags': ['Nonfiction', 'Tag 4'],
@@ -120,13 +128,35 @@ INITIAL_CRAWL_EXPECTED_BLOG_DOCS = [
 UPDATE_CRAWL_EXPECTED_BLOG_DOCS = copy.deepcopy(
     INITIAL_CRAWL_EXPECTED_BLOG_DOCS
 )
+UPDATE_CRAWL_EXPECTED_BLOG_DOCS[0] = {
+    'title': 'Kakuyomu Series 1',
+    'author': 'Kakuyomu Author 1',
+    'source_name': 'Kakuyomu',
+    'source_url': 'https://kakuyomu.jp/series-link-1',
+    'publication_datetime': datetime.fromisoformat('2018-04-28T01:10:28'),
+    'last_updated_datetime': datetime.fromisoformat('2019-09-05T13:13:24'),
+    'last_crawled_datetime': UPDATE_DATETIME,
+    'rating': 521,
+    'rating_count': 221,
+    'tags': ['Nonfiction', 'Watch out!', 'Tag 1', 'Tag 2', 'Tag 3'],
+    'catchphrase': 'Catchy catchphrase',
+    'introduction':
+        'Intoduction text\nAfter a br\nA little bit more\n'
+        'This bit is hidden behind show rest\nA bit more after that\n\n',
+    'article_count': 3,
+    'total_char_count': 30182,
+    'comment_count': 60,
+    'follower_count': 1023,
+    'in_serialization': True,
+}
 UPDATE_CRAWL_EXPECTED_BLOG_DOCS[2] = {
     'title': 'Kakuyomu Series 3',
     'author': 'Kakuyomu Author 3v2',
     'source_name': 'Kakuyomu',
     'source_url': 'https://kakuyomu.jp/series-link-3',
     'publication_datetime': datetime.fromisoformat('2015-07-11T11:47:00'),
-    'last_updated_datetime': datetime.fromisoformat('2037-09-06T15:30:28'),
+    'last_updated_datetime': datetime.fromisoformat('2019-09-07T10:30:28'),
+    'last_crawled_datetime': UPDATE_DATETIME,
     'rating': 17,
     'rating_count': 6,
     'tags': ['Nonfiction', 'Tag 4'],
@@ -143,8 +173,9 @@ UPDATE_CRAWL_EXPECTED_BLOG_DOCS.append({
     'author': 'Kakuyomu Author 4',
     'source_name': 'Kakuyomu',
     'source_url': 'https://kakuyomu.jp/series-link-4',
-    'publication_datetime': datetime.fromisoformat('2037-09-06T09:18:02'),
-    'last_updated_datetime': datetime.fromisoformat('2037-09-06T09:18:02'),
+    'publication_datetime': datetime.fromisoformat('2019-09-07T09:18:02'),
+    'last_updated_datetime': datetime.fromisoformat('2019-09-07T09:18:02'),
+    'last_crawled_datetime': UPDATE_DATETIME,
     'rating': 3,
     'rating_count': 1,
     'tags': ['Nonfiction', 'Watch out!'],
@@ -198,6 +229,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': 1,
         'publication_datetime': datetime.fromisoformat('2018-05-28T16:10:16'),
         'last_updated_datetime': datetime.fromisoformat('2018-05-28T16:10:16'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             'ae098c2b815b0bdb3a07ecfbc3df2ec26c65c5c6eba14a68c7de3fbc27e612cb',
         'alnum_count': 662,
@@ -232,6 +264,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': 2,
         'publication_datetime': datetime.fromisoformat('2019-01-13T01:17:00'),
         'last_updated_datetime': datetime.fromisoformat('2019-01-13T01:17:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '97297e800cc6918a0163b59bdf229a07c63cb87da039190fa8db2b5058e695a5',
         'alnum_count': 352,
@@ -257,6 +290,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': 1,
         'publication_datetime': datetime.fromisoformat('2019-08-29T09:21:29'),
         'last_updated_datetime': datetime.fromisoformat('2019-09-05T13:13:24'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '2cb65de88d1af15a1e49ca2e5a6d84a5c712d6e878df2147f93d6c0d840d9ac9',
         'alnum_count': 104,
@@ -290,6 +324,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': 1,
         'publication_datetime': datetime.fromisoformat('2015-02-23T10:19:11'),
         'last_updated_datetime': datetime.fromisoformat('2015-02-23T10:19:11'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             'c7ee027e8c8794b3da782c0366e4c2f27571f5ce16220c412125ff671649d485',
         'alnum_count': 298,
@@ -314,6 +349,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': 1,
         'publication_datetime': datetime.fromisoformat('2018-03-21T03:43:01'),
         'last_updated_datetime': datetime.fromisoformat('2018-03-21T03:43:01'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '455b7dc21aa9fd730adec86236e2bb43ba273ce3c1965d70a6ba5fb155a1650d',
         'alnum_count': 102,
@@ -342,6 +378,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': 1,
         'publication_datetime': datetime.fromisoformat('2015-07-11T11:47:00'),
         'last_updated_datetime': datetime.fromisoformat('2017-12-01T20:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '9dcd23a4c6a29dd9d2d85b7c573c573d9e55c167fb8384e8af66ae748f1305a2',
         'alnum_count': 164,
@@ -369,6 +406,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-07-15T02:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-07-15T02:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '4ad18c786f692eb080670703d655d49a27014cf190b04ce08ecf739aee4d9ed1',
         'alnum_count': 179,
@@ -396,6 +434,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-07-14T23:30:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-07-14T23:30:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '6e255ea8731eda163dcbf2dc536657a77c100541f85c4892aaf1b7ce6732f46c',
         'alnum_count': 176,
@@ -425,6 +464,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-07-15T09:11:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-07-15T09:11:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '3336d6795dd690824cd1b42901dfc1a2ec9b3752da0dfb46fb47f2f43c59ab1d',
         'alnum_count': 173,
@@ -452,6 +492,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-07-14T19:45:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-07-14T19:45:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '5500ceb0a076e11039ae8f94fb5f80aec0e465070c413a4797b6293ed335613c',
         'alnum_count': 170,
@@ -476,6 +517,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-07-14T20:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-07-14T20:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '42e3c8b557f58a54d1e6cdba15c3cdfa749c9c8cf0de36f10825a8eea6afeafb',
         'alnum_count': 83,
@@ -501,6 +543,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-07-13T20:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-07-13T20:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '496288f7f1de0129105d0c2970132b375dc5d979fee502fc3d4b61d003ca5b95',
         'alnum_count': 104,
@@ -533,6 +576,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-07-13T20:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-07-13T20:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '0c3f7d55dd5c3fa8e9f9d7afd97dc10c3cad26940c60c596f3c87cd5f5d811dc',
         'alnum_count': 289,
@@ -560,6 +604,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-06-29T20:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-06-29T20:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             'f1f13023c3705a021fccd9848145fd7e7af4019629a98a3f61e6a7fa7a748409',
         'alnum_count': 140,
@@ -585,6 +630,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-05-30T20:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-05-30T20:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             '30fe029e460f99990fa41bcf987000bf5514fbcbec4f13f9d85200274ddbab09',
         'alnum_count': 113,
@@ -610,6 +656,7 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-05-30T20:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-05-30T20:00:00'),
+        'last_crawled_datetime': INITIAL_DATETIME,
         'text_hash':
             'd0c513665c36adadf52baf9babde306f028f66f6d44d3076615b2b5321af30a6',
         'alnum_count': 118,
@@ -641,8 +688,9 @@ UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.extend([
         'blog_section_name': None,
         'blog_section_order_num': 0,
         'blog_section_article_order_num': 2,
-        'publication_datetime': datetime.fromisoformat('2037-09-06T15:30:28'),
-        'last_updated_datetime': datetime.fromisoformat('2037-09-06T15:30:28'),
+        'publication_datetime': datetime.fromisoformat('2019-09-07T10:30:28'),
+        'last_updated_datetime': datetime.fromisoformat('2019-09-07T10:30:28'),
+        'last_crawled_datetime': UPDATE_DATETIME,
         'text_hash':
             '29a6ffddce745f00cc781fe48eade12f0d3542e27896830dc89d44a7d5f96d42',
         'alnum_count': 142,
@@ -667,8 +715,9 @@ UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.extend([
         'blog_section_name': None,
         'blog_section_order_num': 0,
         'blog_section_article_order_num': 1,
-        'publication_datetime': datetime.fromisoformat('2037-09-06T09:18:02'),
-        'last_updated_datetime': datetime.fromisoformat('2037-09-06T09:18:02'),
+        'publication_datetime': datetime.fromisoformat('2019-09-07T09:18:02'),
+        'last_updated_datetime': datetime.fromisoformat('2019-09-07T09:18:02'),
+        'last_crawled_datetime': UPDATE_DATETIME,
         'text_hash':
             '89517ffc51ce622beef8bc430ad29b8394d97a6b79bdf853b36b1dbf47c896b7',
         'alnum_count': 148,
@@ -696,6 +745,7 @@ UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.extend([
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-08-15T04:10:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-08-15T04:10:00'),
+        'last_crawled_datetime': UPDATE_DATETIME,
         'text_hash':
             'd14eb96ab7e43ce11df37a4bd7cc4ec4becb37be3b48404040e3bb44f5cada87',
         'alnum_count': 153,
@@ -720,6 +770,7 @@ UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.extend([
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-08-15T07:49:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-08-15T07:49:00'),
+        'last_crawled_datetime': UPDATE_DATETIME,
         'text_hash':
             'e8ea2623e449ff8020174ef80e3c71814536f70b663eab031c63f5f269b507c8',
         'alnum_count': 109,
@@ -747,6 +798,7 @@ UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.extend([
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-08-14T20:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-08-14T20:00:00'),
+        'last_crawled_datetime': UPDATE_DATETIME,
         'text_hash':
             '8dedbe687b0a1971943a63a80f49abe608a333492382c21f09356102e4cc7ad4',
         'alnum_count': 163,
@@ -774,6 +826,7 @@ UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.extend([
         'blog_section_article_order_num': None,
         'publication_datetime': datetime.fromisoformat('2018-08-14T20:00:00'),
         'last_updated_datetime': datetime.fromisoformat('2018-08-14T20:00:00'),
+        'last_crawled_datetime': UPDATE_DATETIME,
         'text_hash':
             'a7c18c4efe2ea932e958e46e5709a204911b55c7c2220b85e66ecd0826268235',
         'alnum_count': 148,
@@ -789,10 +842,12 @@ INITIAL_CRAWL_EXPECTED_CRAWL_SKIP_DOCS = [
     {
         'source_url': 'https://www.asahi.com/articles/6.html',
         'source_name': 'Asahi Shinbun',
+        'last_crawled_datetime': INITIAL_DATETIME,
     },
     {
         'source_url': 'https://www.asahi.com/articles/11.html',
         'source_name': 'Asahi Shinbun',
+        'last_crawled_datetime': INITIAL_DATETIME,
     },
 ]
 UPDATE_CRAWL_EXPECTED_CRAWL_SKIP_DOCS = INITIAL_CRAWL_EXPECTED_CRAWL_SKIP_DOCS
@@ -1443,7 +1498,7 @@ UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS['自然'].append({
     'quality_score_possible_mod': 0,
     'article_quality_score': 500,
     'article_last_updated_datetime':
-        datetime.fromisoformat('2037-09-06T09:18:02'),
+        datetime.fromisoformat('2019-09-07T09:18:02'),
     'quality_score_exact': 500,
     'quality_score_definite': 500,
     'quality_score_possible': 500,
@@ -1501,7 +1556,7 @@ UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS['吾輩'] = [{
     'quality_score_possible_mod': 0,
     'article_quality_score': 500,
     'article_last_updated_datetime':
-        datetime.fromisoformat('2037-09-06T15:30:28'),
+        datetime.fromisoformat('2019-09-07T10:30:28'),
     'quality_score_exact': 500,
     'quality_score_definite': 500,
     'quality_score_possible': 500,
@@ -1892,20 +1947,6 @@ class MockRequestsSession(object):
                 'test_html/kakuyomu/series_search_p2_update.html'
             ),
 
-        # These series pages have a last update date set far in the future so
-        # that the crawler will always check them for updates during the UPDATE
-        # crawl. Since the last update date for the series is in the future, it
-        # means these series pages will be crawled again during the NO_CHANGES
-        # crawl even though nothing has changed on them.
-        'https://kakuyomu.jp/series-link-1':
-            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_1_update.html'),
-
-        'https://kakuyomu.jp/series-link-3':
-            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_3_update.html'),
-
-        'https://kakuyomu.jp/series-link-4':
-            os.path.join(TEST_DIR, 'test_html/kakuyomu/series_4.html'),
-
         'https://www.asahi.com/news/':
             os.path.join(TEST_DIR, 'test_html/asahi/news_top_update.html'),
 
@@ -2003,6 +2044,17 @@ class MockRequestsSession(object):
             assert MockRequestsSession._request_counter[url] == 1
 
 
+class MockDatetime(datetime):
+    """Mock for overriding utcnow to return a static datetime."""
+
+    utcnow_datetime: datetime = None
+
+    @classmethod
+    def utcnow(cls) -> datetime:
+        """Return a statically definied datetime instead of actual utcnow."""
+        return cls.utcnow_datetime
+
+
 def assert_doc_field_value(
     field: str, value: Any, expected_doc: _Document,
     oid_map: Dict[str, ObjectId]
@@ -2033,10 +2085,6 @@ def assert_doc_field_value(
         # expected.
         assert isinstance(value, ObjectId)
         assert len(value.binary) == 12
-    elif field == 'last_crawled_datetime':
-        # last_crawled_datetime will also be different every test run, so just
-        # check that the time is within 5 minutes of now.
-        assert (datetime.utcnow() - value).seconds < (60 * 5)
     elif field == 'myaku_version_info':
         assert len(value) == VERSION_DOC_EXPECTED_FIELD_COUNT
         for key, version in value.items():
@@ -2229,8 +2277,8 @@ def assert_first_page_cache_query_keys(
         {'$group': {'_id': '$base_form'}}
     ])
     for doc in base_form_cursor:
-        search_results = cache.get(doc['_id'])
-        assert search_results is not None
+        first_page_results = cache.get(doc['_id'])
+        assert first_page_results is not None
 
         fli_cursor = db._found_lexical_item_collection.find(
             {'base_form': doc['_id']}
@@ -2240,6 +2288,7 @@ def assert_first_page_cache_query_keys(
         )[:CrawlDb.SEARCH_RESULTS_PAGE_SIZE]
         article_oids |= {d['article_oid'] for d in ranked_fli_docs}
 
+        search_results = first_page_results.search_results
         assert_search_results(search_results, ranked_fli_docs)
 
     # Make sure every query key maps to something in the crawl db
@@ -2264,7 +2313,7 @@ def assert_first_page_cache_article_keys(
             keys with article data in the first page cache.
     """
     for doc in db._article_collection.find({}):
-        cached_article = cache._get_article(doc['_id'])
+        cached_article = cache.get_article(doc['_id'])
         if doc['_id'] not in expected_article_oids:
             assert cached_article is None
             continue
@@ -2289,6 +2338,13 @@ def assert_first_page_cache_data() -> None:
         assert_first_page_cache_article_keys(cache, db, expected_article_oids)
 
 
+def patch_utcnow(mocker, patch_dt: datetime) -> None:
+    """Patch datetime.utcnow to return a static datetime for the crawlers."""
+    MockDatetime.utcnow_datetime = patch_dt
+    mocker.patch('myaku.crawlers.base.datetime', MockDatetime)
+    mocker.patch('myaku.scorer.factor_scorers.datetime', MockDatetime)
+
+
 def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     """Test a series of full end-to-end crawling sessions.
 
@@ -2308,12 +2364,14 @@ def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     )
 
     MockRequestsSession.start_request_tracking(SourceUpdateState.INITIAL)
+    patch_utcnow(mocker, INITIAL_DATETIME)
     run_crawl.main()
     assert_initial_crawl_db_data()
     assert_first_page_cache_data()
     MockRequestsSession.assert_request_counts()
 
     MockRequestsSession.start_request_tracking(SourceUpdateState.UPDATE)
+    patch_utcnow(mocker, UPDATE_DATETIME)
     run_crawl.main()
     assert_update_crawl_db_data()
     assert_first_page_cache_data()
@@ -2323,6 +2381,7 @@ def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     # no issues happen during crawls when nothing has changed on the site since
     # the last time it was crawled.
     MockRequestsSession.start_request_tracking(SourceUpdateState.NO_CHANGES)
+    patch_utcnow(mocker, NO_CHANGES_DATETIME)
     run_crawl.main()
     assert_update_crawl_db_data()
     assert_first_page_cache_data()

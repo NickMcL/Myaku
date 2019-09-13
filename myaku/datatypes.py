@@ -207,10 +207,10 @@ class JpnArticle(Crawlable):
     def __str__(self) -> str:
         """Return the identifying data for the article in string format."""
         return '|'.join([
-            self.title,
-            self.source_url,
+            str(self.title),
+            str(self.source_url),
             str(self.blog),
-            self.publication_datetime.isoformat(),
+            str(self.publication_datetime),
             str(self.quality_score)
         ])
 

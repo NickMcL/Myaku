@@ -73,6 +73,12 @@ WORKDIR $CRAWLER_SRC_DIR
 
 FROM base AS dev
 
+# Install dev requirements like ipython only in the dev images so that the prod
+# images don't contain them.
+COPY ./requirements.txt $CRAWLER_SRC_DIR/dev_requirements.txt
+RUN $PYTHON_BIN -m pip install -U pip \
+    && $PYTHON_BIN -m pip install -r $CRAWLER_SRC_DIR/dev_requirements.txt
+
 # Volumes for sharing in development source on host with container.
 VOLUME ["$MYAKU_SRC_DIR"]
 VOLUME ["$SCRIPTS_DIR"]

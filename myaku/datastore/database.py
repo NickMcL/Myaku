@@ -26,6 +26,7 @@ from myaku.datastore import (
     DataAccessMode,
     JpnArticleQueryType,
     JpnArticleSearchResult,
+    JpnArticleSearchResultPage,
     require_update_permission,
     require_write_permission,
 )
@@ -612,23 +613,24 @@ class CrawlDb(object):
             {'$group': {'_id': '$base_form'}},
             {'$count': 'total'}
         ])
-        doc_list = list(cursor)
-        base_form_total = doc_list[0]['total'] if len(doc_list) > 0 else 0
+        docs = list(cursor)
+        base_form_total = docs[0]['total'] if len(docs) > 0 else 0
         _log.info(
             f'Will build the first page cache for all {base_form_total:,} '
             f'base forms currently in db'
         )
 
+        self._first_page_cache.flush_all()
         cursor = self._found_lexical_item_collection.aggregate([
             {'$match': {'base_form': {'$gt': ''}}},
             {'$group': {'_id': '$base_form'}}
         ])
         for i, doc in enumerate(cursor):
             base_form = doc['_id']
-            search_results = self._search_articles_using_db(
+            search_result_page = self._search_articles_using_db(
                 base_form, JpnArticleQueryType.EXACT, 1
             )
-            self._first_page_cache.set(base_form, search_results)
+            self._first_page_cache.set(base_form, search_result_page)
 
             if (i + 1) % 1000 == 0 or (i + 1) == base_form_total:
                 _log.info(
@@ -663,16 +665,39 @@ class CrawlDb(object):
             f'queries'
         )
         for i, base_form in enumerate(self._written_fli_base_forms):
-            search_results = self._search_articles_using_db(
+            search_result_page = self._search_articles_using_db(
                 base_form, JpnArticleQueryType.EXACT, 1
             )
-            self._first_page_cache.set(base_form, search_results)
+            self._first_page_cache.set(base_form, search_result_page)
 
             if (i + 1) % 1000 == 0 or (i + 1) == update_total:
                 _log.info(f'Updated count: {i + 1:,} / {update_total:,}')
 
         self._written_fli_base_forms = set()
         _log.info('First page cache update complete')
+
+    def _get_article_count(
+        self, query: str, query_type: JpnArticleQueryType
+    ) -> int:
+        """Get the total number of articles in the db matching the query.
+
+        Args:
+            query: Lexical item base form value to use to search for articles.
+            query_type: Type of matching to use when searching for articles
+                whose text contains terms matching the query.
+
+        Returns:
+            The total number of articles in the db matching the query.
+        """
+        query_field = self._QUERY_TYPE_QUERY_FIELD_MAP[query_type]
+
+        cursor = self._found_lexical_item_collection.aggregate([
+            {'$match': {query_field: query}},
+            {'$group': {'_id': f'$article_oid'}},
+            {'$count': 'total'},
+        ])
+        docs = list(cursor)
+        return docs[0]['total'] if len(docs) > 0 else 0
 
     def _get_article_docs_from_search_results(
         self, search_results_cursor: Cursor, quality_score_field: str,
@@ -726,41 +751,39 @@ class CrawlDb(object):
         return article_search_result_docs
 
     @utils.skip_method_debug_logging
-    def _search_articles_using_cache(
+    def _get_from_first_page_cache(
         self, query: str
-    ) -> Optional[List[JpnArticleSearchResult]]:
-        """Search for articles that match the query using only the cache.
-
-        Does not use the db in any case, even if the cache contains no search
-        results for the query.
+    ) -> Optional[JpnArticleSearchResultPage]:
+        """Get first page of search results for query from first page cache.
 
         The search results are in ranked order by quality score. See the scorer
         module for more info on how quality scores are determined.
 
         Args:
-            query_value: Lexical item base form value to use to search for
-                articles.
+            query: Lexical item base form value to get the first page of search
+                results for.
 
         Returns:
-            A list containing a page of article search results that match the
-            lexical item query if there was results in the cache, or None if
-            nothing was stored in the search results cache for the query.
+            The first page of search results for the query if the page was in
+            the first page cache, or None of the first page of search results
+            for the query was not in the first page cache.
         """
         _log.debug('Checking first page cache for query "%s"', query)
-        cached_results = self._first_page_cache.get(query)
-        if cached_results:
+        cached_first_page = self._first_page_cache.get(query)
+        if cached_first_page:
             _log.debug(
-                'Query "%s" results retrieved from first page cache', query
+                'Query "%s" first page search results retrieved from first '
+                'page cache', query
             )
-            return cached_results
+            return cached_first_page
 
         _log.debug('Query "%s" not found in first page cache', query)
         return None
 
     @utils.skip_method_debug_logging
     def _search_articles_using_db(
-        self, query: str, query_type: JpnArticleQueryType, page: int = 1
-    ) -> List[JpnArticleSearchResult]:
+        self, query: str, query_type: JpnArticleQueryType, page_num: int = 1
+    ) -> JpnArticleSearchResultPage:
         """Search for articles that match the query using only the db.
 
         Does not use the search result cache in any case.
@@ -769,16 +792,14 @@ class CrawlDb(object):
         module for more info on how quality scores are determined.
 
         Args:
-            query_value: Lexical item base form value to use to search for
-                articles.
+            query: Lexical item base form value to use to search for articles.
             query_type: Type of matching to use when searching for articles
-                whose text contains terms matching query_value.
-            page: Page of the search results to return. Page indexing starts
-                from 1.
+                whose text contains terms matching the query.
+            page_num: Page of the search results to return. Page indexing
+                starts from 1.
 
         Returns:
-            A list containing a page of article search results that match the
-            lexical item query.
+            The requested page of search results for the query.
         """
         query_field = self._QUERY_TYPE_QUERY_FIELD_MAP[query_type]
         quality_score_field = self._QUERY_TYPE_SCORE_FIELD_MAP[query_type]
@@ -791,8 +812,8 @@ class CrawlDb(object):
         ])
         search_result_docs = self._get_article_docs_from_search_results(
             cursor, quality_score_field,
-            (page - 1) * self.SEARCH_RESULTS_PAGE_SIZE,
-            page * self.SEARCH_RESULTS_PAGE_SIZE
+            (page_num - 1) * self.SEARCH_RESULTS_PAGE_SIZE,
+            self.SEARCH_RESULTS_PAGE_SIZE
         )
 
         article_oids = [doc['article_oid'] for doc in search_result_docs]
@@ -801,34 +822,37 @@ class CrawlDb(object):
         search_results = self._convert_docs_to_search_results(
             search_result_docs, oid_article_map
         )
-        return search_results
+        return JpnArticleSearchResultPage(
+            query=query,
+            page_num=page_num,
+            total_results=self._get_article_count(query, query_type),
+            search_results=search_results
+        )
 
     def search_articles(
-        self, query: str, query_type: JpnArticleQueryType, page: int = 1
-    ) -> List[JpnArticleSearchResult]:
+        self, query: str, query_type: JpnArticleQueryType, page_num: int = 1
+    ) -> JpnArticleSearchResultPage:
         """Search the db for articles that match the lexical item query.
 
         The search results are in ranked order by quality score. See the scorer
         module for more info on how quality scores are determined.
 
         Args:
-            query_value: Lexical item base form value to use to search for
-                articles.
+            query: Lexical item base form value to use to search for articles.
             query_type: Type of matching to use when searching for articles
-                whose text contains terms matching query_value.
-            page: Page of the search results to return. Page indexing starts
-                from 1.
+                whose text contains terms matching the query.
+            page_num: Page of the search results to return. Page indexing
+            starts from 1.
 
         Returns:
-            A list containing a page of article search results that match the
-            lexical item query.
+            The requested page of search results for the query.
         """
-        if page == 1:
-            cached_results = self._search_articles_using_cache(query)
-            if cached_results:
-                return cached_results
+        if page_num == 1:
+            cached_first_page = self._get_from_first_page_cache(query)
+            if cached_first_page:
+                return cached_first_page
 
-        return self._search_articles_using_db(query, query_type, page)
+        return self._search_articles_using_db(query, query_type, page_num)
 
     def read_found_lexical_items(
         self, base_forms: List[str], starts_with: bool = False
@@ -1166,7 +1190,7 @@ class CrawlDb(object):
         self, lookup_field_name: str, lookup_values: Union[Any, List[Any]],
         collection: Collection, projection: _Document = None
     ) -> List[_Document]:
-        """Read docs from collection with before and after logging.
+        """Read docs from collection with logging.
 
         Args:
             lookup_field_name: The field to query on. Should be an indexed
@@ -1183,6 +1207,9 @@ class CrawlDb(object):
         """
         if not isinstance(lookup_values, list):
             lookup_values = [lookup_values]
+
+        if len(lookup_values) == 0:
+            return []
 
         _log.debug(
             'Will query %s with %s %s',

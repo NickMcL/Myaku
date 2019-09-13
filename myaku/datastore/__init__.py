@@ -18,14 +18,14 @@ _log = logging.getLogger(__name__)
 
 @dataclass
 class JpnArticleSearchResult(object):
-    """Article result of a database search for found lexical items.
+    """Article result of a database search for a lexical items.
 
     Attributes:
         article: Article matching the found lexical item search query.
-        matched_base_forms: Lexical item base forms that matched the search
-            query that were found in the article.
         found_positions: Positions of the found lexical items in the article
             that matched the search query.
+        matched_base_forms: Lexical item base forms that matched the search
+            query that were found in the article.
         quality_score: Quality score of this search result. See the scorers
             module for more info on how quality scoring is done.
     """
@@ -33,6 +33,25 @@ class JpnArticleSearchResult(object):
     found_positions: List[ArticleTextPosition]
     matched_base_forms: List[str] = None
     quality_score: int = None
+
+
+@dataclass
+class JpnArticleSearchResultPage(object):
+    """Page of article results of a database search for a lexical item.
+
+    Attributes:
+        query: Search query that this is a page of serach results for.
+        page_num: The page number of this page of search results for the query.
+            Page indexing starts from 1.
+        total_results: The overall total number of search results found in the
+            database for the query. Note that this is NOT the number of results
+            on just this page, but the total overall number of results.
+        search_results: Article search results for the page in ranked order.
+    """
+    query: str = None
+    page_num: int = None
+    total_results: int = None
+    search_results: List[JpnArticleSearchResult] = None
 
 
 @enum.unique

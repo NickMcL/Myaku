@@ -595,7 +595,8 @@ class TestRunner(object):
         )
         exec_cmd = [
             'docker', 'exec', '-it', container.short_id,
-            '/bin/bash', '-c', '$PYTHON_BIN -m pytest myaku/tests/end_to_end'
+            '/bin/bash', '-c',
+            '$PYTHON_BIN -m pytest --no-print-logs myaku/tests/end_to_end'
         ]
         completed = subprocess.run(exec_cmd, text=True)
 
