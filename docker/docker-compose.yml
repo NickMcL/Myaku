@@ -95,6 +95,10 @@ services:
   web-rabbit:
     image: rabbitmq:3.7.17
     hostname: web-rabbit
+    volumes:
+      - type: volume
+        source: web_rabbit_data
+        target: /var/lib/rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER_FILE: /run/secrets/web_rabbit_username
       RABBITMQ_DEFAULT_PASS_FILE: /run/secrets/web_rabbit_password
@@ -245,6 +249,7 @@ volumes:
   rescore_log:
   web_log:
   web_worker_log:
+  web_rabbit_data:
   first_page_cache_data:
   next_page_cache_data:
   reverseproxy_log:
