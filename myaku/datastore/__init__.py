@@ -16,9 +16,82 @@ from myaku.errors import DataAccessPermissionError
 _log = logging.getLogger(__name__)
 
 
+@enum.unique
+class QueryType(enum.Enum):
+    """Match type for a Japanese lexical item query for articles.
+
+    Currently, Myaku just uses the EXACT type for everything because the
+    DEFINITE_ALT_FORMS and POSSIBLE_ALT_FORMS types have not been implemented
+    yet.
+
+    Attributes:
+        EXACT: Only match articles containing a term whose base form matches
+            the query exactly.
+
+            For example, searching for "落ち込む" will not match
+            "落ちこむ" because they do not match exactly even though they are
+            definte alternate forms of the same lexical item.
+        DEFINITE_ALT_FORMS: In addition to articles matched by EXACT, also
+            match articles containing any term whose base form is a definite
+            alternate form of a lexical item that has a form that exactly
+            matches the query.
+
+            For example, searching for "落ち込む" will also match "落ちこむ"
+            because they are definite alternate forms of the same lexical item,
+            but searching for "変える" will not match "かえる" even though
+            "かえる" is an alternate form of it because it is not a definite
+            alternate form. This is because "かえる" is also an alternate form
+            for words like "帰る" which are completely different lexical items
+            that do not have the searched "変える" as an alternate form.
+
+        POSSIBLE_ALT_FORMS: In addition to the articles matched by
+            DEFNITE_ALT_FORMS, also match articles containing any term whose
+            base form is an alternate form of a lexical item that has a form
+            that exactly matches the query, even if that base form is also an
+            alternate form of other lexical items that do not have a form that
+            exactly matches the query.
+
+            For example, searching for "変える" will also match "かえる"
+            because "かえる" is an alternate form of it even though "かえる" is
+            also an alternate form for "帰る" which is a completely different
+            lexical item that does not have the searched "変える" as an
+            alternate form.
+    """
+    EXACT = 1
+    DEFINITE_ALT_FORMS = 3
+    POSSIBLE_ALT_FORMS = 2
+
+
 @dataclass
-class JpnArticleSearchResult(object):
-    """Article result of a database search for a lexical items.
+class Query(object):
+    """Lexical item query for articles in the Myaku crawl database.
+
+    Attributes:
+        query_str: The lexical item string being searched for by this query.
+        page_num: The page number of the search results being queried.
+        query_type: The type of matching to use when searching for articles
+            that match the lexical item being queried.
+        user_id: ID of the user making the query. Can be used to get search
+            result pages that were pre-fetched into a cache for the user.
+    """
+    query_str: str = None
+    page_num: int = None
+    query_type: QueryType = QueryType.EXACT
+    user_id: str = None
+
+    def __str__(self) -> str:
+        """Get a string representation of the query."""
+        return '|'.join([
+            str(self.query_str),
+            str(self.page_num),
+            str(self.query_type),
+            str(self.user_id)
+        ])
+
+
+@dataclass
+class SearchResult(object):
+    """Article result of a Myaku crawl database lexical item query.
 
     Attributes:
         article: Article matching the found lexical item search query.
@@ -36,22 +109,19 @@ class JpnArticleSearchResult(object):
 
 
 @dataclass
-class JpnArticleSearchResultPage(object):
-    """Page of article results of a database search for a lexical item.
+class SearchResultPage(object):
+    """Page of article results of a Myaku crawl database lexical item query.
 
     Attributes:
-        query: Search query that this is a page of serach results for.
-        page_num: The page number of this page of search results for the query.
-            Page indexing starts from 1.
+        query: Query that this is a page of serach results for.
         total_results: The overall total number of search results found in the
             database for the query. Note that this is NOT the number of results
             on just this page, but the total overall number of results.
         search_results: Article search results for the page in ranked order.
     """
-    query: str = None
-    page_num: int = None
+    query: Query = None
     total_results: int = None
-    search_results: List[JpnArticleSearchResult] = None
+    search_results: List[SearchResult] = None
 
 
 @enum.unique
@@ -80,50 +150,6 @@ class DataAccessMode(enum.Enum):
     def has_write_permission(self) -> bool:
         """Return True if the access mode as write permission."""
         return self is DataAccessMode.READ_WRITE
-
-
-@enum.unique
-class JpnArticleQueryType(enum.Enum):
-    """Match type for a found lexical item query on an article corpus.
-
-    Attributes:
-        EXACT: Only match articles containing a term whose base form matches
-            the query exactly.
-
-            For example, searching for "落ち込む" will not match
-            "落ちこむ" because they do not match exactly even though they are
-            definte alternate forms of the same lexical item.
-        DEFINITE_ALT_FORMS: In addition to articles matched by EXACT,
-            also match articles containing any term whose base form
-            is a definite alternate form of a lexical item that has a form that
-            exactly matches the query.
-
-            For example, searching for "落ち込む" will also match
-            "落ちこむ" because they are definite alternate forms of the same
-            lexical item, but searching for "変える" will not match
-            "かえる" even though "かえる" is an alternate form of it because it
-            is not a definite alternate form.
-            This is because "かえる" is also an alternate form for words like
-            "帰る" which are completely different lexical items that do not
-            have the searched "変える" as an alternate form.
-
-        POSSIBLE_ALT_FORMS: In addition to the articles matched by
-            DEFNITE_ALT_FORMS, also match articles containing any term whose
-            base form is an alternate form of a lexical item that has a form
-            that exactly matches the query, even if that base form is also an
-            alternate form of other lexical items that do not have a form that
-            exactly matches the query.
-
-            For example, searching for "変える" will also match "かえる"
-            because "かえる" is an alternate form of it even though "かえる" is
-            also an alternate form for "帰る" which is a completely different
-            lexical item that does not have the searched "変える" as an
-            alternate form.
-
-    """
-    EXACT = 1
-    DEFINITE_ALT_FORMS = 3
-    POSSIBLE_ALT_FORMS = 2
 
 
 def require_write_permission(func: Callable) -> Callable:

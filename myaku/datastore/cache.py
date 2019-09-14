@@ -8,7 +8,7 @@ import redis
 from bson.objectid import ObjectId
 
 from myaku import utils
-from myaku.datastore import JpnArticleSearchResultPage, serialize
+from myaku.datastore import Query, SearchResultPage, serialize
 from myaku.datatypes import JpnArticle
 from myaku.errors import DataAccessError
 
@@ -84,12 +84,12 @@ class FirstPageCache(object):
         """Remove everything stored in the cache."""
         self._redis_client.flushall()
 
-    def set(self, page: JpnArticleSearchResultPage) -> None:
+    def set(self, page: SearchResultPage) -> None:
         """Cache the first page of search results for the given query."""
         serialized_page = serialize.serialize_search_result_page(page)
 
         self._redis_client.set(
-            f'query:{page.query}', serialized_page.search_results
+            f'query:{page.query.query_str}', serialized_page.search_results
         )
         for article_id, article_bytes in serialized_page.article_map.items():
             self._redis_client.set(f'article:{article_id}', article_bytes)
@@ -114,7 +114,7 @@ class FirstPageCache(object):
         serialize.deserialize_article(cached_article, article)
         return article
 
-    def get(self, query: str) -> Optional[JpnArticleSearchResultPage]:
+    def get(self, query: Query) -> Optional[SearchResultPage]:
         """Get the cached first page of search results for the given query.
 
         Args:
@@ -124,11 +124,11 @@ class FirstPageCache(object):
             The cached first page of search results for the query, or None if
             the first page of search results is not in the cache for the query.
         """
-        cached_results = self._redis_client.get(f'query:{query}')
+        cached_results = self._redis_client.get(f'query:{query.query_str}')
         if cached_results is None:
             return None
 
-        page = JpnArticleSearchResultPage(query=query, page_num=1)
+        page = SearchResultPage(query=query)
         serialize.deserialize_search_results(cached_results, page)
         for result in page.search_results:
             article_id = result.article.database_id
@@ -168,7 +168,7 @@ class NextPageCache(object):
         )
         self._redis_client = _init_redis_client(hostname, password)
 
-    def set(self, user_id: str, page: JpnArticleSearchResultPage) -> None:
+    def set(self, user_id: str, page: SearchResultPage) -> None:
         """Cache the next page of search results for the user."""
         serialized_page = serialize.serialize_search_result_page(page)
 
@@ -183,45 +183,41 @@ class NextPageCache(object):
         self._redis_client.hmset(f'user:{user_id}', next_page_hash)
         self._redis_client.expire(f'user:{user_id}', self._KEY_EXPIRE_SECONDS)
 
-    def get(
-        self, user_id: str, query: str, page_num: int
-    ) -> Optional[JpnArticleSearchResultPage]:
-        """Get the cached next page of search results for the user.
+    def get(self, query: Query) -> Optional[SearchResultPage]:
+        """Get the cached next page of search results for the query.
 
-        The cached next page will only be returned if it matches the given
-        query and page_num.
+        The cached next page will only be returned if it matches the query_str,
+        page_num, and user_id of the query.
 
         Args:
-            user_id: ID for the user.
-            query: Query that the cached next page of search results should be
-                for.
-            page_num: Page number that the cached next page of search results
-                should be for.
+            query: Query to get the cached next page of search results for.
 
         Returns:
-            The cached next page of search results for the user matching the
-            given query and page number, or None if the next page of search
-            results for the user is not in the cache or the cached page does
-            not match the given query and page number.
+            The cached page of search results matching the given query, or None
+            if a page of search results matching the query is not in the next
+            page cache.
         """
+        user_id = query.user_id
         cached_query = self._redis_client.hget(f'user:{user_id}', 'query')
         if cached_query is None:
             _log.debug('User %s not in the next page cache', user_id)
             return None
 
-        page = JpnArticleSearchResultPage()
-        serialize.deserialize_query(cached_query, page)
-        if page.query != query or page.page_num != page_num:
+        out_query = Query(user_id=user_id)
+        serialize.deserialize_query(cached_query, out_query)
+        if out_query != query:
             _log.debug(
                 'Query (%s) page (%d) requested by user %s does not match '
                 'query (%s) page (%d) of cached next page for the user',
-                query, page_num, user_id, page.query, page.page_num
+                query.query_str, query.page_num, user_id, out_query.query_str,
+                out_query.page_num
             )
             return None
 
         cached_results = self._redis_client.hget(
             f'user:{user_id}', 'search_results'
         )
+        page = SearchResultPage(query=query)
         serialize.deserialize_search_results(cached_results, page)
         for result in page.search_results:
             article_id = result.article.database_id

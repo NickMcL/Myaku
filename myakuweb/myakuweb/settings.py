@@ -80,6 +80,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'myakuweb.wsgi.application'
 
 
+# Celery settings
+
+CELERY_ACCEPT_CONTENT = ['json', 'pickle']
+CELERY_TASK_SERIALIZER = 'pickle'
+
+
 # Database settings (not currently used)
 
 DATABASES: Dict = {}

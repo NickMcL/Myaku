@@ -13,33 +13,45 @@ RUN apt-get update \
 RUN apt-get install -y python3.7 python3-pip
 RUN apt-get install -y python3.7-dev python3-gdbm
 
-# Install gettext-base for envsubst
-RUN apt-get install gettext-base
-
-# Set python binary that should be used in the container
+# Set python binary that should be used in the container.
 ENV PYTHON_BIN python3.7
 
-ENV MYAKUWEB_BASE_DIR /myakuweb
+# Install latest pip.
+RUN $PYTHON_BIN -m pip install pip==19.2.3
+
+# Install gettext-base for envsubst.
+RUN apt-get install gettext-base
+
+# Run everything in the container as a non-root user.
+RUN groupadd -g 999 myakuweb \
+    && useradd -r -u 999 -g myakuweb -d /home/myakuweb myakuweb
+USER myakuweb
+ENV PATH $PATH:/home/myakuweb/.local/bin
+
+ENV MYAKUWEB_BASE_DIR /home/myakuweb
 ENV MYAKUWEB_SRC_DIR $MYAKUWEB_BASE_DIR/src
 
-COPY ./LICENSE $MYAKUWEB_SRC_DIR/
+COPY --chown=myakuweb:myakuweb ./LICENSE $MYAKUWEB_SRC_DIR/
 
 # Need to install both myaku and myakuweb requirements for the web container.
-COPY ./myaku/requirements.txt $MYAKUWEB_SRC_DIR/myaku_requirements.txt
-RUN $PYTHON_BIN -m pip install -U pip \
-    && $PYTHON_BIN -m pip install -r $MYAKUWEB_SRC_DIR/myaku_requirements.txt
+COPY --chown=myakuweb:myakuweb ./myaku/requirements.txt \
+    $MYAKUWEB_SRC_DIR/myaku_requirements.txt
+RUN $PYTHON_BIN -m pip install --user \
+    -r $MYAKUWEB_SRC_DIR/myaku_requirements.txt
 
-COPY ./myakuweb/requirements.txt $MYAKUWEB_SRC_DIR/myakuweb_requirements.txt
-RUN $PYTHON_BIN -m pip install -U pip \
-    && $PYTHON_BIN -m pip install -r $MYAKUWEB_SRC_DIR/myakuweb_requirements.txt
+COPY --chown=myakuweb:myakuweb ./myakuweb/requirements.txt \
+    $MYAKUWEB_SRC_DIR/myakuweb_requirements.txt
+RUN $PYTHON_BIN -m pip install --user \
+    -r $MYAKUWEB_SRC_DIR/myakuweb_requirements.txt
 
 ENV PYTHONPATH $PYTHONPATH:$MYAKUWEB_SRC_DIR
 ENV MYAKU_SRC_DIR $MYAKUWEB_SRC_DIR/myaku
 ENV DJANGO_SRC_DIR $MYAKUWEB_SRC_DIR/myakuweb
 ENV SCRIPTS_DIR $MYAKUWEB_SRC_DIR/scripts
 
-ENV MYAKUWEB_LOG_DIR /myakuweb/log
+ENV MYAKUWEB_LOG_DIR $MYAKUWEB_BASE_DIR/log
 ENV MYAKU_LOG_DIR $MYAKUWEB_LOG_DIR
+RUN mkdir $MYAKUWEB_LOG_DIR
 VOLUME ["$MYAKUWEB_LOG_DIR"]
 
 ENV MYAKUWEB_STATIC_URL /static/
@@ -54,13 +66,14 @@ WORKDIR $DJANGO_SRC_DIR
 
 FROM base AS dev
 
+ENV DJANGO_DEBUG_MODE 1
+
 # Install dev requirements like ipython only in the dev images so that the prod
 # images don't contain them.
-COPY ./requirements.txt $MYAKUWEB_SRC_DIR/dev_requirements.txt
-RUN $PYTHON_BIN -m pip install -U pip \
-    && $PYTHON_BIN -m pip install -r $MYAKUWEB_SRC_DIR/dev_requirements.txt
-
-ENV DJANGO_DEBUG_MODE 1
+COPY --chown=myakuweb:myakuweb ./requirements.txt \
+    $MYAKUWEB_SRC_DIR/dev_requirements.txt
+RUN $PYTHON_BIN -m pip install --user \
+    -r $MYAKUWEB_SRC_DIR/dev_requirements.txt
 
 # Volumes for sharing in development source on host with container
 VOLUME ["$MYAKU_SRC_DIR"]
@@ -73,9 +86,11 @@ FROM base AS prod
 ENV DJANGO_DEBUG_MODE 0
 
 # Copy all source code into the container
-COPY ./myaku $MYAKU_SRC_DIR
-COPY ./myakuweb $DJANGO_SRC_DIR
-COPY ./docker/myaku_web/run_uwsgi.sh $RUN_UWSGI_SCRIPT
-COPY ./docker/myaku_web/myakuweb_uwsgi_template.ini $SCRIPTS_DIR/
+COPY --chown=myakuweb:myakuweb ./myaku $MYAKU_SRC_DIR
+COPY --chown=myakuweb:myakuweb ./myakuweb $DJANGO_SRC_DIR
+COPY --chown=myakuweb:myakuweb \
+    ./docker/myaku_web/run_uwsgi.sh $RUN_UWSGI_SCRIPT
+COPY --chown=myakuweb:myakuweb \
+    ./docker/myaku_web/myakuweb_uwsgi_template.ini $SCRIPTS_DIR/
 
 RUN chmod +x $RUN_UWSGI_SCRIPT

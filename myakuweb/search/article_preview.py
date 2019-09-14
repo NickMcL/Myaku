@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Deque, Iterable, List, Set, Tuple
 
 from myaku import utils
-from myaku.datastore import JpnArticleSearchResult
+from myaku.datastore import SearchResult
 from myaku.datatypes import ArticleTextPosition, JpnArticle
 
 _log = logging.getLogger(__name__)
@@ -122,7 +122,7 @@ class SearchResultArticlePreview(object):
             appropriate to have additional sample texts for this preview.
     """
 
-    def __init__(self, search_result: JpnArticleSearchResult) -> None:
+    def __init__(self, search_result: SearchResult) -> None:
         """Create an article preview for the given search result."""
         self._article = search_result.article
         sentence_groups = self._article.group_text_positions_by_sentence(

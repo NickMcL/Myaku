@@ -1,23 +1,20 @@
 """Views for the search for Myaku web."""
 
+import functools
 import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
-from typing import List, NamedTuple
+from pprint import pformat
+from typing import Callable, List, NamedTuple
 
 from django.http import HttpResponse
 from django.http.request import HttpRequest
 from django.shortcuts import render
 
 from myaku import utils
-from myaku.datastore import (
-    DataAccessMode,
-    JpnArticleQueryType,
-    JpnArticleSearchResult,
-)
-from myaku.datastore.database import CrawlDb, JpnArticleSearchResultPage
+from myaku.datastore import DataAccessMode, Query, SearchResult
+from myaku.datastore.database import CrawlDb, SearchResultPage
 from myaku.datatypes import JpnArticle
 from search import tasks
 from search.article_preview import SearchResultArticlePreview
@@ -83,13 +80,6 @@ def humanize_date(dt: datetime) -> str:
         )
 
 
-class QueryMatchType(Enum):
-    """Possible match types to use for a query."""
-    EXACT_MATCH = 1
-    STARTS_WITH = 2
-    ENDS_WITH = 3
-
-
 class ResourceLink(NamedTuple):
     """Info for a link to a resource website."""
     resource_name: str
@@ -108,10 +98,9 @@ class QueryResourceLinks(object):
     """Manager for all resource links for a query."""
 
     @utils.add_debug_logging
-    def __init__(self, query: str) -> None:
+    def __init__(self, query: Query) -> None:
         """Create the resource link sets for the given query."""
-        self._query = query
-        self._match_type = QueryMatchType.EXACT_MATCH
+        self._query_str = query.query_str
 
         self.resource_link_sets: List[ResourceLinkSet] = []
         self.resource_link_sets.append(self._create_jpn_eng_dict_links())
@@ -128,14 +117,9 @@ class QueryResourceLinks(object):
 
     def _create_jisho_query_link(self) -> ResourceLink:
         """Create a link to query Jisho.org."""
-        website_name = 'Jisho.org'
-        template_url = 'https://jisho.org/search/{}'
-
-        if self._match_type == QueryMatchType.ENDS_WITH:
-            return ResourceLink(
-                website_name, template_url.format('*' + self._query)
-            )
-        return ResourceLink(website_name, template_url.format(self._query))
+        return ResourceLink(
+            'Jisho.org', f'https://jisho.org/search/{self._query_str}'
+        )
 
     def _create_alc_query_link(self) -> ResourceLink:
         """Create a link to query ALC.
@@ -143,27 +127,14 @@ class QueryResourceLinks(object):
         ALC doesn't support different query types, so match_type is not used.
         """
         return ResourceLink(
-            'ALC',
-            'https://eow.alc.co.jp/search?q={}'.format(self._query)
+            'ALC', 'https://eow.alc.co.jp/search?q={}'.format(self._query_str)
         )
 
     def _create_weblio_ejje_query_link(self) -> ResourceLink:
         """Create a link to query Weblio's Jpn->Eng dictionary."""
-        website_name = 'Weblio EJJE'
-        template_url = 'https://ejje.weblio.jp/content{{}}/{}'.format(
-            self._query
+        return ResourceLink(
+            'Weblio EJJE', f'https://ejje.weblio.jp/content/{self._query_str}'
         )
-
-        if self._match_type == QueryMatchType.EXACT_MATCH:
-            return ResourceLink(website_name, template_url.format(''))
-        elif self._match_type == QueryMatchType.STARTS_WITH:
-            return ResourceLink(
-                website_name, template_url.format('_find/prefix/0')
-            )
-        else:
-            return ResourceLink(
-                website_name, template_url.format('_find/suffix/0')
-            )
 
     def _create_sample_sentence_links(self) -> ResourceLinkSet:
         """Create link set for Jpn->Eng sample sentence sites."""
@@ -183,29 +154,16 @@ class QueryResourceLinks(object):
         """
         return ResourceLink(
             'Weblio EJJE',
-            'https://ejje.weblio.jp/sentence/content/"{}"'.format(self._query)
+            f'https://ejje.weblio.jp/sentence/content/"{self._query_str}"'
         )
 
     def _create_tatoeba_query_link(self) -> ResourceLink:
         """Create a link to query the Tatoeba sample sentence project."""
-        website_name = 'Tatoeba'
-        template_url = (
-            'https://tatoeba.org/eng/sentences/search?query={}'
-            '&from=jpn&to=eng'
+        return ResourceLink(
+            'Tatoeba',
+            f'https://tatoeba.org/eng/sentences/search'
+            f'?query=%3D{self._query_str}&from=jpn&to=eng'
         )
-
-        if self._match_type == QueryMatchType.EXACT_MATCH:
-            return ResourceLink(
-                website_name, template_url.format('%3D' + self._query)
-            )
-        elif self._match_type == QueryMatchType.STARTS_WITH:
-            return ResourceLink(
-                website_name, template_url.format(self._query + '*')
-            )
-        else:
-            return ResourceLink(
-                website_name, template_url.format('*' + self._query)
-            )
 
     def _create_jpn_dict_links(self) -> ResourceLinkSet:
         """Create link set for Japanese dictionary sites."""
@@ -217,54 +175,26 @@ class QueryResourceLinks(object):
 
     def _create_goo_query_link(self) -> ResourceLink:
         """Create a link to query Goo."""
-        website_name = 'Goo'
-        template_url = 'https://dictionary.goo.ne.jp/srch/all/{}/{{}}/'.format(
-            self._query
+        return ResourceLink(
+            'Goo',
+            f'https://dictionary.goo.ne.jp/srch/all/{self._query_str}/m1u/'
         )
-        if self._match_type == QueryMatchType.STARTS_WITH:
-            return ResourceLink(website_name, template_url.format('m0u'))
-        elif self._match_type == QueryMatchType.EXACT_MATCH:
-            return ResourceLink(website_name, template_url.format('m1u'))
-        else:
-            return ResourceLink(website_name, template_url.format('m2u'))
 
     def _create_weblio_jpn_query_link(self) -> ResourceLink:
         """Create a link to query Weblio's JPN dictionary."""
-        website_name = 'Weblio'
-        template_url = 'https://www.weblio.jp/content{{}}/{}'.format(
-            self._query
+        return ResourceLink(
+            'Weblio', f'https://www.weblio.jp/content/{self._query_str}'
         )
-
-        if self._match_type == QueryMatchType.EXACT_MATCH:
-            return ResourceLink(website_name, template_url.format(''))
-        elif self._match_type == QueryMatchType.STARTS_WITH:
-            return ResourceLink(
-                website_name, template_url.format('_find/prefix/0')
-            )
-        else:
-            return ResourceLink(
-                website_name, template_url.format('_find/suffix/0')
-            )
 
 
 @utils.add_method_debug_logging
 class QueryArticleResultSet(object):
     """The set of article results of a query of the Myaku db."""
 
-    def __init__(
-        self, query: str, match_type: JpnArticleQueryType, page_num: int,
-        session_id: str
-    ) -> None:
+    def __init__(self, query: Query) -> None:
         """Query the Myaku db to get the article result set for query."""
-        if query:
-            with CrawlDb(DataAccessMode.READ) as db:
-                result_page = db.search_articles(
-                    query, match_type, page_num, session_id
-                )
-        else:
-            result_page = JpnArticleSearchResultPage(
-                query='', page_num=1, total_results=0, search_results=[]
-            )
+        with CrawlDb(DataAccessMode.READ) as db:
+            result_page = db.search_articles(query)
 
         self._set_surrounding_page_nums(result_page)
         self.total_results = result_page.total_results
@@ -279,19 +209,19 @@ class QueryArticleResultSet(object):
         _log.debug('Finished creating query article results')
 
     def _set_surrounding_page_nums(
-            self, result_page: JpnArticleSearchResultPage
+            self, result_page: SearchResultPage
     ) -> None:
         """Set the next and previous page numbers for the result set."""
         total_pages = math.ceil(
             result_page.total_results / CrawlDb.SEARCH_RESULTS_PAGE_SIZE
         )
-        if result_page.page_num < total_pages:
-            self.next_page_num = result_page.page_num + 1
+        if result_page.query.page_num < total_pages:
+            self.next_page_num = result_page.query.page_num + 1
         else:
             self.next_page_num = None
 
-        if result_page.page_num > 1:
-            self.previous_page_num = result_page.page_num - 1
+        if result_page.query.page_num > 1:
+            self.previous_page_num = result_page.query.page_num - 1
         else:
             self.previous_page_num = None
 
@@ -299,7 +229,7 @@ class QueryArticleResultSet(object):
 class QueryArticleResult(object):
     """A single article result of a query of the Myaku db."""
 
-    def __init__(self, search_result: JpnArticleSearchResult) -> None:
+    def __init__(self, search_result: SearchResult) -> None:
         """Populate article result data using given search result."""
         self.article = search_result.article
         self.matched_base_forms = search_result.matched_base_forms
@@ -376,6 +306,19 @@ class QueryArticleResult(object):
         return tag_strs
 
 
+def log_request_response(func: Callable) -> Callable:
+    """Log the request and returned response for a request handler."""
+    @functools.wraps(func)
+    def log_request_response_wrapper(request, *args, **kwargs):
+        _log.info('Handling request: %s', request)
+        _log.info('Request meta:\n%s', pformat(request.META))
+        response = func(request, *args, **kwargs)
+        _log.info('Returning response: %s', response)
+        return response
+
+    return log_request_response_wrapper
+
+
 def get_session_id(request: HttpRequest) -> str:
     """Get the session ID for the request.
 
@@ -409,41 +352,42 @@ def get_request_page_num(request: HttpRequest) -> int:
     return page_num
 
 
+def create_query(request: HttpRequest) -> Query:
+    """Create a query object from the request data."""
+    return Query(
+        query_str=request.GET['q'],
+        page_num=get_request_page_num(request),
+        user_id=get_session_id(request)
+    )
+
+
+@log_request_response
 def index(request: HttpRequest) -> HttpResponse:
     """Search page handler."""
-    _log.info('Handling request: %s', request)
-    session_id = get_session_id(request)
     if len(request.GET.get('q', '')) == 0:
         return render(request, 'search/start.html', {})
 
-    query = request.GET['q']
-    page_num = get_request_page_num(request)
-    match_type = JpnArticleQueryType.EXACT
-    query_result_set = QueryArticleResultSet(
-        query, match_type, page_num, session_id
-    )
+    query = create_query(request)
+    query_result_set = QueryArticleResultSet(query)
     resource_links = QueryResourceLinks(query)
 
-    _log.debug('Starting "%s" page %d render', query, page_num)
+    _log.debug('Starting "%s" query page render', query)
     response = render(
         request, 'search/results.html',
         {
-            'query': query,
-            'page_num': page_num,
+            'query': query.query_str,
+            'page_num': query.page_num,
             'max_page_num': MAX_PAGE_NUM,
             'query_result_set': query_result_set,
             'resource_links': resource_links,
         }
     )
-    _log.debug('Finished "%s" page %d render', query, page_num)
+    _log.debug('Finished "%s" query page render', query)
 
     # Async load the next page into the cache in memory for the current query
     # being made for this session.
     if (query_result_set.next_page_num is not None
-            and page_num != MAX_PAGE_NUM):
-        tasks.cache_next_page_for_user.delay(
-            session_id, query, match_type.value, page_num
-        )
+            and query.page_num != MAX_PAGE_NUM):
+        tasks.cache_next_page_for_user.delay(query)
 
-    _log.info('Returning response: %s', response)
     return response

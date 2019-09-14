@@ -28,7 +28,7 @@ from bson.objectid import ObjectId
 
 from myaku import utils
 from myaku.crawlers import kakuyomu
-from myaku.datastore import JpnArticleSearchResult
+from myaku.datastore import Query, SearchResult
 from myaku.datastore.cache import FirstPageCache
 from myaku.datastore.database import CrawlDb, _Document
 from myaku.datatypes import ArticleTextPosition
@@ -2238,7 +2238,7 @@ def assert_update_crawl_db_data() -> None:
 
 
 def assert_search_results(
-    search_results: List[JpnArticleSearchResult], fli_docs: List[_Document]
+    search_results: List[SearchResult], fli_docs: List[_Document]
 ) -> None:
     """Assert search results match a list of found lexical item documents."""
     assert len(search_results) == len(fli_docs)
@@ -2277,7 +2277,7 @@ def assert_first_page_cache_query_keys(
         {'$group': {'_id': '$base_form'}}
     ])
     for doc in base_form_cursor:
-        first_page_results = cache.get(doc['_id'])
+        first_page_results = cache.get(Query(doc['_id'], 1))
         assert first_page_results is not None
 
         fli_cursor = db._found_lexical_item_collection.find(

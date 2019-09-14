@@ -8,7 +8,7 @@ from typing import Dict, List, NamedTuple, Tuple
 from bson.objectid import ObjectId
 
 from myaku import utils
-from myaku.datastore import JpnArticleSearchResult, JpnArticleSearchResultPage
+from myaku.datastore import Query, SearchResult, SearchResultPage
 from myaku.datatypes import ArticleTextPosition, JpnArticle
 
 _log = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def _serialize_text(
     return text_bytes
 
 
-def serialize_query(page: JpnArticleSearchResultPage) -> bytes:
+def serialize_query(page: SearchResultPage) -> bytes:
     """Serialize the query for a page of article search results.
 
     Serializes the query string and page number for the query.
@@ -69,17 +69,17 @@ def serialize_query(page: JpnArticleSearchResultPage) -> bytes:
         Serialized byte string for the query for the page of search results.
     """
     bytes_list: List[bytes] = []
-    bytes_list.append(page.page_num.to_bytes(1, 'little'))
+    bytes_list.append(page.query.page_num.to_bytes(1, 'little'))
 
     # Encode query string using utf-16 because it is more space efficient than
     # utf-8 for Japanese characters.
-    query_str_bytes = _serialize_text(page.query, 1, 'utf-16')
+    query_str_bytes = _serialize_text(page.query.query_str, 1, 'utf-16')
     bytes_list.extend(query_str_bytes)
 
     return zlib.compress(b''.join(bytes_list), _COMPRESS_LEVEL)
 
 
-def serialize_search_results(page: JpnArticleSearchResultPage) -> bytes:
+def serialize_search_results(page: SearchResultPage) -> bytes:
     """Serialize search results for a page of article search results.
 
     Only serializes the total results, article IDs, and found positions data
@@ -148,7 +148,7 @@ def serialize_article(article: JpnArticle) -> bytes:
 
 @utils.add_debug_logging
 def serialize_search_result_page(
-    page: JpnArticleSearchResultPage
+    page: SearchResultPage
 ) -> SerializedSearchResultPage:
     """Serialize a page of search results.
 
@@ -210,9 +210,7 @@ def _deserialize_text(
 
 
 @utils.add_debug_logging
-def deserialize_query(
-    buffer: bytes, out_page: JpnArticleSearchResultPage
-) -> None:
+def deserialize_query(buffer: bytes, out_query: Query) -> None:
     """Deserialize a query from a buffer of bytes.
 
     A serialized query contains the query string and page number for query, so
@@ -221,23 +219,22 @@ def deserialize_query(
     Args:
         buffer: Buffer of bytes containing the serialization of a query to
             deserialize.
-        out_page: Search results page object to write the deserialized query
-            data to.
+        out_query: Query object to write the deserialized query data to.
     """
     buffer = zlib.decompress(buffer)
     offset = 0
 
-    out_page.page_num = int.from_bytes([buffer[offset]], 'little')
+    out_query.page_num = int.from_bytes([buffer[offset]], 'little')
     offset += 1
 
-    out_page.query, read_bytes = _deserialize_text(
+    out_query.query_str, read_bytes = _deserialize_text(
         buffer, offset, 1, 'utf-16'
     )
 
 
 @utils.add_debug_logging
 def deserialize_search_results(
-    buffer: bytes, out_page: JpnArticleSearchResultPage
+    buffer: bytes, out_page: SearchResultPage
 ) -> None:
     """Deserialize search results from a buffer of bytes.
 
@@ -262,7 +259,7 @@ def deserialize_search_results(
 
     out_page.search_results = []
     for _ in range(result_count):
-        search_result = JpnArticleSearchResult(JpnArticle(), [])
+        search_result = SearchResult(JpnArticle(), [])
 
         article_oid = ObjectId(buffer[offset:offset + 12])
         search_result.article.database_id = str(article_oid)

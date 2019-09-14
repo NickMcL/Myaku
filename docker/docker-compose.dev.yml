@@ -51,15 +51,15 @@ services:
     volumes:
       - type: bind
         source: ../myaku
-        target: /myakuweb/src/myaku
+        target: /home/myakuweb/src/myaku
 
       - type: bind
         source: ../myakuweb
-        target: /myakuweb/src/myakuweb
+        target: /home/myakuweb/src/myakuweb
 
       - type: bind
         source: ./myaku_web
-        target: /myakuweb/src/scripts
+        target: /home/myakuweb/src/scripts
     environment:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
@@ -73,15 +73,15 @@ services:
     volumes:
       - type: bind
         source: ../myaku
-        target: /myakuweb/src/myaku
+        target: /home/myakuweb/src/myaku
 
       - type: bind
         source: ../myakuweb
-        target: /myakuweb/src/myakuweb
+        target: /home/myakuweb/src/myakuweb
 
       - type: bind
         source: ./myaku_web
-        target: /myakuweb/src/scripts
+        target: /home/myakuweb/src/scripts
     environment:
       DEBUG_LOG_MAX_SIZE: 0
       INFO_LOG_MAX_SIZE: 0
