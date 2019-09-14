@@ -13,7 +13,7 @@
               — {{ query_result_set.total_results|intcomma }} found
             </small>
           </h3>
-          {% if query_result_set.total_results > 0 %}
+          {% if page_num != 1 or query_result_set.next_page_num %}
             <h3 class="ml-auto d-none d-sm-inline">
               <small class="text-muted">Page {{ page_num }}</small>
             </h3>

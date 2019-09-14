@@ -1,5 +1,6 @@
 """Views for the search for Myaku web."""
 
+import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,7 +11,7 @@ from django.http import HttpResponse
 from django.http.request import HttpRequest
 from django.shortcuts import render
 
-import myaku
+from myaku import utils
 from myaku.datastore import (
     DataAccessMode,
     JpnArticleQueryType,
@@ -18,7 +19,10 @@ from myaku.datastore import (
 )
 from myaku.datastore.database import CrawlDb, JpnArticleSearchResultPage
 from myaku.datatypes import JpnArticle
+from search import tasks
 from search.article_preview import SearchResultArticlePreview
+
+_log = logging.getLogger(__name__)
 
 MAX_PAGE_NUM = 20
 
@@ -31,7 +35,10 @@ _ARTICLE_LEN_GROUP_MAX_NAME = 'Very long length'
 
 _VERY_RECENT_DAYS = 7
 
-myaku.utils.toggle_myaku_package_log()
+# Enable logging for both the myaku package and this search package to the same
+# files.
+utils.toggle_myaku_package_log(filename_base='myakuweb')
+utils.toggle_myaku_package_log(filename_base='myakuweb', package='search')
 
 
 def is_very_recent(dt: datetime) -> bool:
@@ -100,6 +107,7 @@ class ResourceLinkSet(object):
 class QueryResourceLinks(object):
     """Manager for all resource links for a query."""
 
+    @utils.add_debug_logging
     def __init__(self, query: str) -> None:
         """Create the resource link sets for the given query."""
         self._query = query
@@ -239,21 +247,41 @@ class QueryResourceLinks(object):
             )
 
 
+@utils.add_method_debug_logging
 class QueryArticleResultSet(object):
     """The set of article results of a query of the Myaku db."""
 
     def __init__(
-        self, query: str, match_type: JpnArticleQueryType, page_num: int
+        self, query: str, match_type: JpnArticleQueryType, page_num: int,
+        session_id: str
     ) -> None:
         """Query the Myaku db to get the article result set for query."""
         if query:
             with CrawlDb(DataAccessMode.READ) as db:
-                result_page = db.search_articles(query, match_type, page_num)
+                result_page = db.search_articles(
+                    query, match_type, page_num, session_id
+                )
         else:
             result_page = JpnArticleSearchResultPage(
                 query='', page_num=1, total_results=0, search_results=[]
             )
 
+        self._set_surrounding_page_nums(result_page)
+        self.total_results = result_page.total_results
+
+        _log.debug(
+            'Creating %d query article results',
+            len(result_page.search_results)
+        )
+        self.ranked_article_results = [
+            QueryArticleResult(a) for a in result_page.search_results
+        ]
+        _log.debug('Finished creating query article results')
+
+    def _set_surrounding_page_nums(
+            self, result_page: JpnArticleSearchResultPage
+    ) -> None:
+        """Set the next and previous page numbers for the result set."""
         total_pages = math.ceil(
             result_page.total_results / CrawlDb.SEARCH_RESULTS_PAGE_SIZE
         )
@@ -266,11 +294,6 @@ class QueryArticleResultSet(object):
             self.previous_page_num = result_page.page_num - 1
         else:
             self.previous_page_num = None
-
-        self.total_results = result_page.total_results
-        self.ranked_article_results = [
-            QueryArticleResult(a) for a in result_page.search_results
-        ]
 
 
 class QueryArticleResult(object):
@@ -353,6 +376,16 @@ class QueryArticleResult(object):
         return tag_strs
 
 
+def get_session_id(request: HttpRequest) -> str:
+    """Get the session ID for the request.
+
+    Will create the session ID for the request if it doesn't exist.
+    """
+    if request.session.session_key is None:
+        request.session.save()
+    return request.session.session_key
+
+
 def get_request_page_num(request: HttpRequest) -> int:
     """Get the page number for a request.
 
@@ -378,16 +411,21 @@ def get_request_page_num(request: HttpRequest) -> int:
 
 def index(request: HttpRequest) -> HttpResponse:
     """Search page handler."""
+    _log.info('Handling request: %s', request)
+    session_id = get_session_id(request)
     if len(request.GET.get('q', '')) == 0:
         return render(request, 'search/start.html', {})
 
     query = request.GET['q']
     page_num = get_request_page_num(request)
     match_type = JpnArticleQueryType.EXACT
-    query_result_set = QueryArticleResultSet(query, match_type, page_num)
+    query_result_set = QueryArticleResultSet(
+        query, match_type, page_num, session_id
+    )
     resource_links = QueryResourceLinks(query)
 
-    return render(
+    _log.debug('Starting "%s" page %d render', query, page_num)
+    response = render(
         request, 'search/results.html',
         {
             'query': query,
@@ -397,3 +435,15 @@ def index(request: HttpRequest) -> HttpResponse:
             'resource_links': resource_links,
         }
     )
+    _log.debug('Finished "%s" page %d render', query, page_num)
+
+    # Async load the next page into the cache in memory for the current query
+    # being made for this session.
+    if (query_result_set.next_page_num is not None
+            and page_num != MAX_PAGE_NUM):
+        tasks.cache_next_page_for_user.delay(
+            session_id, query, match_type.value, page_num
+        )
+
+    _log.info('Returning response: %s', response)
+    return response

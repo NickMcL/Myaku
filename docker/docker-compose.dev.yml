@@ -68,11 +68,27 @@ services:
     # debugging.
     stdin_open: true
     tty: true
+  web-worker:
+    image: friedrice2/myaku_web-worker:dev
+    volumes:
+      - type: bind
+        source: ../myaku
+        target: /web_worker/src/myaku
+
+      - type: bind
+        source: ../myakuweb
+        target: /web_worker/src/myakuweb
   first-page-cache:
     image: friedrice2/myaku_redis.first-page-cache:dev
     volumes:
       - type: bind
         source: ./myaku_redis.first-page-cache
+        target: /run_files
+  next-page-cache:
+    image: friedrice2/myaku_redis.next-page-cache:dev
+    volumes:
+      - type: bind
+        source: ./myaku_redis.next-page-cache
         target: /run_files
   reverseproxy:
     image: friedrice2/myaku_nginx.reverseproxy:dev

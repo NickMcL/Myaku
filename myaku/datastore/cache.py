@@ -1,9 +1,4 @@
-"""Driver for the Mayku search results cache.
-
-Currently implemented using Redis, but the public members of this module are
-defined generically so that the implementation of the database can be changed
-freely while keeping the access interface consistent.
-"""
+"""Implementations for the Mayku search result caches using Redis."""
 
 import logging
 from datetime import datetime
@@ -19,49 +14,58 @@ from myaku.errors import DataAccessError
 
 _log = logging.getLogger(__name__)
 
-_CACHE_HOST_ENV_VAR = 'MYAKU_FIRST_PAGE_CACHE_HOST'
+_FIRST_PAGE_CACHE_HOST_ENV_VAR = 'MYAKU_FIRST_PAGE_CACHE_HOST'
+_NEXT_PAGE_CACHE_HOST_ENV_VAR = 'MYAKU_NEXT_PAGE_CACHE_HOST'
 _CACHE_PORT = 6379
 _CACHE_DB_NUMBER = 0
 
-_CACHE_PASSWORD_FILE_ENV_VAR = 'MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE'
+_FIRST_PAGE_CACHE_PASSWORD_FILE_ENV_VAR = (
+    'MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE'
+)
+_NEXT_PAGE_CACHE_PASSWORD_FILE_ENV_VAR = 'MYAKU_NEXT_PAGE_CACHE_PASSWORD_FILE'
+
+
+def _init_redis_client(hostname: str, password: str) -> redis.Redis:
+    """Init and return a Redis client.
+
+    Args:
+        host: Host of the Redis instance to connect to.
+        password: Password to use to auth with the Redis instance.
+
+    Returns:
+        A client object connected and authenticated with the Redis instance at
+        the given host.
+    """
+    redis_client = redis.Redis(
+        host=hostname, port=_CACHE_PORT, db=_CACHE_DB_NUMBER,
+        password=password
+    )
+    _log.debug(
+        'Connected to Redis at %s:%s using db %s',
+        hostname, _CACHE_PORT, _CACHE_DB_NUMBER
+    )
+    return redis_client
 
 
 @utils.add_method_debug_logging
 class FirstPageCache(object):
-    """Cache for the first page of queries for articles crawled by Mayku."""
+    """Cache for the first page for queries of Myaku articles.
 
-    # Gzip compress level to use when compressing serialized bytes to store in
-    # the cache.
-    _SERIALIZED_BYTES_COMPRESS_LEVEL = 1
+    Result pages cached in the first page cache are not associated with users
+    and are never removed once set.
+    """
 
     _CACHE_LAST_BUILT_DATETIME_KEY = 'cache_last_built_time'
 
     def __init__(self) -> None:
         """Init client connection to the cache."""
-        self._redis_client = self._init_redis_client()
-
-    def _init_redis_client(self) -> redis.Redis:
-        """Init and return the client for connecting to the Redis cache.
-
-        Returns:
-            A client object connected and authenticated with the Redis cache.
-
-        Raises:
-            EnvironmentNotSetError: If a needed value from the environment to
-                init the client is not set in the environment.
-        """
-        hostname = utils.get_value_from_env_variable(_CACHE_HOST_ENV_VAR)
-        password = utils.get_value_from_env_file(_CACHE_PASSWORD_FILE_ENV_VAR)
-
-        redis_client = redis.Redis(
-            host=hostname, port=_CACHE_PORT, db=_CACHE_DB_NUMBER,
-            password=password
+        hostname = utils.get_value_from_env_variable(
+            _FIRST_PAGE_CACHE_HOST_ENV_VAR
         )
-        _log.debug(
-            'Connected to Redis at %s:%s using db %s',
-            hostname, _CACHE_PORT, _CACHE_DB_NUMBER
+        password = utils.get_value_from_env_file(
+            _FIRST_PAGE_CACHE_PASSWORD_FILE_ENV_VAR
         )
-        return redis_client
+        self._redis_client = _init_redis_client(hostname, password)
 
     def set_built_marker(self) -> None:
         """Set the marker indicating the cache has been fully built."""
@@ -80,12 +84,12 @@ class FirstPageCache(object):
         """Remove everything stored in the cache."""
         self._redis_client.flushall()
 
-    def set(self, query: str, page: JpnArticleSearchResultPage) -> None:
+    def set(self, page: JpnArticleSearchResultPage) -> None:
         """Cache the first page of search results for the given query."""
         serialized_page = serialize.serialize_search_result_page(page)
 
         self._redis_client.set(
-            f'query:{query}', serialized_page.search_results
+            f'query:{page.query}', serialized_page.search_results
         )
         for article_id, article_bytes in serialized_page.article_map.items():
             self._redis_client.set(f'article:{article_id}', article_bytes)
@@ -135,6 +139,95 @@ class FirstPageCache(object):
                     f'Article key for ID "{article_id}" not found in first '
                     f'cache'
                 )
+            serialize.deserialize_article(cached_article, result.article)
+
+        return page
+
+
+@utils.add_method_debug_logging
+class NextPageCache(object):
+    """Cache for the anticipated next page for queries of Myaku articles.
+
+    The purpose of this cache is to hold the anticipated next page of search
+    results a user will request so that the those results can be retrieved
+    quickly if requested by that user.
+
+    Result pages cached in the next page cache are associated with users
+    and are removed as necessary using an LRU strategy.
+    """
+
+    _KEY_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 1 week
+
+    def __init__(self) -> None:
+        """Init client connection to the cache."""
+        hostname = utils.get_value_from_env_variable(
+            _NEXT_PAGE_CACHE_HOST_ENV_VAR
+        )
+        password = utils.get_value_from_env_file(
+            _NEXT_PAGE_CACHE_PASSWORD_FILE_ENV_VAR
+        )
+        self._redis_client = _init_redis_client(hostname, password)
+
+    def set(self, user_id: str, page: JpnArticleSearchResultPage) -> None:
+        """Cache the next page of search results for the user."""
+        serialized_page = serialize.serialize_search_result_page(page)
+
+        next_page_hash = {
+            'query': serialized_page.query,
+            'search_results': serialized_page.search_results,
+        }
+        for article_id, article_bytes in serialized_page.article_map.items():
+            next_page_hash[article_id] = article_bytes
+
+        self._redis_client.delete(f'user:{user_id}')
+        self._redis_client.hmset(f'user:{user_id}', next_page_hash)
+        self._redis_client.expire(f'user:{user_id}', self._KEY_EXPIRE_SECONDS)
+
+    def get(
+        self, user_id: str, query: str, page_num: int
+    ) -> Optional[JpnArticleSearchResultPage]:
+        """Get the cached next page of search results for the user.
+
+        The cached next page will only be returned if it matches the given
+        query and page_num.
+
+        Args:
+            user_id: ID for the user.
+            query: Query that the cached next page of search results should be
+                for.
+            page_num: Page number that the cached next page of search results
+                should be for.
+
+        Returns:
+            The cached next page of search results for the user matching the
+            given query and page number, or None if the next page of search
+            results for the user is not in the cache or the cached page does
+            not match the given query and page number.
+        """
+        cached_query = self._redis_client.hget(f'user:{user_id}', 'query')
+        if cached_query is None:
+            _log.debug('User %s not in the next page cache', user_id)
+            return None
+
+        page = JpnArticleSearchResultPage()
+        serialize.deserialize_query(cached_query, page)
+        if page.query != query or page.page_num != page_num:
+            _log.debug(
+                'Query (%s) page (%d) requested by user %s does not match '
+                'query (%s) page (%d) of cached next page for the user',
+                query, page_num, user_id, page.query, page.page_num
+            )
+            return None
+
+        cached_results = self._redis_client.hget(
+            f'user:{user_id}', 'search_results'
+        )
+        serialize.deserialize_search_results(cached_results, page)
+        for result in page.search_results:
+            article_id = result.article.database_id
+            cached_article = self._redis_client.hget(
+                f'user:{user_id}', str(article_id)
+            )
             serialize.deserialize_article(cached_article, result.article)
 
         return page

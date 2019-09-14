@@ -30,7 +30,7 @@ from myaku.datastore import (
     require_update_permission,
     require_write_permission,
 )
-from myaku.datastore.cache import FirstPageCache
+from myaku.datastore.cache import FirstPageCache, NextPageCache
 from myaku.datatypes import (
     ArticleTextPosition,
     Crawlable,
@@ -220,6 +220,7 @@ class CrawlDb(object):
         )
 
         self._first_page_cache = FirstPageCache()
+        self._next_page_cache = NextPageCache()
         self._update_first_page_cache_on_exit = update_first_page_cache_on_exit
 
         self._crawlable_coll_map = {
@@ -630,7 +631,7 @@ class CrawlDb(object):
             search_result_page = self._search_articles_using_db(
                 base_form, JpnArticleQueryType.EXACT, 1
             )
-            self._first_page_cache.set(base_form, search_result_page)
+            self._first_page_cache.set(search_result_page)
 
             if (i + 1) % 1000 == 0 or (i + 1) == base_form_total:
                 _log.info(
@@ -668,7 +669,7 @@ class CrawlDb(object):
             search_result_page = self._search_articles_using_db(
                 base_form, JpnArticleQueryType.EXACT, 1
             )
-            self._first_page_cache.set(base_form, search_result_page)
+            self._first_page_cache.set(search_result_page)
 
             if (i + 1) % 1000 == 0 or (i + 1) == update_total:
                 _log.info(f'Updated count: {i + 1:,} / {update_total:,}')
@@ -756,9 +757,6 @@ class CrawlDb(object):
     ) -> Optional[JpnArticleSearchResultPage]:
         """Get first page of search results for query from first page cache.
 
-        The search results are in ranked order by quality score. See the scorer
-        module for more info on how quality scores are determined.
-
         Args:
             query: Lexical item base form value to get the first page of search
                 results for.
@@ -771,13 +769,50 @@ class CrawlDb(object):
         _log.debug('Checking first page cache for query "%s"', query)
         cached_first_page = self._first_page_cache.get(query)
         if cached_first_page:
-            _log.debug(
+            _log.info(
                 'Query "%s" first page search results retrieved from first '
                 'page cache', query
             )
             return cached_first_page
 
         _log.debug('Query "%s" not found in first page cache', query)
+        return None
+
+    @utils.skip_method_debug_logging
+    def _get_from_next_page_cache(
+        self, query: str, page_num: int, user_id: str
+    ) -> Optional[JpnArticleSearchResultPage]:
+        """Get page of search results for user from the next page cache.
+
+        Args:
+            query: Lexical item base form value to get the page of search
+                results for.
+            page_num: Page number of the page to get the search results for.
+            user_id: User ID to look up in the cache for the page of search
+                results.
+
+        Returns:
+            The page of search results for the query and page number if the
+            page was in the next page cache for the user, or None if the page
+            for the query and page number was not in the next page cache for
+            the user.
+        """
+        _log.debug(
+            'Checking next page cache for user %s for query "%s" page %d',
+            user_id, query, page_num
+        )
+        cached_next_page = self._next_page_cache.get(user_id, query, page_num)
+        if cached_next_page:
+            _log.info(
+                'Query "%s" page %d search results retrieved from next page '
+                'cache', query, page_num
+            )
+            return cached_next_page
+
+        _log.debug(
+            'Query "%s" page %d search results not found in next page cache '
+            'for user %s', query, page_num, user_id
+        )
         return None
 
     @utils.skip_method_debug_logging
@@ -830,7 +865,8 @@ class CrawlDb(object):
         )
 
     def search_articles(
-        self, query: str, query_type: JpnArticleQueryType, page_num: int = 1
+        self, query: str, query_type: JpnArticleQueryType, page_num: int = 1,
+        user_id: str = None
     ) -> JpnArticleSearchResultPage:
         """Search the db for articles that match the lexical item query.
 
@@ -842,7 +878,8 @@ class CrawlDb(object):
             query_type: Type of matching to use when searching for articles
                 whose text contains terms matching the query.
             page_num: Page of the search results to return. Page indexing
-            starts from 1.
+                starts from 1.
+            user_id: User ID to use to look for results in the next page cache.
 
         Returns:
             The requested page of search results for the query.
@@ -851,7 +888,17 @@ class CrawlDb(object):
             cached_first_page = self._get_from_first_page_cache(query)
             if cached_first_page:
                 return cached_first_page
+        else:
+            cached_next_page = self._get_from_next_page_cache(
+                query, page_num, user_id
+            )
+            if cached_next_page:
+                return cached_next_page
 
+        _log.info(
+            'Query "%s" page %d search results will be retrieved from the '
+            'crawl database', query, page_num
+        )
         return self._search_articles_using_db(query, query_type, page_num)
 
     def read_found_lexical_items(

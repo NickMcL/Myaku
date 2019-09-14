@@ -18,7 +18,7 @@ if DEBUG:
     if os.environ.get('DJANGO_SECRET_KEY_FILE') is not None:
         SECRET_KEY = get_value_from_env_file('DJANGO_SECRET_KEY_FILE')
     else:
-        SECRET_KEY = 'jq+jXE1WwWV1S2sSUfcXkaPTnUkM0g/FctVvJ2PcgTlCGcVXMr'
+        SECRET_KEY = 'DevUseOnlySecretKey'
 else:
     # Always use secret key from docker secret in prod
     SECRET_KEY = get_value_from_env_file('DJANGO_SECRET_KEY_FILE')
@@ -56,6 +56,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 
 ROOT_URLCONF = 'myakuweb.urls'
 

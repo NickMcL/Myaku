@@ -39,7 +39,7 @@ ENV DJANGO_SRC_DIR $MYAKUWEB_SRC_DIR/myakuweb
 ENV SCRIPTS_DIR $MYAKUWEB_SRC_DIR/scripts
 
 ENV MYAKUWEB_LOG_DIR /myakuweb/log
-ENV MYAKU_LOG_DIR /myakuweb/log/myaku
+ENV MYAKU_LOG_DIR $MYAKUWEB_LOG_DIR
 VOLUME ["$MYAKUWEB_LOG_DIR"]
 
 ENV PYTHONUNBUFFERED 1
@@ -58,9 +58,9 @@ FROM base AS dev
 
 # Install dev requirements like ipython only in the dev images so that the prod
 # images don't contain them.
-COPY ./requirements.txt $CRAWLER_SRC_DIR/dev_requirements.txt
+COPY ./requirements.txt $MYAKUWEB_SRC_DIR/dev_requirements.txt
 RUN $PYTHON_BIN -m pip install -U pip \
-    && $PYTHON_BIN -m pip install -r $CRAWLER_SRC_DIR/dev_requirements.txt
+    && $PYTHON_BIN -m pip install -r $MYAKUWEB_SRC_DIR/dev_requirements.txt
 
 ENV DJANGO_DEBUG_MODE 1
 

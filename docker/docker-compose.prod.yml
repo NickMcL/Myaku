@@ -39,7 +39,34 @@ services:
       placement:
         constraints:
           - node.labels.type == web
+  web-rabbit:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == web
+  web-worker:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == web
   first-page-cache:
+    deploy:
+      restart_policy:
+        condition: any
+        max_attempts: 3
+        window: 10s
+      placement:
+        constraints:
+          - node.labels.type == web
+  next-page-cache:
     deploy:
       restart_policy:
         condition: any
@@ -113,4 +140,10 @@ secrets:
   aws_secret_access_key:
     external: true
   first_page_cache_password:
+    external: true
+  next_page_cache_password:
+    external: true
+  web_rabbit_username:
+    external: true
+  web_rabbit_password:
     external: true

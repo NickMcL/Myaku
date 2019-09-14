@@ -257,10 +257,21 @@ class TestMyakuStack(object):
             dockerfile_path='docker/myaku_web/Dockerfile.myakuweb'
         ),
         DockerImageBuildSpec(
+            image_name='friedrice2/myaku_web-worker',
+            dockerfile_path='docker/myaku_web-worker/Dockerfile.web-worker'
+        ),
+        DockerImageBuildSpec(
             image_name='friedrice2/myaku_redis.first-page-cache',
             dockerfile_path=(
                 'docker/myaku_redis.first-page-cache/'
                 'Dockerfile.redis.first-page-cache'
+            )
+        ),
+        DockerImageBuildSpec(
+            image_name='friedrice2/myaku_redis.next-page-cache',
+            dockerfile_path=(
+                'docker/myaku_redis.next-page-cache/'
+                'Dockerfile.redis.next-page-cache'
             )
         ),
         DockerImageBuildSpec(

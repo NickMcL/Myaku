@@ -52,7 +52,7 @@ _INFO_LOG_MAX_SIZE_ENV_VAR = 'INFO_LOG_MAX_SIZE'
 
 _LOG_ROTATING_BACKUP_COUNT = 9
 _LOGGING_FORMAT = (
-    '%(asctime)s:%(name)s:%(levelname)s: %(message)s'
+    '%(asctime)s:%(name)s:p%(process)d:t%(thread)d:%(levelname)s: %(message)s'
 )
 
 T = TypeVar('T')
@@ -67,7 +67,7 @@ def _get_root_package_logger() -> logging.Logger:
 
 
 def toggle_myaku_package_log(
-    enable: bool = True, filename_base: str = 'myaku'
+    enable: bool = True, filename_base: str = 'myaku', package: str = None
 ) -> None:
     """Toggle the logger for the myaku package.
 
@@ -86,8 +86,14 @@ def toggle_myaku_package_log(
     Args:
         enable: If True, enables the logger; if False, disables the logger.
         filename_base: A name to prepend to the files written by the logger.
+        package: Base package to enable/disable the logger for. If None, uses
+            the base package of this file.
     """
-    package_log = _get_root_package_logger()
+    if package is None:
+        package_log = _get_root_package_logger()
+    else:
+        package_log = logging.getLogger(package)
+
     for handler in package_log.handlers[:]:
         package_log.removeHandler(handler)
     if not enable:

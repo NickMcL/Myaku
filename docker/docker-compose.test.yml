@@ -24,8 +24,18 @@ services:
     deploy:
       restart_policy:
         condition: none
+  web-worker:
+    image: friedrice2/myaku_web-worker:test
+    deploy:
+      restart_policy:
+        condition: none
   first-page-cache:
     image: friedrice2/myaku_redis.first-page-cache:test
+    deploy:
+      restart_policy:
+        condition: none
+  next-page-cache:
+    image: friedrice2/myaku_redis.next-page-cache:test
     deploy:
       restart_policy:
         condition: none

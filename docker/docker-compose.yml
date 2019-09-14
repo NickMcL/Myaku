@@ -22,12 +22,15 @@ services:
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
       MYAKU_FIRST_PAGE_CACHE_HOST: first-page-cache
       MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
+      MYAKU_NEXT_PAGE_CACHE_HOST: next-page-cache
+      MYAKU_NEXT_PAGE_CACHE_PASSWORD_FILE: /run/secrets/next_page_cache_password
       DEBUG_LOG_MAX_SIZE: 209715200  # 200mb
       INFO_LOG_MAX_SIZE: 20971520 # 20mb
     secrets:
       - crawldb_crawler_username
       - crawldb_crawler_password
       - first_page_cache_password
+      - next_page_cache_password
     networks:
       - crawler_net
   rescore:
@@ -45,12 +48,15 @@ services:
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_crawler_password
       MYAKU_FIRST_PAGE_CACHE_HOST: first-page-cache
       MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
+      MYAKU_NEXT_PAGE_CACHE_HOST: next-page-cache
+      MYAKU_NEXT_PAGE_CACHE_PASSWORD_FILE: /run/secrets/next_page_cache_password
       DEBUG_LOG_MAX_SIZE: 209715200  # 200mb
       INFO_LOG_MAX_SIZE: 20971520 # 20mb
     secrets:
       - crawldb_crawler_username
       - crawldb_crawler_password
       - first_page_cache_password
+      - next_page_cache_password
     networks:
       - crawler_net
   web:
@@ -65,6 +71,11 @@ services:
       MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_web_password
       MYAKU_FIRST_PAGE_CACHE_HOST: first-page-cache
       MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
+      MYAKU_NEXT_PAGE_CACHE_HOST: next-page-cache
+      MYAKU_NEXT_PAGE_CACHE_PASSWORD_FILE: /run/secrets/next_page_cache_password
+      RABBIT_HOST: web-rabbit
+      RABBIT_USERNAME_FILE: /run/secrets/web_rabbit_username
+      RABBIT_PASSWORD_FILE: /run/secrets/web_rabbit_password
       MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts
       DJANGO_SECRET_KEY_FILE: /run/secrets/web_django_secret_key
       DEBUG_LOG_MAX_SIZE: 209715200  # 200mb
@@ -76,6 +87,53 @@ services:
       - crawldb_web_password
       - web_django_secret_key
       - first_page_cache_password
+      - next_page_cache_password
+      - web_rabbit_username
+      - web_rabbit_password
+    networks:
+      - web_net
+  web-rabbit:
+    image: rabbitmq:3.7.17
+    hostname: web-rabbit
+    environment:
+      RABBITMQ_DEFAULT_USER_FILE: /run/secrets/web_rabbit_username
+      RABBITMQ_DEFAULT_PASS_FILE: /run/secrets/web_rabbit_password
+    secrets:
+      - web_rabbit_username
+      - web_rabbit_password
+    networks:
+      - web_net
+  web-worker:
+    image: friedrice2/myaku_web-worker:1.0.0
+    volumes:
+      - type: volume
+        source: web_worker_log
+        target: /web_worker/log
+    environment:
+      MYAKU_CRAWLDB_HOST: crawldb
+      MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_web_username
+      MYAKU_CRAWLDB_PASSWORD_FILE: /run/secrets/crawldb_web_password
+      MYAKU_FIRST_PAGE_CACHE_HOST: first-page-cache
+      MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
+      MYAKU_NEXT_PAGE_CACHE_HOST: next-page-cache
+      MYAKU_NEXT_PAGE_CACHE_PASSWORD_FILE: /run/secrets/next_page_cache_password
+      RABBIT_HOST: web-rabbit
+      RABBIT_USERNAME_FILE: /run/secrets/web_rabbit_username
+      RABBIT_PASSWORD_FILE: /run/secrets/web_rabbit_password
+      MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts
+      DJANGO_SECRET_KEY_FILE: /run/secrets/web_django_secret_key
+      DEBUG_LOG_MAX_SIZE: 209715200  # 200mb
+      INFO_LOG_MAX_SIZE: 20971520 # 20mb
+    configs:
+      - myakuweb_allowed_hosts
+    secrets:
+      - crawldb_web_username
+      - crawldb_web_password
+      - web_django_secret_key
+      - first_page_cache_password
+      - next_page_cache_password
+      - web_rabbit_username
+      - web_rabbit_password
     networks:
       - web_net
   first-page-cache:
@@ -88,6 +146,19 @@ services:
       MYAKU_FIRST_PAGE_CACHE_PASSWORD_FILE: /run/secrets/first_page_cache_password
     secrets:
       - first_page_cache_password
+    networks:
+      - crawler_net
+      - web_net
+  next-page-cache:
+    image: friedrice2/myaku_redis.next-page-cache:1.0.0
+    volumes:
+      - type: volume
+        source: next_page_cache_data
+        target: /data
+    environment:
+      MYAKU_NEXT_PAGE_CACHE_PASSWORD_FILE: /run/secrets/next_page_cache_password
+    secrets:
+      - next_page_cache_password
     networks:
       - crawler_net
       - web_net
@@ -166,7 +237,9 @@ volumes:
   crawler_log:
   rescore_log:
   web_log:
+  web_worker_log:
   first_page_cache_data:
+  next_page_cache_data:
   reverseproxy_log:
   crawldb_datadb:
   crawldb_configdb:
@@ -203,6 +276,12 @@ secrets:
     file: ./dev_secrets/aws_secret_access_key_DEVUSEONLY.txt
   first_page_cache_password:
     file: ./dev_secrets/first_page_cache_password_DEVUSEONLY.txt
+  next_page_cache_password:
+    file: ./dev_secrets/next_page_cache_password_DEVUSEONLY.txt
+  web_rabbit_username:
+    file: ./dev_secrets/web_rabbit_username_DEVUSEONLY.txt
+  web_rabbit_password:
+    file: ./dev_secrets/web_rabbit_password_DEVUSEONLY.txt
 
 networks:
   web_net:

@@ -10,8 +10,10 @@ POSSIBLE_IMAGE_TYPES=(\
     "crawler" \
     "rescore" \
     "web" \
+    "web-worker" \
     "nginx.reverseproxy" \
     "redis.first-page-cache" \
+    "redis.next-page-cache" \
     "mongo.crawldb" \
     "mongobackup" \
     "ubuntu.cron" \
@@ -42,8 +44,10 @@ for the image, or the script will error.
     - crawler
     - rescore
     - web
+    - web-worker
     - nginx.reverseproxy
     - redis.first-page-cache
+    - redis.next-page-cache
     - mongo.crawldb
     - mongobackup
     - ubuntu.cron
@@ -167,8 +171,16 @@ case $image_type in
         dockerfile="./docker/myaku_web/Dockerfile.myakuweb"
         ;;
 
+    "web-worker")
+        dockerfile="./docker/myaku_web-worker/Dockerfile.web-worker"
+        ;;
+
     "redis.first-page-cache")
         dockerfile="./docker/myaku_redis.first-page-cache/Dockerfile.redis.first-page-cache"
+        ;;
+
+    "redis.next-page-cache")
+        dockerfile="./docker/myaku_redis.next-page-cache/Dockerfile.redis.next-page-cache"
         ;;
 
     "nginx.reverseproxy")
