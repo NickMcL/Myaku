@@ -64,7 +64,7 @@ services:
     volumes:
       - type: volume
         source: web_log
-        target: /myakuweb/log
+        target: /home/myakuweb/log
     environment:
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_web_username
@@ -115,7 +115,7 @@ services:
     volumes:
       - type: volume
         source: web_worker_log
-        target: /myakuweb/log
+        target: /home/myakuweb/log
     environment:
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_web_username

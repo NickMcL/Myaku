@@ -1,5 +1,6 @@
 """Implementations for the Mayku search result caches using Redis."""
 
+import enum
 import logging
 from datetime import datetime
 from typing import Optional
@@ -45,6 +46,18 @@ def _init_redis_client(hostname: str, password: str) -> redis.Redis:
         hostname, _CACHE_PORT, _CACHE_DB_NUMBER
     )
     return redis_client
+
+
+@enum.unique
+class NextPageDirection(enum.Enum):
+    """Direction of the next page of search results.
+
+    Attributes:
+        FORWARD: Next page in the forward direction.
+        BACKWARD: Next page in the backward direction.
+    """
+    FORWARD = 1
+    BACKWARD = -1
 
 
 @utils.add_method_debug_logging
@@ -146,11 +159,11 @@ class FirstPageCache(object):
 
 @utils.add_method_debug_logging
 class NextPageCache(object):
-    """Cache for the anticipated next page for queries of Myaku articles.
+    """Cache for the anticipated next pages for queries of Myaku articles.
 
-    The purpose of this cache is to hold the anticipated next page of search
-    results a user will request so that the those results can be retrieved
-    quickly if requested by that user.
+    The purpose of this cache is to hold the anticipated next page
+    (page_num +/- 1) of search results a user will request so that the those
+    results can be retrieved quickly if requested by that user.
 
     Result pages cached in the next page cache are associated with users
     and are removed as necessary using an LRU strategy.
@@ -168,23 +181,81 @@ class NextPageCache(object):
         )
         self._redis_client = _init_redis_client(hostname, password)
 
-    def set(self, user_id: str, page: SearchResultPage) -> None:
-        """Cache the next page of search results for the user."""
+    def set(
+        self, user_id: str, page: SearchResultPage,
+        direction: NextPageDirection
+    ) -> None:
+        """Cache a page of search results for the user.
+
+        Args:
+            user_id: User to cache the page for.
+            page: Page to cache.
+            direction: Page direction of the given page relative to the user's
+                last requested page.
+        """
         serialized_page = serialize.serialize_search_result_page(page)
 
         next_page_hash = {
             'query': serialized_page.query,
-            'search_results': serialized_page.search_results,
+            'search_results': serialized_page.search_results
         }
         for article_id, article_bytes in serialized_page.article_map.items():
             next_page_hash[article_id] = article_bytes
 
-        self._redis_client.delete(f'user:{user_id}')
-        self._redis_client.hmset(f'user:{user_id}', next_page_hash)
-        self._redis_client.expire(f'user:{user_id}', self._KEY_EXPIRE_SECONDS)
+        redis_key = f'user:{user_id}:{direction.value}'
+        self._redis_client.delete(redis_key)
+        self._redis_client.hmset(redis_key, next_page_hash)
+        self._redis_client.expire(redis_key, self._KEY_EXPIRE_SECONDS)
+
+    def _query_match(self, query: Query, query_bytes: bytes) -> bool:
+        """Return True if the serialized query bytes match the query."""
+        out_query = Query(user_id=query.user_id)
+        serialize.deserialize_query(query_bytes, out_query)
+        if out_query != query:
+            _log.debug(
+                'Query (%s) page (%d) requested by user %s does not match '
+                'query (%s) page (%d) of cached next page for the user',
+                query.query_str, query.page_num, query.user_id,
+                out_query.query_str, out_query.page_num
+            )
+            return False
+
+        _log.debug(
+            'Query (%s) page (%d) requested by user %s matches cached next '
+            'page for the user', query.query_str, query.page_num, query.user_id
+        )
+        return True
+
+    def _get_query_page_cache_key(self, query: Query) -> Optional[str]:
+        """Get the key in the cache for the search results page for the query.
+
+        Args:
+            query: Query to get the key in the cache for.
+
+        Returns:
+            The key for the search results page in the cache for the query if
+            the page is in the cache, or None if the page for the query is not
+            in the cache.
+        """
+        user_id = query.user_id
+        forward_key = f'user:{user_id}:{NextPageDirection.FORWARD.value}'
+        forward_query_bytes = self._redis_client.hget(forward_key, 'query')
+        if forward_query_bytes is None:
+            _log.debug('Key %s not in next page cache', forward_key)
+        elif self._query_match(query, forward_query_bytes):
+            return forward_key
+
+        backward_key = f'user:{user_id}:{NextPageDirection.BACKWARD.value}'
+        backward_query_bytes = self._redis_client.hget(backward_key, 'query')
+        if backward_query_bytes is None:
+            _log.debug('Key %s not in next page cache', backward_key)
+        elif self._query_match(query, backward_query_bytes):
+            return backward_key
+
+        return None
 
     def get(self, query: Query) -> Optional[SearchResultPage]:
-        """Get the cached next page of search results for the query.
+        """Get a cached page of search results for the query.
 
         The cached next page will only be returned if it matches the query_str,
         page_num, and user_id of the query.
@@ -197,32 +268,17 @@ class NextPageCache(object):
             if a page of search results matching the query is not in the next
             page cache.
         """
-        user_id = query.user_id
-        cached_query = self._redis_client.hget(f'user:{user_id}', 'query')
-        if cached_query is None:
-            _log.debug('User %s not in the next page cache', user_id)
+        cache_key = self._get_query_page_cache_key(query)
+        if cache_key is None:
             return None
 
-        out_query = Query(user_id=user_id)
-        serialize.deserialize_query(cached_query, out_query)
-        if out_query != query:
-            _log.debug(
-                'Query (%s) page (%d) requested by user %s does not match '
-                'query (%s) page (%d) of cached next page for the user',
-                query.query_str, query.page_num, user_id, out_query.query_str,
-                out_query.page_num
-            )
-            return None
-
-        cached_results = self._redis_client.hget(
-            f'user:{user_id}', 'search_results'
-        )
+        cached_results = self._redis_client.hget(cache_key, 'search_results')
         page = SearchResultPage(query=query)
         serialize.deserialize_search_results(cached_results, page)
         for result in page.search_results:
             article_id = result.article.database_id
             cached_article = self._redis_client.hget(
-                f'user:{user_id}', str(article_id)
+                cache_key, str(article_id)
             )
             serialize.deserialize_article(cached_article, result.article)
 

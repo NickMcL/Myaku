@@ -80,6 +80,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'myakuweb.wsgi.application'
 
 
+# Myaku search settings
+
+# Maximum page to allow the user to go to for a search.
+MAX_PAGE_NUM = 30
+
+
 # Celery settings
 
 CELERY_ACCEPT_CONTENT = ['json', 'pickle']

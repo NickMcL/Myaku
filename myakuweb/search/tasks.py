@@ -1,16 +1,17 @@
 """Celery tasks for Myaku search."""
 
 from celery import shared_task
+from django.conf import settings
 
 from myaku import utils
 from myaku.datastore import DataAccessMode, Query
-from myaku.datastore.cache import NextPageCache
+from myaku.datastore.cache import NextPageCache, NextPageDirection
 from myaku.datastore.database import CrawlDb
 
 
 @shared_task
-def cache_next_page_for_user(query: Query) -> None:
-    """Cache the next page for the user of the query in the next page cache.
+def cache_surrounding_pages_for_user(query: Query) -> None:
+    """Cache the surrounding pages for the query for the user.
 
     Args:
         query: Query made by a user that should have its next page loaded into
@@ -21,10 +22,22 @@ def cache_next_page_for_user(query: Query) -> None:
         filename_base='web_worker', package='search'
     )
 
-    # Change the query into a query for the next page of results.
-    query.page_num += 1
-    with CrawlDb(DataAccessMode.READ) as db:
-        next_page = db.search_articles(query)
+    cache_client = NextPageCache()
+    current_page_num = query.page_num
+    if current_page_num < settings.MAX_PAGE_NUM:
+        query.page_num = current_page_num + 1
+        with CrawlDb(DataAccessMode.READ) as db:
+            forward_page = db.search_articles(query)
+        cache_client.set(
+            query.user_id, forward_page, NextPageDirection.FORWARD
+        )
 
-    next_page_cache_client = NextPageCache()
-    next_page_cache_client.set(query.user_id, next_page)
+    # Don't cache the backward page unless it's > 1 because the page 1 is
+    # always in the first page cache.
+    if current_page_num > 2:
+        query.page_num = current_page_num - 1
+        with CrawlDb(DataAccessMode.READ) as db:
+            backward_page = db.search_articles(query)
+        cache_client.set(
+            query.user_id, backward_page, NextPageDirection.BACKWARD
+        )

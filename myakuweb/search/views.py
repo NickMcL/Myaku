@@ -8,6 +8,7 @@ from datetime import datetime
 from pprint import pformat
 from typing import Callable, List, NamedTuple
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.http.request import HttpRequest
 from django.shortcuts import render
@@ -20,8 +21,6 @@ from search import tasks
 from search.article_preview import SearchResultArticlePreview
 
 _log = logging.getLogger(__name__)
-
-MAX_PAGE_NUM = 20
 
 _ARTICLE_LEN_GROUPS = [
     (700, 'Short length'),
@@ -346,8 +345,8 @@ def get_request_page_num(request: HttpRequest) -> int:
 
     if page_num < 1:
         page_num = 1
-    elif page_num > MAX_PAGE_NUM:
-        page_num = MAX_PAGE_NUM
+    elif page_num > settings.MAX_PAGE_NUM:
+        page_num = settings.MAX_PAGE_NUM
 
     return page_num
 
@@ -377,17 +376,17 @@ def index(request: HttpRequest) -> HttpResponse:
         {
             'query': query.query_str,
             'page_num': query.page_num,
-            'max_page_num': MAX_PAGE_NUM,
+            'max_page_num': settings.MAX_PAGE_NUM,
             'query_result_set': query_result_set,
             'resource_links': resource_links,
         }
     )
     _log.debug('Finished "%s" query page render', query)
 
-    # Async load the next page into the cache in memory for the current query
-    # being made for this session.
+    # Async load the surrounding pages into the cache in memory for the current
+    # query being made for this session.
     if (query_result_set.next_page_num is not None
-            and query.page_num != MAX_PAGE_NUM):
-        tasks.cache_next_page_for_user.delay(query)
+            or query_result_set.previous_page_num is not None):
+        tasks.cache_surrounding_pages_for_user.delay(query)
 
     return response

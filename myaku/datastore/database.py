@@ -165,7 +165,7 @@ class CrawlDb(object):
     Implements the Myaku database using MongoDB.
     """
     MAX_ALLOWED_ARTICLE_LEN = 2**16  # 65,536
-    SEARCH_RESULTS_PAGE_SIZE = 20
+    SEARCH_RESULTS_PAGE_SIZE = 10
 
     _DB_NAME = 'myaku'
     _ARTICLE_COLL_NAME = 'articles'
