@@ -52,7 +52,8 @@ _INFO_LOG_MAX_SIZE_ENV_VAR = 'INFO_LOG_MAX_SIZE'
 
 _LOG_ROTATING_BACKUP_COUNT = 9
 _LOGGING_FORMAT = (
-    '%(asctime)s:%(name)s:p%(process)d:t%(thread)d:%(levelname)s: %(message)s'
+    '%(asctime)s:%(name)s:p%(process)d:%(threadName)s:%(levelname)s: '
+    '%(message)s'
 )
 
 T = TypeVar('T')

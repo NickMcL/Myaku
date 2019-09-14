@@ -25,6 +25,10 @@ a {
   padding-right: 14px;
 }
 
+.tile-header {
+  margin-bottom: .25rem;
+}
+
 .key-word {
   font-weight: 700;
   color: #1d4381;

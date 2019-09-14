@@ -20,7 +20,7 @@ ERROR_LOG_MESSAGE = LOG_MESSAGE_TEMPLATE.format('ERROR')
 CRITICAL_LOG_MESSAGE = LOG_MESSAGE_TEMPLATE.format('CRITICAL')
 
 LOG_REGEX_TEMPLATE = (
-    r'^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d,\d\d\d:myaku:p\d+:t\d+:{0}: '
+    r'^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d,\d\d\d:myaku:p\d+:.+:{0}: '
     + LOG_MESSAGE_TEMPLATE + '$'
 )
 LOG_MESSAGE_REGEX_MAP = {
