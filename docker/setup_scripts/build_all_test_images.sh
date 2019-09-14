@@ -11,7 +11,6 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 sudo docker pull friedrice2/myaku_crawler:latest
 sudo docker pull friedrice2/myaku_rescore:latest
 sudo docker pull friedrice2/myaku_web:latest
-sudo docker pull friedrice2/myaku_web-worker:latest
 sudo docker pull friedrice2/myaku_nginx.reverseproxy:latest
 sudo docker pull friedrice2/myaku_redis.first-page-cache:latest
 sudo docker pull friedrice2/myaku_redis.next-page-cache:latest
@@ -36,12 +35,6 @@ sudo docker build \
     --target prod \
     -f ./docker/myaku_web/Dockerfile.myakuweb \
     -t friedrice2/myaku_web:test \
-    .
-sudo docker build \
-    --cache-from friedrice2/myaku_web-worker:latest \
-    --target prod \
-    -f ./docker/myaku_web-worker/Dockerfile.web-worker \
-    -t friedrice2/myaku_web-worker:test \
     .
 sudo docker build \
     --cache-from friedrice2/myaku_nginx.reverseproxy:latest \

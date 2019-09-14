@@ -69,15 +69,27 @@ services:
     stdin_open: true
     tty: true
   web-worker:
-    image: friedrice2/myaku_web-worker:dev
+    image: friedrice2/myaku_web:dev
     volumes:
       - type: bind
         source: ../myaku
-        target: /web_worker/src/myaku
+        target: /myakuweb/src/myaku
 
       - type: bind
         source: ../myakuweb
-        target: /web_worker/src/myakuweb
+        target: /myakuweb/src/myakuweb
+
+      - type: bind
+        source: ./myaku_web
+        target: /myakuweb/src/scripts
+    environment:
+      DEBUG_LOG_MAX_SIZE: 0
+      INFO_LOG_MAX_SIZE: 0
+
+    # Needed so that you can attach to pdb running in the container when
+    # debugging.
+    stdin_open: true
+    tty: true
   first-page-cache:
     image: friedrice2/myaku_redis.first-page-cache:dev
     volumes:

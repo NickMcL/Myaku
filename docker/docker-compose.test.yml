@@ -25,7 +25,7 @@ services:
       restart_policy:
         condition: none
   web-worker:
-    image: friedrice2/myaku_web-worker:test
+    image: friedrice2/myaku_web:test
     deploy:
       restart_policy:
         condition: none

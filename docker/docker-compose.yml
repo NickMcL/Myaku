@@ -6,7 +6,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.5.5
+    image: friedrice2/myaku_crawler:1.6.0
     volumes:
       - type: volume
         source: crawler_log
@@ -34,7 +34,7 @@ services:
     networks:
       - crawler_net
   rescore:
-    image: friedrice2/myaku_rescore:1.2.3
+    image: friedrice2/myaku_rescore:1.3.0
     volumes:
       - type: volume
         source: rescore_log
@@ -60,7 +60,7 @@ services:
     networks:
       - crawler_net
   web:
-    image: friedrice2/myaku_web:1.6.3
+    image: friedrice2/myaku_web:1.7.0
     volumes:
       - type: volume
         source: web_log
@@ -104,11 +104,18 @@ services:
     networks:
       - web_net
   web-worker:
-    image: friedrice2/myaku_web-worker:1.0.0
+    image: friedrice2/myaku_web:1.7.0
+    entrypoint:
+      - celery
+      - -A
+      - myakuweb
+      - worker
+      - --loglevel
+      - INFO
     volumes:
       - type: volume
         source: web_worker_log
-        target: /web_worker/log
+        target: /myakuweb/log
     environment:
       MYAKU_CRAWLDB_HOST: crawldb
       MYAKU_CRAWLDB_USERNAME_FILE: /run/secrets/crawldb_web_username
@@ -163,7 +170,7 @@ services:
       - crawler_net
       - web_net
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy:1.1.8
+    image: friedrice2/myaku_nginx.reverseproxy:1.2.0
     volumes:
       - type: volume
         source: reverseproxy_log

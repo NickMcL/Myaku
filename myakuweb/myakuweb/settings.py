@@ -80,8 +80,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'myakuweb.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/2.2/ref/settings/#databases
+# Database settings (not currently used)
 
 DATABASES: Dict = {}
 
@@ -135,6 +134,7 @@ if DEBUG:
     STATIC_URL = os.environ.get('MYAKUWEB_STATIC_URL', '/static/')
 else:
     STATIC_URL = get_value_from_env_variable('MYAKUWEB_STATIC_URL')
+
 
 # Other misc settings
 
