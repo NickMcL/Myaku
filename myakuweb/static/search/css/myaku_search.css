@@ -2,7 +2,7 @@ body {
   font-family: "Noto Sans", "Noto Sans JP", sans-serif;
 }
 
-/* Use the slighter thicker Noto Sans JP characters for headers */
+/* Use the slightly thicker Noto Sans JP characters for headers */
 h1, h2, h3, h4, h5, h6 {
   font-family: "Noto Sans JP", "Noto Sans", sans-serif;
 }
@@ -14,7 +14,6 @@ h1, h2, h3, h4, h5, h6 {
 a {
   color: #5272a6;
 }
-
 
 .start-tile {
   font-size: 1.1em;
@@ -61,6 +60,11 @@ a {
 .search-options-toggle {
   color: #5272a6;
   /*color: #3d5d93;*/
+}
+
+.search-options-legend {
+  font-size: 1.25rem;
+  line-height: 1.5;
 }
 
 /* Add color to ol numbers */
@@ -166,5 +170,36 @@ a {
 @media (max-width: 767.98px) {
   .nav-link {
     padding-top: 0;
+  }
+}
+
+/* Inline search options check inputs only on wide viewports */
+.search-options-check {
+  position: relative;
+  display: block;
+  padding-left: 1.25rem;
+}
+
+.search-options-check-input {
+  position: absolute;
+  margin-top: .3rem;
+  margin-left: -1.25rem;
+}
+
+@media (min-width: 576px) {
+  .search-options-check {
+    display: -ms-inline-flexbox;
+    display: inline-flex;
+    -ms-flex-align: center;
+    align-items: center;
+    padding-left: 0px;
+    margin-right: .75rem;
+  }
+
+  .search-options-check-input {
+    position: static;
+    margin-top: 0;
+    margin-right: .3125rem;
+    margin-left: 0;
   }
 }

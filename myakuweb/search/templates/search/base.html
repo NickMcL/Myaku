@@ -53,29 +53,6 @@
                 <input class="form-control border-right-0 pr-0" id="search-input"
                     type="text" name="q" value="{% firstof query request.GET.q "" %}"
                     placeholder="Japanese word, phrase, etc.">
-                <!--
-                <div class="input-group-append">
-                  <select class="form-control" name="match_type">
-                    <option value="STARTS_WITH"
-                    {% if not request.GET.match_type or request.GET.match_type == "STARTS_WITH" %}
-                      selected
-                    {% endif %}
-                    >Search options</option>
-
-                    <option value="EXACT_MATCH"
-                    {% if request.GET.match_type == "EXACT_MATCH" %}
-                      selected
-                    {% endif %}
-                    >Match form exactly</option>
-
-                    <option value="ENDS_WITH"
-                    {% if request.GET.match_type == "ENDS_WITH" %}
-                      selected
-                    {% endif %}
-                    >Include other forms (ambig)</option>
-                  </select>
-                </div>
-               -->
                 <div class="input-group-append border-left-0">
                   <button type="button" class="input-group-text search-clear">
                     <i class="fa fa-times"></i>
@@ -87,10 +64,43 @@
                   </button>
                 </div>
               </div>
+              <div id="search-options" class="collapse">
+                <fieldset class="mt-3">
+                  <legend class="mb-1 search-options-legend">Romaji Conversion</legend>
+                    <div class="search-options-check">
+                      <input class="search-options-check-input" type="radio" name="conv"
+                        id="conv-hira-radio" value="hira"
+                        {% if request.GET.conv != "kata" and request.GET.conv != "none" %}
+                        checked
+                        {% endif %}
+                        >
+                      <label class="form-check-label" for="conv-hira-radio">Hiragana (a→あ)</label>
+                    </div>
+                    <div class="search-options-check">
+                      <input class="search-options-check-input" type="radio" name="conv"
+                        id="conv-kata-radio" value="kata"
+                        {% if request.GET.conv == "kata" %}
+                        checked
+                        {% endif %}
+                        >
+                      <label class="form-check-label" for="conv-kata-radio">Katakana (a→ア)</label>
+                    </div>
+                    <div class="search-options-check">
+                      <input class="search-options-check-input" type="radio" name="conv"
+                        id="conv-none-radio" value="none"
+                        {% if request.GET.conv == "none" %}
+                        checked
+                        {% endif %}
+                        >
+                      <label class="form-check-label" for="conv-none-radio">No conversion (a→a)</label>
+                    </div>
+                </fieldset>
+              </div>
             </form>
           </div>
           <div class="col-12 col-md-3 col-lg-5">
-            <button class="btn btn-link px-0 search-options-toggle">
+            <button type="button" class="btn btn-link px-0 search-options-toggle"
+                data-toggle="collapse" data-target="#search-options">
               Show search options
             </button>
           </div>

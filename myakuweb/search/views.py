@@ -8,6 +8,7 @@ from datetime import datetime
 from pprint import pformat
 from typing import Callable, List, NamedTuple
 
+import romkan
 from django.conf import settings
 from django.http import HttpResponse
 from django.http.request import HttpRequest
@@ -19,6 +20,8 @@ from myaku.datastore.database import CrawlDb, SearchResultPage
 from myaku.datatypes import JpnArticle
 from search import tasks
 from search.article_preview import SearchResultArticlePreview
+
+DEFAULT_QUERY_CONV = 'hira'
 
 _log = logging.getLogger(__name__)
 
@@ -318,14 +321,21 @@ def log_request_response(func: Callable) -> Callable:
     return log_request_response_wrapper
 
 
-def get_session_id(request: HttpRequest) -> str:
-    """Get the session ID for the request.
+@utils.add_debug_logging
+def get_request_query(request: HttpRequest) -> str:
+    """Get the query for a request.
 
-    Will create the session ID for the request if it doesn't exist.
+    Converts any romaji in the query string to Japanese using the conversion
+    method (conv) specified in the request.
     """
-    if request.session.session_key is None:
-        request.session.save()
-    return request.session.session_key
+    query = utils.normalize_char_width(request.GET.get('q', ''))
+    conv = request.GET.get('conv', DEFAULT_QUERY_CONV)
+    if conv == 'hira':
+        query = romkan.to_hiragana(query)
+    elif conv == 'kata':
+        query = romkan.to_katakana(query)
+
+    return query
 
 
 def get_request_page_num(request: HttpRequest) -> int:
@@ -351,10 +361,20 @@ def get_request_page_num(request: HttpRequest) -> int:
     return page_num
 
 
+def get_session_id(request: HttpRequest) -> str:
+    """Get the session ID for the request.
+
+    Will create the session ID for the request if it doesn't exist.
+    """
+    if request.session.session_key is None:
+        request.session.save()
+    return request.session.session_key
+
+
 def create_query(request: HttpRequest) -> Query:
     """Create a query object from the request data."""
     return Query(
-        query_str=request.GET['q'],
+        query_str=get_request_query(request),
         page_num=get_request_page_num(request),
         user_id=get_session_id(request)
     )
