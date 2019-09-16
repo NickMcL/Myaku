@@ -68,27 +68,27 @@
                 <fieldset class="mt-3">
                   <legend class="mb-1 search-options-legend">Romaji Conversion</legend>
                     <div class="search-options-check">
-                      <input class="search-options-check-input" type="radio" name="conv"
+                      <input class="search-options-check-input" type="radio" name="convert_type"
                         id="conv-hira-radio" value="hira"
-                        {% if request.GET.conv != "kata" and request.GET.conv != "none" %}
+                        {% if convert_type != "kata" and convert_type != "none" %}
                         checked
                         {% endif %}
                         >
                       <label class="form-check-label" for="conv-hira-radio">Hiragana (a→あ)</label>
                     </div>
                     <div class="search-options-check">
-                      <input class="search-options-check-input" type="radio" name="conv"
+                      <input class="search-options-check-input" type="radio" name="convert_type"
                         id="conv-kata-radio" value="kata"
-                        {% if request.GET.conv == "kata" %}
+                        {% if convert_type == "kata" %}
                         checked
                         {% endif %}
                         >
                       <label class="form-check-label" for="conv-kata-radio">Katakana (a→ア)</label>
                     </div>
                     <div class="search-options-check">
-                      <input class="search-options-check-input" type="radio" name="conv"
+                      <input class="search-options-check-input" type="radio" name="convert_type"
                         id="conv-none-radio" value="none"
-                        {% if request.GET.conv == "none" %}
+                        {% if convert_type == "none" %}
                         checked
                         {% endif %}
                         >

@@ -135,12 +135,12 @@
         <div class="row h-100 mb-3 py-2 card shadow-sm">
           <div class="col-12 d-inline-flex justify-content-between h-100 px-3 page-move-tile">
             {% if query_result_set.previous_page_num %}
-              <a href="/?q={{ query }}&p={{ query_result_set.previous_page_num }}"
+              <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.previous_page_num }}"
                 class="d-none d-sm-inline my-auto"
               >
                 <i class="fa fa-arrow-left"></i> Previous Articles
               </a>
-              <a href="/?q={{ query }}&p={{ query_result_set.previous_page_num }}"
+              <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.previous_page_num }}"
                 class="d-inline d-sm-none my-auto"
               >
                 <i class="fa fa-arrow-left"></i> Previous
@@ -157,12 +157,12 @@
                 Max page
               </span>
             {% elif query_result_set.next_page_num %}
-              <a href="/?q={{ query }}&p={{ query_result_set.next_page_num }}"
+            <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.next_page_num }}"
                 class="d-none d-sm-inline my-auto"
               >
                 More Articles <i class="fa fa-arrow-right"></i>
               </a>
-              <a href="/?q={{ query }}&p={{ query_result_set.next_page_num }}"
+              <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.next_page_num }}"
                 class="d-inline d-sm-none my-auto"
               >
                 More <i class="fa fa-arrow-right"></i>

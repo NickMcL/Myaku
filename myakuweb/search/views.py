@@ -3,6 +3,7 @@
 import functools
 import logging
 import math
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pprint import pformat
@@ -21,7 +22,8 @@ from myaku.datatypes import JpnArticle
 from search import tasks
 from search.article_preview import SearchResultArticlePreview
 
-DEFAULT_QUERY_CONV = 'hira'
+DEFAULT_QUERY_CONVERT_TYPE = 'hira'
+SESSION_USER_ID_KEY = 'user_id'
 
 _log = logging.getLogger(__name__)
 
@@ -321,6 +323,25 @@ def log_request_response(func: Callable) -> Callable:
     return log_request_response_wrapper
 
 
+def get_request_convert_type(request: HttpRequest) -> str:
+    """Get the romaji conversion type for the request.
+
+    If no convert_type parameter is in the query parameters for the request,
+    tries to use the convert_type from the session instead.
+
+    Will update the request session with the convert_type value for the request
+    as well.
+    """
+    if 'convert_type' in request.GET:
+        request.session['convert_type'] = request.GET['convert_type']
+        return request.GET['convert_type']
+    elif 'convert_type' in request.session:
+        return request.session['convert_type']
+    else:
+        request.session['convert_type'] = DEFAULT_QUERY_CONVERT_TYPE
+        return DEFAULT_QUERY_CONVERT_TYPE
+
+
 @utils.add_debug_logging
 def get_request_query(request: HttpRequest) -> str:
     """Get the query for a request.
@@ -329,10 +350,10 @@ def get_request_query(request: HttpRequest) -> str:
     method (conv) specified in the request.
     """
     query = utils.normalize_char_width(request.GET.get('q', ''))
-    conv = request.GET.get('conv', DEFAULT_QUERY_CONV)
-    if conv == 'hira':
+    convert_type = get_request_convert_type(request)
+    if convert_type == 'hira':
         query = romkan.to_hiragana(query)
-    elif conv == 'kata':
+    elif convert_type == 'kata':
         query = romkan.to_katakana(query)
 
     return query
@@ -361,14 +382,15 @@ def get_request_page_num(request: HttpRequest) -> int:
     return page_num
 
 
-def get_session_id(request: HttpRequest) -> str:
-    """Get the session ID for the request.
+def get_request_user_id(request: HttpRequest) -> str:
+    """Get the user ID from the session for the request.
 
-    Will create the session ID for the request if it doesn't exist.
+    Will create the user ID and store it in the session for the request if it
+    doesn't exist.
     """
-    if request.session.session_key is None:
-        request.session.save()
-    return request.session.session_key
+    if SESSION_USER_ID_KEY not in request.session:
+        request.session[SESSION_USER_ID_KEY] = uuid.uuid4().hex
+    return request.session[SESSION_USER_ID_KEY]
 
 
 def create_query(request: HttpRequest) -> Query:
@@ -376,15 +398,18 @@ def create_query(request: HttpRequest) -> Query:
     return Query(
         query_str=get_request_query(request),
         page_num=get_request_page_num(request),
-        user_id=get_session_id(request)
+        user_id=get_request_user_id(request)
     )
 
 
 @log_request_response
 def index(request: HttpRequest) -> HttpResponse:
-    """Search page handler."""
+    """Search page request handler."""
+    convert_type = get_request_convert_type(request)
     if len(request.GET.get('q', '')) == 0:
-        return render(request, 'search/start.html', {})
+        return render(
+            request, 'search/start.html', {'convert_type': convert_type}
+        )
 
     query = create_query(request)
     query_result_set = QueryArticleResultSet(query)
@@ -396,6 +421,7 @@ def index(request: HttpRequest) -> HttpResponse:
         {
             'query': query.query_str,
             'page_num': query.page_num,
+            'convert_type': convert_type,
             'max_page_num': settings.MAX_PAGE_NUM,
             'query_result_set': query_result_set,
             'resource_links': resource_links,
