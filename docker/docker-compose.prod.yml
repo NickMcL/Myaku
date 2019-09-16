@@ -118,6 +118,10 @@ services:
 configs:
   myakuweb_allowed_hosts:
     file: ./configs/myakuweb_allowed_hosts.txt
+  myakuweb_domain:
+    file: ./configs/myakuweb_domain.txt
+  certbot_email:
+    file: ./configs/certbot_email.txt
   mongo_backup_to_s3.yml:
     file: ./configs/mongo_backup_to_s3.yml
 
