@@ -10,7 +10,7 @@ repos:
       - id: end-of-file-fixer
         # Secret files must not end with a new line character, or else the new
         # line will be included in the secret data.
-        exclude: docker/dev_secrets/*
+        exclude: docker/dev_secrets|docker/dev_configs
       - id: trailing-whitespace
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks

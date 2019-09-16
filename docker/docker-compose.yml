@@ -179,11 +179,19 @@ services:
       - type: volume
         source: reverseproxy_log
         target: /nginx_log
+
+      - type: volume
+        source: certs
+        target: /etc/letsencrypt
     environment:
       MYAKUWEB_HOST: web
       MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts
+      MYAKUWEB_DOMAIN_FILE: /myakuweb_domain
+      CERTBOT_EMAIL_FILE: /certbot_email
     configs:
       - myakuweb_allowed_hosts
+      - myakuweb_domain
+      - certbot_email
     networks:
       - web_net
   crawldb:
@@ -253,6 +261,7 @@ volumes:
   first_page_cache_data:
   next_page_cache_data:
   reverseproxy_log:
+  certs:
   crawldb_datadb:
   crawldb_configdb:
   crawldb_backup_log:
@@ -260,6 +269,10 @@ volumes:
 configs:
   myakuweb_allowed_hosts:
     file: ./dev_configs/myakuweb_allowed_hosts_DEVUSEONLY.txt
+  myakuweb_domain:
+    file: ./dev_configs/myakuweb_domain_DEVUSEONLY.txt
+  certbot_email:
+    file: ./dev_configs/certbot_email_DEVUSEONLY.txt
   mongo_backup_to_s3.yml:
     file: ./dev_configs/mongo_backup_to_s3_DEVUSEONLY.yml
 

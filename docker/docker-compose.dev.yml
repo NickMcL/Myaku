@@ -113,6 +113,11 @@ services:
         target: /www/static
     ports:
       - target: 80
+        published: 8001
+        protocol: tcp
+        mode: host
+
+      - target: 443
         published: 8000
         protocol: tcp
         mode: host

@@ -2,13 +2,18 @@
 
 FROM nginx:1.17.3 AS base
 
-RUN apt-get update && apt-get install -y netcat
+RUN apt-get update \
+    && apt-get install -y netcat openssl certbot python-certbot-nginx
 
 ENV NGINX_STATIC_URL /static/
 ENV NGINX_STATIC_URL_ALIAS /www/static/
 ENV NGINX_STATIC_OTHER_ROOT /www/static/root
 
 ENV NGINX_RUN_FILES_DIR /run_files
+
+ENV USE_PROD_CERT 0
+ENV CERTBOT_WEB_ROOT /www/certbot
+RUN mkdir -p $CERTBOT_WEB_ROOT
 
 # Setting for passing requests to myakuweb uwsgi
 ENV MYAKUWEB_HOST web
