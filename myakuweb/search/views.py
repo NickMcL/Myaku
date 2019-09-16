@@ -342,7 +342,6 @@ def get_request_convert_type(request: HttpRequest) -> str:
         return DEFAULT_QUERY_CONVERT_TYPE
 
 
-@utils.add_debug_logging
 def get_request_query(request: HttpRequest) -> str:
     """Get the query for a request.
 
