@@ -60,7 +60,7 @@ services:
     networks:
       - crawler_net
   web:
-    image: friedrice2/myaku_web:1.8.1
+    image: friedrice2/myaku_web:1.8.2
     volumes:
       - type: volume
         source: web_log
