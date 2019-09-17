@@ -5,6 +5,8 @@
 A search engine for finding native Japanese articles on the web that
 demonstrate in-context usage for any bit of Japanese language.
 
+Live now at [myaku.org](https://myaku.org).
+
 ## What can Myaku do?
 
 Searching for any bit of Japanese language on Myaku will return links to
