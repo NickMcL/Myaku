@@ -5,6 +5,15 @@
 # Get docker config supplied variables
 export MYAKUWEB_DOMAIN="$(cat "$MYAKUWEB_DOMAIN_FILE")"
 export CERTBOT_EMAIL="$(cat "$CERTBOT_EMAIL_FILE")"
+export MYAKUWEB_ALLOWED_HOSTS="$(\
+    cat $MYAKUWEB_ALLOWED_HOSTS_FILE | tr '\n' ' ' | sed 's/ $//g' \
+)"
+
+# Use DOLLAR to insert $ for nginx variables because using $ directly would
+# cause the nginx variables to be replaced by envsubst
+export DOLLAR='$'
+envsubst < $NGINX_RUN_FILES_DIR/nginx_template.conf > \
+    /etc/nginx/conf.d/myaku_reverseproxy.conf
 
 cert_dir="/etc/letsencrypt/live/$MYAKUWEB_DOMAIN"
 mkdir -p $cert_dir
@@ -18,7 +27,7 @@ if [ "$USE_PROD_CERT" != "1" ]; then
 # No cert is available, so get one with certbot
 elif [ ! -f "$cert_dir/privkey.pem" ]; then
     # Create dummy cert so that nginx will start
-    openssl req -x509 -nodes -newkey rsa:1024 -days 365 \
+    openssl req -x509 -nodes -newkey rsa:4096 -days 365 \
         -keyout "$cert_dir/privkey.pem" \
         -out "$cert_dir/fullchain.pem" \
         -subj "/CN=localhost"
@@ -34,7 +43,11 @@ elif [ ! -f "$cert_dir/privkey.pem" ]; then
     # Get real cert from certbot
     certbot certonly --webroot -w "$CERTBOT_WEB_ROOT" \
         -m $CERTBOT_EMAIL -d $MYAKUWEB_DOMAIN \
-        --rsa-key-size 4096 --agree-tos
+        --rsa-key-size 4096 --agree-tos --non-interactive
+    if [ $? -ne 0 ]; then
+        echo "Certbot failed"
+        exit 1
+    fi
 
     # Stop nginx so that we can start it in the foreground
     nginx -s stop
@@ -61,17 +74,5 @@ if [ $uwsgi_available -eq 0 ]; then
     echo "ERROR: uWSGI not available after 20 seconds"
     exit 1
 fi
-
-
-# Set allowed hosts from docker config file
-export MYAKUWEB_ALLOWED_HOSTS="$(\
-    cat $MYAKUWEB_ALLOWED_HOSTS_FILE | tr '\n' ' ' | sed 's/ $//g' \
-)"
-
-# Use DOLLAR to insert $ for nginx variables because using $ directly would
-# cause the nginx variables to be replaced by envsubst
-export DOLLAR='$'
-envsubst < $NGINX_RUN_FILES_DIR/nginx_template.conf > \
-    /etc/nginx/conf.d/myaku_reverseproxy.conf
 
 exec nginx -g 'daemon off;'
