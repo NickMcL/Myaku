@@ -48,6 +48,7 @@ elif [ ! -f "$cert_dir/privkey.pem" ]; then
         echo "Certbot failed"
         exit 1
     fi
+    echo "Certbot successfully acquired a cert"
 
     # Stop nginx so that we can start it in the foreground
     nginx -s stop
@@ -75,4 +76,5 @@ if [ $uwsgi_available -eq 0 ]; then
     exit 1
 fi
 
+echo "Starting nginx in foreground"
 exec nginx -g 'daemon off;'

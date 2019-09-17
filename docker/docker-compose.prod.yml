@@ -84,6 +84,8 @@ services:
       placement:
         constraints:
           - node.labels.type == web
+    environment:
+      USE_PROD_CERT: 1
     ports:
       - target: 80
         published: 80
