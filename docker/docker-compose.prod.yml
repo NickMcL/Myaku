@@ -113,7 +113,7 @@ services:
         window: 10s
       placement:
         constraints:
-          - node.labels.type == web
+          - node.labels.type == crawler
     environment:
       DB_BACKUP_CRON_SCHEDULE: "0 6 * * *"
 
