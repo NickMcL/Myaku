@@ -10,7 +10,6 @@ POSSIBLE_IMAGE_TYPES=(\
     "crawler" \
     "rescore" \
     "web" \
-    "web-worker" \
     "nginx.reverseproxy" \
     "redis.first-page-cache" \
     "redis.next-page-cache" \
@@ -44,7 +43,6 @@ for the image, or the script will error.
     - crawler
     - rescore
     - web
-    - web-worker
     - nginx.reverseproxy
     - redis.first-page-cache
     - redis.next-page-cache
