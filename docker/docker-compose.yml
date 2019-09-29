@@ -108,7 +108,7 @@ services:
     networks:
       - web_net
   web-worker:
-    image: friedrice2/myaku_web:1.8.1
+    image: friedrice2/myaku_web:1.8.2
     entrypoint:
       - celery
       - -A

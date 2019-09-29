@@ -150,13 +150,7 @@ a {
   box-shadow: none;
 }
 
-.myaku-logo-sm {
-  height: 42px;
-  width: 163px;
-}
-
-.myaku-logo-lg {
-  height: 65px;
+.myaku-logo {
   width: 250px;
 }
 
@@ -164,6 +158,12 @@ a {
   .search-top {
     padding-left: 0;
     padding-right: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .myaku-logo {
+    width: 163px;
   }
 }
 

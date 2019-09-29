@@ -1,10 +1,13 @@
 {% load static %}
 
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <meta name="description" content="Search engine for native Japanese articles that demonstrate in-context usage for any bit of Japanese language.">
+    <title>{% block title %}Myaku{% endblock %}</title>
 
     <!-- Icon stuff -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -25,22 +28,23 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Sans+JP:400,500,700|Noto+Sans:400,700&display=swap&subset=japanese,latin-ext">
 
     <link rel="stylesheet" href="{% static "search/css/myaku_search.css" %}">
-
-    <title>{% block title %}Myaku{% endblock %}</title>
   </head>
+
   <body class="bg-light">
     <div class="container-fluid bg-white shadow-sm">
       <div class="container search-top">
         <nav class="navbar d-flex align-items-start">
           <a class="navbar-brand" href="/">
-            <img class="img-fluid myaku-logo myaku-logo-lg d-none d-md-block"
-                src="{% static "images/myaku_logo.svg" %}"/>
-            <img class="img-fluid myaku-logo myaku-logo-sm d-block d-md-none"
+            <img class="img-fluid myaku-logo" alt="Myaku logo"
                 src="{% static "images/myaku_logo.svg" %}"/>
           </a>
           <ul class="navbar-nav align-top">
             <li class="nav-item">
-              <a class="nav-link" href="https://github.com/FriedRice/Myaku">Github</a>
+              <a class="nav-link" aria-label="Myaku GitHub"
+                href="https://github.com/FriedRice/Myaku"
+              >
+                Github
+              </a>
             </li>
           </ul>
         </nav>
@@ -52,14 +56,14 @@
                 <!-- Placeholder set by js based on viewport size -->
                 <input class="form-control border-right-0 pr-0" id="search-input"
                     type="text" name="q" value="{% firstof query request.GET.q "" %}"
-                    placeholder="Japanese word, phrase, etc.">
+                    aria-label="Search input" placeholder="Japanese word, phrase, etc.">
                 <div class="input-group-append border-left-0">
-                  <button type="button" class="input-group-text search-clear">
+                  <button type="button" aria-label="Search clear" class="input-group-text search-clear">
                     <i class="fa fa-times"></i>
                   </button>
                 </div>
                 <div class="input-group-append">
-                  <button type="submit" class="btn search-button">
+                  <button type="submit" aria-label="Search button" class="btn search-button">
                     <i class="fa fa-search"></i>
                   </button>
                 </div>

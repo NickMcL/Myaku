@@ -255,6 +255,7 @@ def assert_search_header(we: WebElement, window_width: int) -> None:
             to access the page.
     """
     assert_element_by_tag(we, 'title', 'Myaku', False)
+    assert_element_by_classes(we, 'img', 'myaku-logo')
     assert_element_by_classes(we, 'button', 'search-clear')
     assert_element_by_classes(we, 'button', 'search-button')
     assert_element_by_classes(
@@ -271,12 +272,6 @@ def assert_search_header(we: WebElement, window_width: int) -> None:
     assert_element_by_id(
         we, 'input', 'search-input', attrs={'placeholder': placeholder}
     )
-
-    assert_element_by_classes(we, 'img', 'myaku-logo')
-    if window_width < MD_MIN_WIDTH:
-        assert_element_by_classes(we, 'img', 'myaku-logo-sm')
-    else:
-        assert_element_by_classes(we, 'img', 'myaku-logo-lg')
 
 
 def assert_start_tiles(we: WebElement) -> None:

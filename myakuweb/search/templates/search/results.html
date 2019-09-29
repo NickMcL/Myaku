@@ -39,7 +39,7 @@
       {% for result in query_result_set.ranked_article_results %}
         <div class="row mb-3 card shadow-sm result-tile">
           <div class="col-12 pt-3 px-3">
-            <h4>
+            <h4 lang="ja">
               <a class="article-title japanese-text" href="{{ result.article.source_url }}">
                 {{ result.article.title }}
               </a>
@@ -80,7 +80,7 @@
 
             <hr>
             <blockquote class="mb-3 article-sample-text">
-              <p class="mb-0 japanese-text">
+              <p class="mb-0 japanese-text" lang="ja">
                 {% for segment in result.preview.main_sample_text.segments %}
                   {% if segment.is_query_match %}
                     <span class="article-sample-instance">{{ segment.text }}</span>
@@ -99,7 +99,7 @@
                 {% for sample_text in result.preview.extra_sample_texts %}
                   <li>
                     <blockquote>
-                      <p class="mb-0 japanese-text">
+                      <p class="mb-0 japanese-text" lang="ja">
                         {% for segment in sample_text.segments %}
                           {% if segment.is_query_match %}
                             <span class="article-sample-instance">{{ segment.text }}</span>
@@ -123,7 +123,7 @@
               <div class="card-footer text-center py-0">
                 <button class="btn btn-link text-muted show-more-button" type="button"
                     data-toggle="collapse" data-target="#more-samples-{{ forloop.counter }}">
-                  Show more {{ query }} instances from this article
+                  Show more <span lang="ja">{{ query }}</span> instances from this article
                 </button>
               </div>
             </div>
@@ -196,7 +196,7 @@
             <ul class="list-unstyled">
               {% for resource_link in link_set.resource_links %}
                 <li><a class="resource-link" href="{{ resource_link.link }}">
-                    Search {{ resource_link.resource_name }} for {{ query }}
+                    Search {{ resource_link.resource_name }} for <span lang="ja">{{ query }}</span>
                 </a></li>
               {% endfor %}
             </ul>

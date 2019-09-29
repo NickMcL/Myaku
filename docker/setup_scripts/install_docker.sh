@@ -1,5 +1,6 @@
 #!/bin/bash
-# Bootstrap script to install docker on a new Ubuntu server instance
+# Bootstrap script to install the latest stable docker version on an Ubuntu
+# instance.
 
 sudo apt-get remove -y docker docker-engine docker.io containerd runc
 
