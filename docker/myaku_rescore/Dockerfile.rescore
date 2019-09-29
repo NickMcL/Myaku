@@ -1,6 +1,6 @@
 # Builds a prod or dev image for the Myaku article rescorer.
 
-FROM friedrice2/ubuntu.cron:1.0.3_18.04 AS base
+FROM friedrice2/ubuntu.cron:1.0.4_18.04 AS base
 
 # Set up deadsnakes ppa for installing newer Python versions
 RUN apt-get update \
