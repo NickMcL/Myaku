@@ -54,12 +54,12 @@ RUN echo "DB_BACKUP_CRON_SCHEDULE root" \
     "$PYTHON_BIN $DB_BACKUP_PYTHON_SCRIPT" >> $CRON_FILE
 
 
+FROM base AS prod
+
+COPY ./docker/mongobackup/mongo_backup_to_s3.py $DB_BACKUP_PYTHON_SCRIPT
+
+
 FROM base AS dev
 
 # Volume for sharing in development run files on host with container
 VOLUME ["$SCRIPTS_DIR"]
-
-
-FROM base AS prod
-
-COPY ./docker/mongobackup/mongo_backup_to_s3.py $DB_BACKUP_PYTHON_SCRIPT

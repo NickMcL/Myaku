@@ -18,59 +18,53 @@
     <meta name="msapplication-TileColor" content="#2b5797">
     <meta name="theme-color" content="#1d4381">
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-
-    <!-- Font Awesome CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
-
     <!-- Fonts from Google Fonts API -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Sans+JP:400,500,700|Noto+Sans:400,700&display=swap&subset=japanese,latin-ext">
+    <!-- Initially use "print" as the media type so that browsers will load the stylesheet async -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Sans+JP:400,500,700|Noto+Sans:400,700&display=swap&subset=japanese,latin-ext" media="print" onload="this.media = 'all'">
+
+    <!-- Fallback to a standard link if Javascript isn't available -->
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Sans+JP:400,500,700|Noto+Sans:400,700&display=swap&subset=japanese,latin-ext">
+    </noscript>
 
     <link rel="stylesheet" href="{% static "search/css/myaku_search.css" %}">
   </head>
 
-  <body class="bg-light">
-    <div class="container-fluid bg-white shadow-sm">
-      <div class="container search-top">
-        <nav class="navbar d-flex align-items-start">
-          <a class="navbar-brand" href="/">
-            <img class="img-fluid myaku-logo" alt="Myaku logo"
+  <body>
+    <header class="page-header">
+      <div class="content-container header-content-container">
+        <nav class="header-nav">
+          <a class="nav-logo" href="/">
+            <img class="myaku-logo" alt="Myaku logo"
                 src="{% static "images/myaku_logo.svg" %}"/>
           </a>
-          <ul class="navbar-nav align-top">
-            <li class="nav-item">
-              <a class="nav-link" aria-label="Myaku GitHub"
-                href="https://github.com/FriedRice/Myaku"
-              >
+          <ul class="nav-link-list">
+            <li>
+              <a aria-label="Myaku GitHub" href="https://github.com/FriedRice/Myaku">
                 Github
               </a>
             </li>
           </ul>
         </nav>
 
-        <div class="row pb-2 pb-md-3 mb-3">
-          <div class="col-12 col-md-9 col-lg-7">
-            <form class="search-form" action="/" method="get">
-              <div class="input-group">
+        <div class="search-box-container">
+          <div class="search-box-form-container">
+            <form action="/" method="get">
+              <div class="search-box">
                 <!-- Placeholder set by js based on viewport size -->
-                <input class="form-control border-right-0 pr-0" id="search-input"
+                <input class="search-input" id="search-input"
                     type="text" name="q" value="{% firstof query request.GET.q "" %}"
                     aria-label="Search input" placeholder="Japanese word, phrase, etc.">
-                <div class="input-group-append border-left-0">
-                  <button type="button" aria-label="Search clear" class="input-group-text search-clear">
-                    <i class="fa fa-times"></i>
-                  </button>
-                </div>
-                <div class="input-group-append">
-                  <button type="submit" aria-label="Search button" class="btn search-button">
-                    <i class="fa fa-search"></i>
-                  </button>
-                </div>
+                <button type="button" aria-label="Search clear" class="search-clear">
+                  <i class="fa fa-times"></i>
+                </button>
+                <button type="submit" aria-label="Search submit button" class="search-submit">
+                  <i class="fa fa-search"></i>
+                </button>
               </div>
               <div id="search-options" class="collapse">
-                <fieldset class="mt-3">
-                  <legend class="mb-1 search-options-legend">Romaji Conversion</legend>
+                <fieldset class="kana-conv-field">
+                  <legend class="search-options-legend">Romaji Conversion</legend>
                     <div class="search-options-check">
                       <input class="search-options-check-input" type="radio" name="convert_type"
                         id="conv-hira-radio" value="hira"
@@ -78,7 +72,7 @@
                         checked
                         {% endif %}
                         >
-                      <label class="form-check-label" for="conv-hira-radio">Hiragana (a→あ)</label>
+                      <label class="check-input-label" for="conv-hira-radio">Hiragana (a→あ)</label>
                     </div>
                     <div class="search-options-check">
                       <input class="search-options-check-input" type="radio" name="convert_type"
@@ -87,7 +81,7 @@
                         checked
                         {% endif %}
                         >
-                      <label class="form-check-label" for="conv-kata-radio">Katakana (a→ア)</label>
+                      <label class="check-input-label" for="conv-kata-radio">Katakana (a→ア)</label>
                     </div>
                     <div class="search-options-check">
                       <input class="search-options-check-input" type="radio" name="convert_type"
@@ -96,39 +90,25 @@
                         checked
                         {% endif %}
                         >
-                      <label class="form-check-label" for="conv-none-radio">No conversion (a→a)</label>
+                      <label class="check-input-label" for="conv-none-radio">No conversion (a→a)</label>
                     </div>
                 </fieldset>
               </div>
             </form>
           </div>
-          <div class="col-12 col-md-3 col-lg-5">
-            <button type="button" class="btn btn-link px-0 search-options-toggle"
-                data-toggle="collapse" data-target="#search-options">
+          <div class="search-box-options-toggle-container">
+            <button type="button" class="button-link search-options-toggle"
+                data-target="#search-options">
               Show search options
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </header>
 
-    <div class="container" id="tile-container">
+    <main class="content-container">
       {% block tile_content %}{% endblock %}
-    </div>
-
-    <script
-      src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
-      integrity="sha256-pasqAKBDmFT4eHoN2ndd6lN370kFiGUFyTiUHWhU7k8="
-      crossorigin="anonymous">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
-      integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
-      crossorigin="anonymous">
-    </script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
-      integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
-      crossorigin="anonymous">
-    </script>
+    </main>
 
     <script src="{% static "search/js/myaku_search.js" %}"></script>
   </body>

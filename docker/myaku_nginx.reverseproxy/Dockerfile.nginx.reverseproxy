@@ -37,15 +37,6 @@ RUN rm /etc/nginx/conf.d/default.conf
 ENTRYPOINT ["/bin/bash", "-c", "$NGINX_RUN_FILES_DIR/run_nginx.sh"]
 
 
-FROM base AS dev
-
-# Volume for sharing in development run files on host with container
-VOLUME ["$NGINX_RUN_FILES_DIR"]
-
-# Volume for sharing in development static on host with container
-VOLUME ["$NGINX_STATIC_URL_ALIAS"]
-
-
 FROM base AS prod
 
 COPY ./myakuweb/static $NGINX_STATIC_URL_ALIAS
@@ -53,4 +44,19 @@ COPY ./docker/myaku_nginx.reverseproxy/run_nginx.sh $NGINX_RUN_FILES_DIR/
 COPY ./docker/myaku_nginx.reverseproxy/nginx_template.conf $NGINX_RUN_FILES_DIR/
 COPY ./docker/myaku_nginx.reverseproxy/uwsgi_params $MYAKUWEB_UWSGI_PARAMS_FILE
 
+# Gzip uncompressed static file types so that nginx can service the gzipped
+# versions to clients that will accept them.
+RUN find $NGINX_STATIC_URL_ALIAS -type f \
+    \( -name "*.js" -or -name "*.css" -or -name "*.scss" -or -name "*.svg" \) \
+    -exec gzip -kf "{}" \;
+
 RUN chmod +x $NGINX_RUN_FILES_DIR/run_nginx.sh
+
+
+FROM base AS dev
+
+# Volume for sharing in development run files on host with container
+VOLUME ["$NGINX_RUN_FILES_DIR"]
+
+# Volume for sharing in development static on host with container
+VOLUME ["$NGINX_STATIC_URL_ALIAS"]

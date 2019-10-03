@@ -1,0 +1,45 @@
+/*!
+ * Adapted from the Font Awesome files distrbuted with the following copyright
+ * and license disclaimer:
+ *
+ * Font Awesome Free 5.11.2 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
+ */
+
+$font-path: "../webfonts";
+
+@font-face {
+    font-family: 'Font Awesome 5 Free';
+    font-style: normal;
+    font-weight: 900;
+    font-display: auto;
+    src: url("#{$font-path}/fa-solid-900.woff2") format("woff2"), url("#{$font-path}/fa-solid-900.woff") format("woff"), url("#{$font-path}/fa-solid-900.ttf") format("truetype"), url("#{$font-path}/fa-solid-900.svg#fontawesome") format("svg");
+}
+
+.fa {
+    display: inline-block;
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    font-size: inherit;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+}
+
+.fa-arrow-left:before {
+    content: "\f060";
+}
+
+.fa-arrow-right:before {
+    content: "\f061";
+}
+
+.fa-search:before {
+    content: "\f002";
+}
+
+.fa-times:before {
+    content: "\f00d";
+}

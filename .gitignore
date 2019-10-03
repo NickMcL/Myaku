@@ -109,3 +109,6 @@ backups/
 
 # Django admin static
 myakuweb/static/admin/
+
+# Gzipped static files
+*.gz

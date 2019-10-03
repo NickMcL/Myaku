@@ -2,209 +2,156 @@
 {% load humanize %}
 
 {% block tile_content %}
-<div class="row mb-3">
-  <div class="col-12 col-lg-9">
-    <div class="mr-lg-3 h-100">
-      <div class="row card h-100 py-2 shadow-sm">
-        <div class="col px-3 d-flex align-items-center">
-          <h3 class="tile-header">
-            Articles
-            <small class="text-muted">
-              — {{ query_result_set.total_results|intcomma }} found
-            </small>
-          </h3>
-          {% if page_num != 1 or query_result_set.next_page_num %}
-            <h3 class="ml-auto d-none d-sm-inline">
-              <small class="text-muted">Page {{ page_num }}</small>
-            </h3>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-3 d-none d-lg-block d-xl-block">
-    <div class="h-100">
-      <div class="row card h-100 py-2 shadow-sm">
-        <div class="col d-flex align-items-center resource-tile">
-          <h4 class="tile-header">More Resources</h4>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<div class="result-tile-container">
+  <section class="tile results-header-tile">
+    <h3>
+      <span>
+        Articles
+        <small>— {{ query_result_set.total_results|intcomma }} found</small>
+      </span>
+    {% if page_num != 1 or query_result_set.next_page_num %}
+      <small class="result-header-page-number">Page {{ page_num }}</small>
+    {% endif %}
+    </h3>
+  </section>
 
-<div class="row">
-  <div class="col col-lg-9">
-    <div class="mr-lg-3">
-      {% for result in query_result_set.ranked_article_results %}
-        <div class="row mb-3 card shadow-sm result-tile">
-          <div class="col-12 pt-3 px-3">
-            <h4 lang="ja">
-              <a class="article-title japanese-text" href="{{ result.article.source_url }}">
-                {{ result.article.title }}
-              </a>
-            </h4>
+  {% for result in query_result_set.ranked_article_results %}
+    <section class="tile result-tile">
+      <h4 class="main-tile-header japanese-text" lang="ja">
+        <a href="{{ result.article.source_url }}">{{ result.article.title }}</a>
+      </h4>
 
-            <div>
-              <span class="article-info-text">
-                {{ result.article.source_name }}
-                - {{ result.publication_date_str|capfirst }}
-              </span>
-              {% if result.display_last_updated_date %}
-                <span class="article-info-text d-none d-md-inline">
-                  (Updated {{ result.last_updated_date_str }})
-                </span>
-              {% endif %}
-              <span class="article-info-text d-none d-md-inline">
-                - {{ result.instance_count|intcomma }} instance{{ result.instance_count|pluralize }}
-              </span>
-            </div>
-            {% if result.display_last_updated_date %}
-              <div class="d-md-none">
-                  <span class="article-info-text">
-                    Updated {{ result.last_updated_date_str }}
-                  </span>
-              </div>
-            {% endif %}
-            <div class="d-md-none">
-              <span class="article-info-text">
-                {{ result.instance_count|intcomma }} instance{{ result.instance_count|pluralize }}
-              </span>
-            </div>
+      <ul class="article-info">
+        <li>{{ result.article.source_name }}</li>
+        <li>
+          <time datetime="{{ result.publication_datetime_isoformat }}">{{ result.publication_date_str|capfirst }}</time>
+        </li>
+        {% if result.display_last_updated_date %}
+          <li class="updated-datetime">Updated <time datetime="{{ result.last_updated_datetime_isoformat }}">{{ result.last_updated_date_str }}</time></li>
+        {% endif %}
+        <li>{{ result.instance_count|intcomma }} instance{{ result.instance_count|pluralize }}</li>
+      </ul>
 
-            <div class="">
-              {% for tag in result.tags %}
-                <span class="badge tag-badge">{{ tag }}</span>
-              {% endfor %}
-            </div>
+      <ul class="article-tags">
+        {% for tag in result.tags %}
+          <li class="tag-badge">{{ tag }}</li>
+        {% endfor %}
+      </ul>
 
-            <hr>
-            <blockquote class="mb-3 article-sample-text">
-              <p class="mb-0 japanese-text" lang="ja">
-                {% for segment in result.preview.main_sample_text.segments %}
-                  {% if segment.is_query_match %}
-                    <span class="article-sample-instance">{{ segment.text }}</span>
-                  {% else %}
-                    {{ segment.text }}
-                  {% endif %}
-                {% endfor %}
-              </p>
-              <footer class="blockquote-footer">
-                {{ result.preview.main_sample_text.get_humanized_text_position }}
-              </footer>
-            </blockquote>
-            {% if result.preview.extra_sample_texts %}
-              <div id="more-samples-{{ forloop.counter }}" class="collapse extra-sample-instances">
-                <ul class="list-unstyled mb-3 article-sample-text">
-                {% for sample_text in result.preview.extra_sample_texts %}
-                  <li>
-                    <blockquote>
-                      <p class="mb-0 japanese-text" lang="ja">
-                        {% for segment in sample_text.segments %}
-                          {% if segment.is_query_match %}
-                            <span class="article-sample-instance">{{ segment.text }}</span>
-                          {% else %}
-                            {{ segment.text }}
-                          {% endif %}
-                        {% endfor %}
-                      </p>
-                      <footer class="blockquote-footer">
-                        {{ sample_text.get_humanized_text_position }}
-                      </footer>
-                    </blockquote>
-                  </li>
-                {% endfor %}
-                </ul>
-              </div>
-            {% endif %}
-          </div>
-          {% if result.preview.extra_sample_texts %}
-            <div class="col-12 px-0">
-              <div class="card-footer text-center py-0">
-                <button class="btn btn-link text-muted show-more-button" type="button"
-                    data-toggle="collapse" data-target="#more-samples-{{ forloop.counter }}">
-                  Show more <span lang="ja">{{ query }}</span> instances from this article
-                </button>
-              </div>
-            </div>
-          {% endif %}
-        </div>
-      {% endfor %}
+      <hr>
 
-      {% if query_result_set.ranked_article_results %}
-        <div class="row h-100 mb-3 py-2 card shadow-sm">
-          <div class="col-12 d-inline-flex justify-content-between h-100 px-3 page-move-tile">
-            {% if query_result_set.previous_page_num %}
-              <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.previous_page_num }}"
-                class="d-none d-sm-inline my-auto"
-              >
-                <i class="fa fa-arrow-left"></i> Previous Articles
-              </a>
-              <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.previous_page_num }}"
-                class="d-inline d-sm-none my-auto"
-              >
-                <i class="fa fa-arrow-left"></i> Previous
-              </a>
-            {% endif %}
-
-            <a href="#" class="d-inline-flex">Top</a>
-
-            {% if query_result_set.next_page_num and page_num == max_page_num %}
-              <span class="d-none d-sm-inline-flex text-muted my-auto">
-                Max page reached
-              </span>
-              <span class="d-inline-flex d-sm-none text-muted my-auto">
-                Max page
-              </span>
-            {% elif query_result_set.next_page_num %}
-            <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.next_page_num }}"
-                class="d-none d-sm-inline my-auto"
-              >
-                More Articles <i class="fa fa-arrow-right"></i>
-              </a>
-              <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.next_page_num }}"
-                class="d-inline d-sm-none my-auto"
-              >
-                More <i class="fa fa-arrow-right"></i>
-              </a>
+      <blockquote class="article-sample-text">
+        <p class="japanese-text" lang="ja">
+          {% for segment in result.preview.main_sample_text.segments %}
+            {% if segment.is_query_match %}
+              <span class="article-sample-instance">{{ segment.text }}</span>
             {% else %}
-              <span class="d-none d-sm-inline-flex text-muted my-auto">
-                End of results
-              </span>
-              {% if page_num == 1 %}
-                <span class="d-inline-flex d-sm-none text-muted my-auto">
-                  End of results
-                </span>
-              {% else %}
-                <span class="d-inline-flex d-sm-none text-muted my-auto">
-                  End
-                </span>
-              {% endif %}
+              {{ segment.text }}
             {% endif %}
-          </div>
+          {% endfor %}
+        </p>
+        <footer>
+          {{ result.preview.main_sample_text.get_humanized_text_position }}
+        </footer>
+      </blockquote>
+      {% if result.preview.extra_sample_texts %}
+        <div id="more-samples-{{ forloop.counter }}" class="collapse more-samples-container">
+          <ul class="more-samples-list">
+          {% for sample_text in result.preview.extra_sample_texts %}
+            <li>
+              <blockquote class="article-sample-text">
+                <p class="japanese-text" lang="ja">
+                  {% for segment in sample_text.segments %}
+                    {% if segment.is_query_match %}
+                      <span class="article-sample-instance">{{ segment.text }}</span>
+                    {% else %}
+                      {{ segment.text }}
+                    {% endif %}
+                  {% endfor %}
+                </p>
+                <footer>
+                  {{ sample_text.get_humanized_text_position }}
+                </footer>
+              </blockquote>
+            </li>
+          {% endfor %}
+          </ul>
         </div>
       {% endif %}
-    </div>
-  </div>
+      {% if result.preview.extra_sample_texts %}
+        <footer class="tile-footer">
+          <button class="button-link show-more-button" type="button"
+              data-target="#more-samples-{{ forloop.counter }}">
+            Show more <span class="japanese-text" lang="ja">{{ query }}</span> instances from this article
+          </button>
+        </footer>
+      {% endif %}
+    </section>
+  {% endfor %}
 
-  <div class="col-lg-3 d-none d-lg-block d-xl-block">
-    <div class="">
-      {% for link_set in resource_links.resource_link_sets %}
-        <div class="row mb-3">
-          <div class="col card resource-tile pt-2 shadow-sm">
-            <h5 class="light-header">{{ link_set.set_name }}</h5>
-            <ul class="list-unstyled">
-              {% for resource_link in link_set.resource_links %}
-                <li><a class="resource-link" href="{{ resource_link.link }}">
-                    Search {{ resource_link.resource_name }} for <span lang="ja">{{ query }}</span>
-                </a></li>
-              {% endfor %}
-            </ul>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
+  {% if query_result_set.ranked_article_results %}
+    <section class="tile page-nav-tile">
+      {% if query_result_set.previous_page_num %}
+        <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.previous_page_num }}"
+          class="page-nav-long"
+        >
+          <i class="fa fa-arrow-left"></i> Previous Articles
+        </a>
+        <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.previous_page_num }}"
+          class="page-nav-short"
+        >
+          <i class="fa fa-arrow-left"></i> Previous
+        </a>
+      {% endif %}
+
+      <a href="#">Top</a>
+
+      {% if query_result_set.next_page_num and page_num == max_page_num %}
+        <span class="page-info-long">Max page reached</span>
+        <span class="page-info-short">Max page</span>
+
+      {% elif query_result_set.next_page_num %}
+        <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.next_page_num }}"
+          class="page-nav-long"
+        >
+          More Articles <i class="fa fa-arrow-right"></i>
+        </a>
+        <a href="/?q={{ query }}&conv={{ convert_type }}&p={{ query_result_set.next_page_num }}"
+          class="page-nav-short"
+        >
+          More <i class="fa fa-arrow-right"></i>
+        </a>
+
+      {% else %}
+        <span class="page-info-long">End of results</span>
+        {% if page_num == 1 %}
+          <span class="page-info-short">End of results</span>
+        {% else %}
+          <span class="page-info-short">End</span>
+        {% endif %}
+      {% endif %}
+
+    </section>
+  {% endif %}
 </div>
+
+<aside class="resource-links-aside">
+  <section class="tile aside-tile resource-header-tile">
+    <h4>More Resources</h4>
+  </section>
+  {% for link_set in resource_links.resource_link_sets %}
+    <section class="tile aside-tile resource-links-tile">
+      <h5>{{ link_set.set_name }}</h5>
+      <ul class="resource-links-list">
+        {% for resource_link in link_set.resource_links %}
+          <li><a href="{{ resource_link.link }}">
+              Search {{ resource_link.resource_name }} for
+                <span class="japanese-text" lang="ja">{{ query }}</span>
+          </a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+</aside>
 
 {% endblock %}

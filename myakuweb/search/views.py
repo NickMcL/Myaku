@@ -242,8 +242,20 @@ class QueryArticleResult(object):
         self.tags = self._get_tags(search_result.article)
         self.preview = SearchResultArticlePreview(search_result)
 
+        self._set_date_attributes(search_result)
+
+    def _set_date_attributes(self, search_result: SearchResult) -> None:
+        """Set the date-related attributes from the search result data."""
+        # Add Z at the end to indicate that the datetime is UTC.
+        self.publication_datetime_isoformat = (
+            search_result.article.publication_datetime.isoformat() + 'Z'
+        )
         self.publication_date_str = humanize_date(
             search_result.article.publication_datetime
+        )
+
+        self.last_updated_datetime_isoformat = (
+            search_result.article.last_updated_datetime.isoformat() + 'Z'
         )
         self.last_updated_date_str = humanize_date(
             search_result.article.last_updated_datetime

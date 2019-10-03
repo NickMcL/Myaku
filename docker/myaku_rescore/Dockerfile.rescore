@@ -44,6 +44,12 @@ RUN echo "RESCORE_CRON_SCHEDULE root flock -n /tmp/rescore.lockfile" \
 WORKDIR $RESCORE_SRC_DIR
 
 
+FROM base AS prod
+
+# Copy full myaku python package source into image
+COPY ./myaku $MYAKU_SRC_DIR
+
+
 FROM base AS dev
 
 # Install dev requirements like ipython only in the dev images so that the prod
@@ -54,9 +60,3 @@ RUN $PYTHON_BIN -m pip install -U pip \
 
 # Volume for sharing in development source on host with container.
 VOLUME ["$MYAKU_SRC_DIR"]
-
-
-FROM base AS prod
-
-# Copy full myaku python package source into image
-COPY ./myaku $MYAKU_SRC_DIR

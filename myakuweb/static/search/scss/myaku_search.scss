@@ -1,0 +1,670 @@
+/*
+ * Myaku search CSS
+ */
+
+// Use Bootstrap's reboot to normalize browser default CSS
+@import "bootstrap_reboot";
+
+@import "fontawesome";
+
+// Media query breakpoints (same as the ones used by Bootstrap)
+$sm-min-width: 576px;
+$md-min-width: 768px;
+$lg-min-width: 992px;
+$xl-min-width: 1200px;
+
+$body-bg-color: #f8f9fa;  // Light gray
+$myaku-color: #1d4381;  // Myaku logo color
+$link-color: #5272a6;
+$badge-color: #126b9c;
+$muted-text-color: #6c757d;
+$input-text-color: #495057;
+$input-border-color: #ced4da;
+
+$eng-font-stack: "Noto Sans", "Noto Sans JP", sans-serif;
+$jpn-font-stack: "Noto Sans JP", "Noto Sans", sans-serif;
+
+
+// SCSS placeholder classes
+%tile-shadow {
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+}
+
+%input-text {
+    color: $input-text-color;
+    background-color: white;
+}
+
+
+/* Site-wide element and class styles */
+body {
+    font-family: $eng-font-stack;
+    background-color: $body-bg-color;
+}
+
+main {
+    display: flex;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Use the slightly thicker Noto Sans JP characters for headers */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: $jpn-font-stack;
+}
+
+a {
+    color: $link-color;
+}
+
+button {
+    padding: 0.375rem 0.75rem;
+    text-align: center;
+    vertical-align: middle;
+    user-select: none;
+
+    background-color: transparent;
+    border: 1px solid transparent;
+}
+
+small {
+    font-weight: 400;
+    font-size: 80%;
+    color: $muted-text-color;
+}
+
+blockquote {
+    margin-bottom: 1rem;
+}
+
+blockquote > footer {
+    font-size: 85%;
+    color: $muted-text-color;
+}
+
+blockquote > footer::before {
+    content: "\2014\00A0";  /* Mdash + non-breaking space */
+}
+
+/* Set media breakpoints as custom properties so that they can be accessed via
+ * Javascript.
+ */
+:root {
+    --sm-min-width:#{$sm-min-width};
+    --md-min-width:#{$md-min-width};
+    --lg-min-width:#{$lg-min-width};
+    --xl-min-width:#{$xl-min-width};
+}
+
+.japanese-text {
+    font-family: $jpn-font-stack;
+}
+
+.button-link {
+    padding: 0.375rem 0;
+    color: $link-color;
+}
+
+.button-link:focus {
+    outline: 0;
+    text-decoration: underline;
+    box-shadow: none;
+}
+
+/* Collapse animations */
+.collapse:not(.show) {
+    display: none;
+}
+
+.collapsing {
+    position: relative;
+    height: 0;
+    overflow: hidden;
+    transition: height 0.35s ease;
+}
+
+
+/* Responsive width container class for all page content */
+.content-container {
+    width: 100%;
+    margin: 0 auto;
+}
+
+@media (min-width: $sm-min-width) {
+    .content-container {
+        max-width: 540px;
+    }
+}
+
+@media (min-width: $md-min-width) {
+    .content-container {
+        max-width: 720px;
+    }
+}
+
+@media (min-width: $lg-min-width) {
+    .content-container {
+        max-width: 960px;
+    }
+}
+
+@media (min-width: $xl-min-width) {
+    .content-container {
+        max-width: 1140px;
+    }
+}
+
+
+/* Page header nav styles */
+.page-header {
+    width: 100%;
+    margin-bottom: 1rem;
+    background-color: white;
+
+    @extend %tile-shadow;
+}
+
+.header-content-container {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.header-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.5rem 0;
+}
+
+.nav-logo {
+    display: inline-block;
+    padding: 0.3125rem 0;
+    margin-right: 1rem;
+}
+
+.nav-link-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-link-list a {
+    text-decoration: underline;
+}
+
+.myaku-logo {
+    width: 163px;
+}
+
+@media (min-width: $md-min-width) {
+    .nav-link-list > li {
+        padding: 0.5rem 0;
+    }
+
+    .myaku-logo {
+        width: 250px;
+    }
+}
+
+@media (min-width: $sm-min-width) and (max-width: $xl-min-width - 0.2px) {
+    .header-content-container {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}
+
+
+/* Search box form styles */
+.search-box-container {
+    display: flex;
+    flex-wrap: wrap;
+    padding-bottom: 0.5rem;
+}
+
+.search-box-form-container {
+    max-width: 100%;
+    flex: 0 0 100%;
+}
+
+.search-box-options-toggle-container {
+    max-width: 100%;
+    flex: 0 0 100%;
+}
+
+.search-box {
+    display: flex;
+}
+
+.search-input {
+    @extend %input-text;
+
+    position: relative;
+    flex: 1 1 auto;
+    padding: 0.375rem 0 0.375rem 0.75rem;
+
+    border: 1px solid $input-border-color;
+    border-right: 0;
+    border-top-left-radius: 0.25rem;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.search-clear {
+    @extend %input-text;
+
+    margin-left: -1px;
+    border: 1px solid $input-border-color;
+}
+
+.search-clear:focus {
+    outline: none;
+}
+
+.search-submit {
+    margin-left: -1px;
+    color: white;
+    background-color: $myaku-color;
+
+    border: 1px solid $myaku-color;
+    border-top-right-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.search-submit:hover {
+    color: white;
+    background-color: #0f326a;
+    border-color: #0f326a;
+}
+
+.search-submit:focus {
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.search-input:focus,
+.search-clear:focus {
+    outline: 0;
+    border-color: #cccccc;
+    box-shadow: none;
+}
+
+.kana-conv-field {
+    margin-top: 1rem;
+}
+
+.search-options-legend {
+    margin-bottom: 0.25rem;
+    font-size: 1.25rem;
+    line-height: 1.5;
+}
+
+.search-options-check {
+    position: relative;
+    display: block;
+    padding-left: 1.25rem;
+}
+
+.search-options-check-input {
+    position: absolute;
+    margin: 0.3rem 0 0 -1.25rem;
+}
+
+.check-input-label {
+    margin-bottom: 0;
+}
+
+@media (min-width: $sm-min-width) {
+    .search-options-check {
+        display: inline-flex;
+        align-items: center;
+        padding-left: 0;
+        margin-right: 0.75rem;
+    }
+
+    .search-options-check-input {
+        position: static;
+        margin: 0 0.3125rem 0 0;
+    }
+}
+
+
+@media (min-width: $md-min-width) {
+    .search-box-container {
+        padding-bottom: 1rem;
+    }
+
+    .search-box-form-container {
+        padding-right: 15px;
+        max-width: 75%;
+        flex: 0 0 75%;
+    }
+
+    .search-box-options-toggle-container {
+        padding-left: 15px;
+        max-width: 25%;
+        flex: 0 0 25%;
+    }
+}
+
+@media (min-width: $lg-min-width) {
+    .search-box-form-container {
+        max-width: 58.333333%;
+        flex: 0 0 58.333333%;
+    }
+
+    .search-box-options-toggle-container {
+        max-width: 41.666667%;
+        flex: 0 0 41.666667%;
+    }
+}
+
+
+/* Result tile styles */
+.result-tile-container {
+    display: flex;
+    flex-direction: column;
+
+    max-width: 100%;
+    flex: 0 0 100%;
+}
+
+.tile {
+    padding: 0.5rem 1rem 0 1rem;
+    margin-bottom: 1rem;
+    width: 100%;
+
+    background-color: white;
+    background-clip: border-box;
+
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
+
+    word-break: break-word;
+
+    @extend %tile-shadow;
+}
+
+.result-tile {
+    padding-top: 1rem;
+}
+
+.results-header-tile {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+.results-header-tile > h3 {
+    margin-bottom: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.result-header-page-number {
+    display: none;
+}
+
+.page-nav-tile {
+    padding-bottom: 0.5rem;
+    font-size: 1.2em;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.main-tile-header,
+.main-tile-header a {
+    color: $myaku-color;
+}
+
+.tile-footer {
+    padding: 0 1.25rem;
+    margin: 0 -1rem;
+    display: flex;
+    justify-content: center;
+
+    background-color: rgba(0, 0, 0, 0.03);
+    border-top: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.show-more-button {
+    color: $muted-text-color;
+}
+
+.article-info {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.article-info > li {
+    display: block;
+}
+
+/* Always put the first two items in the article info list
+ * (Source name and publication datetime) on the same line.
+ */
+.article-info > li:first-child,
+.article-info > li:nth-child(2) {
+    display: inline;
+}
+.article-info > li:nth-child(2)::before {
+    content: "-";
+}
+
+.article-tags {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tag-badge {
+    display: inline-block;
+    padding: 0.4em 0.4em;
+
+    font-size: 80%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    vertical-align: baseline;
+    white-space: nowrap;
+
+    border-radius: 0.25rem;
+
+    color: white;
+    background-color: $badge-color;
+}
+
+.article-sample-text {
+    font-size: 1.1em;
+    letter-spacing: 0.5pt;
+}
+
+.article-sample-text > p {
+    margin-bottom: 0;
+}
+
+.article-sample-instance {
+    font-weight: 700;
+}
+
+.more-samples-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+}
+
+.page-info-short,
+.page-info-long {
+    color: $muted-text-color;
+}
+
+.page-nav-short,
+.page-info-short {
+    display: block;
+}
+
+.page-nav-long,
+.page-info-long {
+    display: none;
+}
+
+@media (min-width: $sm-min-width) {
+    .result-header-page-number {
+        display: block;
+    }
+
+    .page-nav-short,
+    .page-info-short {
+        display: none;
+    }
+
+    .page-nav-long,
+    .page-info-long {
+        display: block;
+    }
+}
+
+@media (min-width: $md-min-width) {
+    .article-info > li {
+        display: inline;
+    }
+
+    .article-info > li:not(:first-child)::before {
+        content: "- ";
+    }
+
+    .article-info > li.updated-datetime::before {
+        content: "(";
+    }
+
+    .article-info > li.updated-datetime::after {
+        content: ")";
+    }
+}
+
+@media (min-width: $lg-min-width) {
+    .result-tile-container {
+        max-width: calc(75% - 1rem);
+        flex: 0 0 calc(75% - 1rem);
+
+        margin-right: 1rem;
+    }
+}
+
+
+/* Start page styles */
+.start-tile-container {
+    display: flex;
+    flex-direction: column;
+
+    max-width: 100%;
+    flex: 0 0 100%;
+}
+
+.start-tile {
+    font-size: 1.1em;
+}
+
+.key-word {
+    font-weight: 700;
+    color: $myaku-color;
+}
+
+.list-start-text {
+    margin-bottom: 0.25rem;
+}
+
+/* Add color to ol numbers */
+.myaku-ol {
+    list-style: none;
+    counter-reset: li;
+}
+.myaku-ol li::before {
+    content: counter(li) ".";
+    color: $myaku-color;
+    font-weight: 700;
+    display: inline-block;
+    width: 1.2em;
+    margin-left: -1em;
+}
+.myaku-ol li {
+    counter-increment: li;
+}
+
+/* Add color to ul bullets */
+.myaku-ul {
+    list-style: none;
+}
+.myaku-ul li::before {
+    content: "•";
+    color: $myaku-color;
+    font-weight: 700;
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+}
+
+@media (min-width: $lg-min-width) {
+    .start-tile-container {
+        max-width: 75%;
+        flex: 0 0 75%;
+    }
+}
+
+
+/* Resource links aside styles */
+.resource-links-aside {
+    display: none;
+}
+
+@media (min-width: $lg-min-width) {
+    .resource-links-aside {
+        max-width: 25%;
+        flex: 0 0 25%;
+
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+.aside-tile {
+    padding-left: 14px;
+    padding-right: 14px;
+}
+
+.resource-header-tile {
+    padding-top: 0.875rem;
+    padding-bottom: 0.875rem;
+}
+
+.resource-header-tile > h4 {
+    margin-bottom: 0;
+}
+
+.resource-links-tile {
+    padding-top: 0.5rem;
+}
+
+.resource-links-tile > h5 {
+    font-weight: 400;
+}
+
+.resource-links-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.light-header {
+    font-weight: 400;
+}

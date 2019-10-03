@@ -15,7 +15,7 @@ GITHUB_LINK = 'https://github.com/FriedRice/Myaku'
 
 MYAKUWEB_FONT_FAMILY = '"Noto Sans", "Noto Sans JP", sans-serif'
 
-# Bootstrap viewport width size breakpoints
+# Viewport width size breakpoints
 SM_MIN_WIDTH = 576
 MD_MIN_WIDTH = 768
 LG_MIN_WIDTH = 992
@@ -31,11 +31,6 @@ def web_driver():
     options = firefox.options.Options()
     options.headless = True
     test_web_driver = webdriver.Firefox(options=options)
-
-    # When the reverseproxy service is using the dev/test allowed hosts list,
-    # it will only accept connections with the host header set as localhost, so
-    # we must override the host header on selenium's requests to be localhost.
-    # test_web_driver.header_overrides = {'Host': 'localhost'}
 
     yield test_web_driver
     test_web_driver.close()
@@ -88,23 +83,31 @@ def _go_to_search_result_page(web_driver, query: str) -> None:
     web_driver.get(f'http://{host}/?q={query}')
 
 
-def filter_to_displayed(tags: List[WebElement]) -> List[WebElement]:
-    """Filter out tags that are not being displayed on the page."""
-    filtered_tags = []
+def filter_by_displayed(
+    tags: List[WebElement], displayed: bool
+) -> List[WebElement]:
+    """Filter out tags based on if they are displayed or not."""
+    displayed_tags = []
+    not_displayed_tags = []
     for tag in tags:
         if not tag.is_displayed():
+            not_displayed_tags.append(tag)
             continue
 
-        # An img having a natural widht or height of 0 means it failed to load
+        # An img having a natural width or height of 0 means it failed to load
         # and isn't being displayed.
         if (tag.tag_name == 'img'
-            and (tag.get_property('naturalHeight') == 0
-                 or tag.get_property('naturalWidth') == 0)):
+                and (tag.get_property('naturalHeight') == 0
+                     or tag.get_property('naturalWidth') == 0)):
+            not_displayed_tags.append(tag)
             continue
 
-        filtered_tags.append(tag)
+        displayed_tags.append(tag)
 
-    return filtered_tags
+    if displayed:
+        return displayed_tags
+    else:
+        return not_displayed_tags
 
 
 def filter_by_attrs(tags: List[WebElement], attrs: Dict) -> List[WebElement]:
@@ -142,32 +145,35 @@ def filter_by_properties(
 
 
 def assert_element_text(
-    tags: List[WebElement], expected_text: Union[str, bool],
-    include_only_displayed: bool
+    tags: List[WebElement], expected_text: Union[str, bool], is_displayed: bool
 ) -> None:
     """Assert the text for the given tag elements is as expected.
 
     Args:
         tags: Elements whose text to check.
         text: If a string, will check that the elements have this text. If
-            True, will check that the elements have any text.
-        include_only_displayed: If True, will only check the displayed text for
+            True, will check that the elements have at least one non-space
+            character in their text.
+        is_displayed: If True, will only check the displayed text for
             the elements. If False, will also include the undisplayed text or
             the elements.
     """
     for tag in tags:
-        if expected_text is True:
-            assert len(tag.text) > 0
-        elif include_only_displayed:
-            assert tag.text == expected_text
+        if is_displayed:
+            text = tag.text
         else:
             # textContent attr will include undisplayed text
-            assert tag.get_attribute('textContent') == expected_text
+            text = tag.get_attribute('textContent')
+
+        if expected_text is True:
+            assert len(text) > 0 and not text.isspace()
+        else:
+            assert text == expected_text
 
 
 def assert_element(
     we: WebElement, tag_name: str, by_attr: By, attr_value: str,
-    expected_text: str = None, include_only_displayed: bool = True,
+    expected_text: str = None, is_displayed: bool = True,
     expected_count: int = 1, attrs: Dict = None, properties: Dict = None
 ) -> None:
     """Assert that the specified element(s) are in the current webdriver page.
@@ -179,22 +185,21 @@ def assert_element(
         attr_value: Attr value that the by_attr must have for the elements.
         expected_text: Expected text contained by the elements. If None, does
             not check the text of the elements.
-        include_only_displayed: If True, will only look for elements that are
-            displayed to the user in the page. If False, will look for all
-            elements regardless of if they are displayed.
+        is_displayed: If True, will only consider elements that are
+            displayed to the user in the page. If False, will only consider
+            elements that are not displayed to the user in the page.
         expected_count: Expected count of the matching elements in the page.
         attrs: Dictionary of attrs that the elements must have.
         properties: Dictionary of properties that the elements must have.
     """
     tags = we.find_elements(by_attr, attr_value)
-    if include_only_displayed:
-        tags = filter_to_displayed(tags)
+    tags = filter_by_displayed(tags, is_displayed)
     tags = filter_by_attrs(tags, attrs)
     tags = filter_by_properties(tags, properties)
 
     assert len(tags) == expected_count
     if expected_text is not None:
-        assert_element_text(tags, expected_text, include_only_displayed)
+        assert_element_text(tags, expected_text, is_displayed)
 
 
 def assert_element_by_tag(
@@ -254,15 +259,25 @@ def assert_search_header(we: WebElement, window_width: int) -> None:
         window_width: Width of the viewport in pixels for the web driver used
             to access the page.
     """
-    assert_element_by_tag(we, 'title', 'Myaku', False)
     assert_element_by_classes(we, 'img', 'myaku-logo')
     assert_element_by_classes(we, 'button', 'search-clear')
-    assert_element_by_classes(we, 'button', 'search-button')
+    assert_element_by_classes(we, 'button', 'search-submit')
     assert_element_by_classes(
         we, 'button', 'search-options-toggle', 'Show search options'
     )
     assert_element_by_classes(
-        we, 'a', 'nav-link', 'Github', attrs={'href': GITHUB_LINK}
+        we, 'legend', 'search-options-legend', 'Romaji Conversion', False
+    )
+    assert_element_by_classes(
+        we, 'label', 'check-input-label', True, False, 3
+    )
+    assert_element_by_classes(
+        we, 'input', 'search-options-check-input', None, False, 3
+    )
+
+    nav_link_list = we.find_element_by_class_name('nav-link-list')
+    assert_element_by_tag(
+        nav_link_list, 'a', 'Github', attrs={'href': GITHUB_LINK}
     )
 
     if window_width < MD_MIN_WIDTH:
@@ -280,22 +295,37 @@ def assert_start_tiles(we: WebElement) -> None:
     Args:
         we: WebElement containing the desired content to assert.
     """
-    assert_element_by_classes(we, 'div', 'row', expected_count=2)
-    assert_element_by_classes(we, 'div', 'col', expected_count=2)
-    assert_element_by_classes(we, 'h4', 'myaku-color', True, expected_count=2)
-    assert_element_by_classes(we, 'span', 'key-word', True, expected_count=2)
-    assert_element_by_classes(we, 'ul', 'myaku-color-ul')
-    assert_element_by_classes(we, 'ol', 'myaku-color-ol')
+    assert_element_by_classes(
+        we, 'section', ['tile', 'start-tile'], None, True, 2
+    )
+    tiles = we.find_elements_by_class_name('start-tile')
+
+    assert_element_by_classes(
+        tiles[0], 'h4', 'main-tile-header', 'What is Myaku?'
+    )
+    assert_element_by_classes(
+        tiles[0], 'span', 'key-word', True, True, 2
+    )
+    assert_element_by_classes(tiles[0], 'ol', 'myaku-ol')
+    assert_element_by_tag(tiles[0], 'li', True, True, 3)
+
+    assert_element_by_classes(
+        tiles[1], 'h4', 'main-tile-header', 'Getting Started'
+    )
+    assert_element_by_classes(we, 'ul', 'myaku-ul')
+    assert_element_by_tag(tiles[1], 'li', True, True, 4)
+    assert_element_by_tag(tiles[1], 'a', True, True, 4)
 
 
 def assert_css_loaded(we: WebElement) -> None:
-    """Assert that the custom CSS used by Myaku web has loaded.
+    """Assert that the CSS stylesheet used by Myaku web has loaded.
+
+    Checks that the custom font-family used by Myaku web is set for the body in
+    order to tell if the CSS for Myaku web is loaded.
 
     Args:
         we: WebElement containing the desired content to assert.
     """
-    # Check that the custom font-family used by Myaku web is set for the body
-    # as a way to tell if the custom CSS for Myaku web is loaded.
     body = we.find_element_by_tag_name('body')
     font_family = body.value_of_css_property('font-family')
     assert font_family == MYAKUWEB_FONT_FAMILY
@@ -307,10 +337,13 @@ def assert_start_page(web_driver: webdriver):
     _go_to_start_page(web_driver)
 
     assert_css_loaded(web_driver)
-    assert_search_header(web_driver, viewport_width)
+    assert_element_by_tag(web_driver, 'title', 'Myaku', False)
 
-    tile_container = web_driver.find_element_by_id('tile-container')
-    assert_start_tiles(tile_container)
+    header_element = web_driver.find_element_by_tag_name('header')
+    assert_search_header(header_element, viewport_width)
+
+    main_element = web_driver.find_element_by_tag_name('main')
+    assert_start_tiles(main_element)
 
 
 def test_start_page_xs(web_driver_xs):

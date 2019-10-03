@@ -6,7 +6,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.6.2
+    image: friedrice2/myaku_crawler:1.6.3
     volumes:
       - type: volume
         source: crawler_log
@@ -34,7 +34,7 @@ services:
     networks:
       - crawler_net
   rescore:
-    image: friedrice2/myaku_rescore:1.3.2
+    image: friedrice2/myaku_rescore:1.3.3
     volumes:
       - type: volume
         source: rescore_log
@@ -60,7 +60,7 @@ services:
     networks:
       - crawler_net
   web:
-    image: friedrice2/myaku_web:1.8.3
+    image: friedrice2/myaku_web:1.9.0
     volumes:
       - type: volume
         source: web_log
@@ -93,7 +93,7 @@ services:
     networks:
       - web_net
   web-rabbit:
-    image: rabbitmq:3.7.18
+    image: rabbitmq:3.8.0
     hostname: web-rabbit
     volumes:
       - type: volume
@@ -108,7 +108,7 @@ services:
     networks:
       - web_net
   web-worker:
-    image: friedrice2/myaku_web:1.8.3
+    image: friedrice2/myaku_web:1.9.0
     entrypoint:
       - celery
       - -A
@@ -148,7 +148,7 @@ services:
     networks:
       - web_net
   first-page-cache:
-    image: friedrice2/myaku_redis.first-page-cache:1.0.1
+    image: friedrice2/myaku_redis.first-page-cache:1.0.2
     volumes:
       - type: volume
         source: first_page_cache_data
@@ -161,7 +161,7 @@ services:
       - crawler_net
       - web_net
   next-page-cache:
-    image: friedrice2/myaku_redis.next-page-cache:1.0.1
+    image: friedrice2/myaku_redis.next-page-cache:1.0.2
     volumes:
       - type: volume
         source: next_page_cache_data
@@ -174,7 +174,7 @@ services:
       - crawler_net
       - web_net
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy:2.1.0
+    image: friedrice2/myaku_nginx.reverseproxy:2.1.1
     volumes:
       - type: volume
         source: reverseproxy_log
@@ -195,7 +195,7 @@ services:
     networks:
       - web_net
   crawldb:
-    image: friedrice2/myaku_mongo.crawldb:1.1.3
+    image: friedrice2/myaku_mongo.crawldb:1.1.4
     volumes:
       - type: volume
         source: crawldb_datadb
@@ -228,7 +228,7 @@ services:
       - web_net
       - crawler_net
   crawldb_backup:
-    image: friedrice2/mongobackup:2.0.4_4.2.0
+    image: friedrice2/mongobackup:2.0.5_4.2.0
     volumes:
       - type: volume
         source: crawldb_backup_log

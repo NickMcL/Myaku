@@ -1,36 +1,50 @@
 {% extends "search/base.html" %}
 
 {% block tile_content %}
-<div class="row mb-3">
-  <div class="col col-lg-9 card pt-2 px-3 start-tile shadow-sm">
-    <h4 class="myaku-color">What is Myaku?</h4>
+<div class="start-tile-container">
+  <section class="tile start-tile">
+    <h4 class="main-tile-header">What is Myaku?</h4>
     <p><span class="key-word">Myaku</span> is a tool for learning Japanese
     from context.</p>
 
     <p>It helps develop a natural feel for Japanese by showing in what
     <span class="key-word">context</span> natives use it today.</p>
 
-    <p class="mb-1">It works like this:</p>
-
-    <ol class="myaku-color-ol">
+    <p class="list-start-text">It works like this:</p>
+    <ol class="myaku-ol">
       <li>Search for a Japanese term of interest.</li>
       <li>Get ranked links to select Japanese articles showing real usage of the term.</li>
       <li>Gain a natural feel for how the term is used by checking out the articles.</li>
     </ol>
-  </div>
-</div>
-<div class="row mb-3">
-  <div class="col col-lg-9 card pt-2 px-3 start-tile shadow-sm">
-    <h4 class="myaku-color">Getting Started</h4>
-    <p class="mb-1">Here are some sample searches to get started:</p>
+  </section>
 
-    <ul class="myaku-color-ul">
-      <li>A normal word - <span lang="ja"><a href="/?q=力士">力士</a></span></li>
-      <li>A set phrase - <span lang="ja"><a href="/?q=非常に激しい雨">非常に激しい雨</a></span></li>
-      <li>A proverb - <span lang="ja"><a href="/?q=急がば回れ">急がば回れ</a></span></li>
-      <li>An idiom - <span lang="ja"><a href="/?q=歯が立たない">歯が立たない</a></span></li>
+  <section class="tile start-tile">
+    <h4 class="main-tile-header">Getting Started</h4>
+
+    <p class="list-start-text">Here are some sample searches to get started:</p>
+    <ul class="myaku-ul">
+      <li>A normal word -
+        <span class="japanese-text" lang="ja">
+          <a href="/?q=力士">力士</a>
+        </span>
+      </li>
+      <li>A set phrase -
+        <span class="japanese=text" lang="ja">
+          <a href="/?q=非常に激しい雨">非常に激しい雨</a>
+        </span>
+      </li>
+      <li>A proverb -
+        <span class="japanese-text" lang="ja">
+          <a href="/?q=急がば回れ">急がば回れ</a>
+        </span>
+      </li>
+      <li>An idiom -
+        <span class="japanese-text" lang="ja">
+          <a href="/?q=歯が立たない">歯が立たない</a>
+        </span>
+      </li>
     </ul>
-  </div>
+  </section>
 </div>
 
 {% endblock %}
