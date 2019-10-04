@@ -28,9 +28,10 @@ function setupMyakuSearchPage() {
     });
 
     // Collapse button setup
-    setupCollapseButtons('.search-options-toggle');
-    setupCollapseButtons('.show-more-button');
+    setupCollapseButtons('.search-options-toggle', 'Show', 'Hide');
+    setupCollapseButtons('.show-more-button', 'more', 'less');
 }
+
 
 /**
  * Gets an integer CSS variable defined for the :root element.
@@ -39,6 +40,7 @@ function getCssVarInt(cssVarName) {
     var rootStyle = getComputedStyle(document.documentElement);
     return parseInt(rootStyle.getPropertyValue(cssVarName));
 }
+
 
 /**
  * Updates the placeholder text of the search input based on the current
@@ -52,6 +54,7 @@ function updateSearchPlaceholder() {
         searchInput.placeholder = SHORT_SEARCH_PLACEHOLDER;
     }
 }
+
 
 /*
  * Toggles the collapse animation for the given element.
@@ -75,12 +78,14 @@ function toggleCollapse(collapseElementSelector) {
     }
 }
 
+
 /**
  * Forces a redraw of the element by the browser.
  */
 function reflow(element) {
     return element.offsetHeight;
 }
+
 
 /**
  * Collapses an element with a CSS animation.
@@ -102,6 +107,7 @@ function collapse(element) {
     element.style.removeProperty('height');
 }
 
+
 /**
  * Uncollapses a collapsed element with a CSS animation.
  */
@@ -120,6 +126,7 @@ function uncollapse(element) {
     element.style.height = 0;
     element.style.height = element.scrollHeight + 'px';
 }
+
 
 /**
  * Sets the buttons matching the given selector to toggle the collapse of the
@@ -152,5 +159,6 @@ function setupCollapseButtons(buttonQuery, hiddenText, showingText) {
         });
     });
 }
+
 
 });
