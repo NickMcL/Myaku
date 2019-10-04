@@ -242,6 +242,9 @@ class QueryArticleResult(object):
         self.tags = self._get_tags(search_result.article)
         self.preview = SearchResultArticlePreview(search_result)
 
+        if not self.article.title or self.article.title.isspace():
+            self.article.title = '<Untitled article>'
+
         self._set_date_attributes(search_result)
 
     def _set_date_attributes(self, search_result: SearchResult) -> None:

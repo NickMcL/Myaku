@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Search box placeholder text adjust based on viewport size
 const FULL_SEARCH_PLACEHOLDER = 'Japanese word, set phrase, idiom, etc.';
 const SHORT_SEARCH_PLACEHOLDER = 'Japanese word, phrase, etc.';
-const MEDIUM_VIEWPORT_MIN_WIDTH = getCssVarInt('--md-min-width');
+const MEDIUM_VIEWPORT_MIN_WIDTH = 768;
 
 setupMyakuSearchPage();
 
@@ -30,15 +30,6 @@ function setupMyakuSearchPage() {
     // Collapse button setup
     setupCollapseButtons('.search-options-toggle', 'Show', 'Hide');
     setupCollapseButtons('.show-more-button', 'more', 'less');
-}
-
-
-/**
- * Gets an integer CSS variable defined for the :root element.
- */
-function getCssVarInt(cssVarName) {
-    var rootStyle = getComputedStyle(document.documentElement);
-    return parseInt(rootStyle.getPropertyValue(cssVarName));
 }
 
 
