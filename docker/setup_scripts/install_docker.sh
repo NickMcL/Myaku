@@ -1,6 +1,6 @@
 #!/bin/bash
-# Bootstrap script to install the latest stable docker version on an Ubuntu
-# instance.
+# Bootstrap script to install the current docker version being used for the
+# project  on an Ubuntu instance.
 
 sudo apt-get remove -y docker docker-engine docker.io containerd runc
 
@@ -14,4 +14,7 @@ sudo add-apt-repository \
    stable"
 
 sudo apt-get update
-sudo apt-get -y install docker-ce docker-ce-cli containerd.io
+sudo apt-get -y install \
+    "docker-ce=5:19.03.3~3-0~ubuntu-$(lsb_release -cs)" \
+    "docker-ce-cli=5:19.03.3~3-0~ubuntu-$(lsb_release -cs)" \
+    "containerd.io=1.2.6-3"

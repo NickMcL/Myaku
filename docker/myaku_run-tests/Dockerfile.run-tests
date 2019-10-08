@@ -21,7 +21,7 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - \
         "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
         $(lsb_release -cs) stable" \
     && apt-get update \
-    && apt-get -y install docker-ce-cli
+    && apt-get -y install docker-ce-cli=5:19.03.3~3-0~ubuntu-bionic
 
 # Install firefox + geckodriver for web driver testing.
 RUN apt-get install -y wget firefox
