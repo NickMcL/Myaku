@@ -5,9 +5,9 @@ FROM nginx:1.17.4 AS base
 RUN apt-get update \
     && apt-get install -y netcat curl openssl certbot python-certbot-nginx
 
-ENV NGINX_STATIC_URL /static/
-ENV NGINX_STATIC_URL_ALIAS /www/static/
-ENV NGINX_STATIC_OTHER_ROOT /www/static/root
+ENV NGINX_ROOT /www
+ENV NGINX_MAIN_ROOT $NGINX_ROOT/main
+ENV NGINX_META_ROOT $NGINX_ROOT/meta
 
 ENV NGINX_RUN_FILES_DIR /run_files
 
@@ -24,9 +24,9 @@ RUN curl -s "https://raw.githubusercontent.com/certbot/certbot/master/\
 certbot/ssl-dhparams.pem" > /etc/nginx/ssl-dhparams.pem
 
 # Setting for passing requests to myakuweb uwsgi
-ENV MYAKUWEB_HOST web
-ENV MYAKUWEB_UWSGI_PORT 3031
-ENV MYAKUWEB_UWSGI_PARAMS_FILE $NGINX_RUN_FILES_DIR/uwsgi_params
+ENV MYAKUWEB_APISERVER_HOST web
+ENV MYAKUWEB_APISERVER_UWSGI_PORT 3031
+ENV MYAKUWEB_APISERVER_UWSGI_PARAMS_FILE $NGINX_RUN_FILES_DIR/uwsgi_params
 
 # Volume for persisting nginx log files to host
 ENV NGINX_LOG_DIR /nginx_log
@@ -39,15 +39,16 @@ ENTRYPOINT ["/bin/bash", "-c", "$NGINX_RUN_FILES_DIR/run_nginx.sh"]
 
 FROM base AS prod
 
-COPY ./myakuweb/static $NGINX_STATIC_URL_ALIAS
+COPY ./myakuweb-clientapp/dist $NGINX_MAIN_ROOT
+COPY ./myakuweb-clientapp/public/meta $NGINX_META_ROOT
 COPY ./docker/myaku_nginx.reverseproxy/run_nginx.sh $NGINX_RUN_FILES_DIR/
 COPY ./docker/myaku_nginx.reverseproxy/nginx_template.conf $NGINX_RUN_FILES_DIR/
-COPY ./docker/myaku_nginx.reverseproxy/uwsgi_params $MYAKUWEB_UWSGI_PARAMS_FILE
+COPY ./docker/myaku_nginx.reverseproxy/uwsgi_params $MYAKUWEB_APISERVER_UWSGI_PARAMS_FILE
 
 # Gzip uncompressed static file types so that nginx can service the gzipped
 # versions to clients that will accept them.
-RUN find $NGINX_STATIC_URL_ALIAS -type f \
-    \( -name "*.js" -or -name "*.css" -or -name "*.scss" -or -name "*.svg" \) \
+RUN find $NGINX_MAIN_ROOT -type f \
+    \( -name "*.js" -or -name "*.css" -or -name "*.html" -or -name "*.svg" \) \
     -exec gzip -kf "{}" \;
 
 RUN chmod +x $NGINX_RUN_FILES_DIR/run_nginx.sh
@@ -58,5 +59,6 @@ FROM base AS dev
 # Volume for sharing in development run files on host with container
 VOLUME ["$NGINX_RUN_FILES_DIR"]
 
-# Volume for sharing in development static on host with container
-VOLUME ["$NGINX_STATIC_URL_ALIAS"]
+# Volumes for sharing in development static on host with container
+VOLUME ["$NGINX_MAIN_ROOT"]
+VOLUME ["$NGINX_META_ROOT"]

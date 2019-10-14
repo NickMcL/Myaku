@@ -54,7 +54,7 @@ services:
         target: /home/myakuweb/src/myaku
 
       - type: bind
-        source: ../myakuweb
+        source: ../myakuweb-apiserver
         target: /home/myakuweb/src/myakuweb
 
       - type: bind
@@ -76,7 +76,7 @@ services:
         target: /home/myakuweb/src/myaku
 
       - type: bind
-        source: ../myakuweb
+        source: ../myakuweb-apiserver
         target: /home/myakuweb/src/myakuweb
 
       - type: bind
@@ -108,9 +108,14 @@ services:
       - type: bind
         source: ./myaku_nginx.reverseproxy
         target: /run_files
+
       - type: bind
-        source: ../myakuweb/static
-        target: /www/static
+        source: ../myakuweb-clientapp/dist
+        target: /www/main
+
+      - type: bind
+        source: ../myakuweb-clientapp/public/meta
+        target: /www/meta
     ports:
       - target: 80
         published: 8001

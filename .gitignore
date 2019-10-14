@@ -112,3 +112,7 @@ myakuweb/static/admin/
 
 # Gzipped static files
 *.gz
+
+# JS build files
+node_modules/
+dist/

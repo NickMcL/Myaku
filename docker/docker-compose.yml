@@ -184,7 +184,7 @@ services:
         source: certs
         target: /etc/letsencrypt
     environment:
-      MYAKUWEB_HOST: web
+      MYAKUWEB_APISERVER_HOST: web
       MYAKUWEB_ALLOWED_HOSTS_FILE: /myakuweb_allowed_hosts
       MYAKUWEB_DOMAIN_FILE: /myakuweb_domain
       CERTBOT_EMAIL_FILE: /certbot_email
