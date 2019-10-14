@@ -4,12 +4,9 @@
   "description": "Client single-page application for myakuweb.",
   "main": "index.tsx",
   "scripts": {
-    "type-check": "tsc --noEmit",
-    "type-check:watch": "npm run type-check -- --watch",
-    "build": "npm run build:types && npm run build:js",
-    "build:types": "tsc --emitDeclarationOnly",
-    "build:js": "babel src --out-dir lib --extensions \".ts,.tsx\" --source-maps inline",
-    "watch": "webpack --watch"
+    "build": "webpack",
+    "build:watch": "webpack --watch",
+    "build:prod": "webpack -p"
   },
   "repository": {
     "type": "git",
@@ -25,17 +22,9 @@
     "url": "https://github.com/FriedRice/Myaku/issues"
   },
   "homepage": "https://github.com/FriedRice/Myaku#readme",
-  "browserslist": [
-    "defaults"
-  ],
   "devDependencies": {
-    "@babel/cli": "^7.6.3",
-    "@babel/core": "^7.6.3",
-    "@babel/preset-env": "^7.6.3",
-    "@babel/preset-react": "^7.6.3",
     "@typescript-eslint/eslint-plugin": "^2.3.3",
     "@typescript-eslint/parser": "^2.3.3",
-    "babel-loader": "^8.0.6",
     "clean-webpack-plugin": "^3.0.0",
     "css-loader": "^3.2.0",
     "eslint": "^6.5.1",
@@ -49,6 +38,7 @@
     "preload-webpack-plugin": "^3.0.0-beta.4",
     "sass": "^1.23.0",
     "sass-loader": "^8.0.0",
+    "source-map-loader": "^0.2.4",
     "style-loader": "^1.0.0",
     "terser-webpack-plugin": "^2.1.2",
     "ts-loader": "^6.2.0",

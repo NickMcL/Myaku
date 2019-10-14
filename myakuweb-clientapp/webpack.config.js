@@ -50,20 +50,13 @@ module.exports = {
     module: {
         rules: [
             {
+                test: /\.js$/,
+                loader: 'source-map-loader',
+                enforce: 'pre',
+            },
+            {
                 test: /\.ts(x?)$/i,
-                use: [
-                    {
-                        loader: 'babel-loader',
-                        options: {
-                            cacheDirectory: true,
-                            presets: [
-                                '@babel/env',
-                                '@babel/react',
-                            ],
-                        },
-                    },
-                    'ts-loader',
-                ],
+                loader: 'ts-loader',
                 exclude: /node_modules/,
             },
             {
@@ -109,6 +102,7 @@ module.exports = {
             filename: '../index.html',
             minify: false,
         }),
+        // Add preload links to index.html head for all woff2 font files.
         new PreloadWebpackPlugin({
             rel: 'preload',
             as: 'font',
