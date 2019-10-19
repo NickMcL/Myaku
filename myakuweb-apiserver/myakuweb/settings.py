@@ -3,7 +3,7 @@
 import os
 from typing import Dict, List
 
-from myaku.utils import get_value_from_env_file, get_value_from_env_variable
+from myaku.utils import get_value_from_env_file
 
 debug_mode_flag = os.environ.get('DJANGO_DEBUG_MODE', 1)
 if int(debug_mode_flag) == 1:
@@ -34,9 +34,14 @@ else:
     ]
 
 
+# Security settings
+
 # Avoid transmitting cookies over HTTP
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+
+# Prevent browsers from guessing the content type of responses
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
 
 # Application definition
@@ -54,12 +59,14 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.http.ConditionalGetMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'search.middleware.NoCacheMiddleware',
+    'search.middleware.LogRequestMiddleware',
 ]
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
@@ -88,7 +95,7 @@ WSGI_APPLICATION = 'myakuweb.wsgi.application'
 # Myaku search settings
 
 # Maximum page to allow the user to go to for a search.
-MAX_PAGE_NUM = 30
+MAX_SEARCH_RESULT_PAGE = 30
 
 
 # Celery settings
@@ -139,20 +146,7 @@ USE_L10N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-
-STATICFILES_DIRS = [
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static'),
-]
-
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-
-if DEBUG:
-    STATIC_URL = os.environ.get('MYAKUWEB_STATIC_URL', '/static/')
-else:
-    STATIC_URL = get_value_from_env_variable('MYAKUWEB_STATIC_URL')
-
-
 # Other misc settings
 
 APPEND_SLASH = False
+PREPEND_WWW = False

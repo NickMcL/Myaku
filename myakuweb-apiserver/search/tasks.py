@@ -10,7 +10,7 @@ from myaku.datastore.database import CrawlDb
 
 
 @shared_task
-def cache_surrounding_pages_for_user(query: Query) -> None:
+def cache_surrounding_pages(query: Query) -> None:
     """Cache the surrounding pages for the query for the user.
 
     Args:
@@ -24,7 +24,7 @@ def cache_surrounding_pages_for_user(query: Query) -> None:
 
     cache_client = NextPageCache()
     current_page_num = query.page_num
-    if current_page_num < settings.MAX_PAGE_NUM:
+    if current_page_num < settings.MAX_SEARCH_RESULT_PAGE:
         query.page_num = current_page_num + 1
         with CrawlDb(DataAccessMode.READ) as db:
             forward_page = db.search_articles(query)

@@ -1,31 +1,52 @@
-"""Views for the search for Myaku web."""
+"""Views for the search API for MyakuWeb."""
 
-import functools
 import logging
 import math
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from pprint import pformat
-from typing import Callable, List, NamedTuple
+from typing import Any, Dict, List, NamedTuple
 
 import romkan
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import JsonResponse
 from django.http.request import HttpRequest
-from django.shortcuts import render
 
 from myaku import utils
 from myaku.datastore import DataAccessMode, Query, SearchResult
-from myaku.datastore.database import CrawlDb, SearchResultPage
+from myaku.datastore.database import CrawlDb
 from myaku.datatypes import JpnArticle
 from search import tasks
-from search.article_preview import SearchResultArticlePreview
-
-DEFAULT_QUERY_CONVERT_TYPE = 'hira'
-SESSION_USER_ID_KEY = 'user_id'
+from search.article_preview import (
+    SearchResultArticlePreview,
+    convert_sample_text_to_json,
+)
+from search.request_validation import (
+    AllowableValueValidator,
+    IntRangeValidator,
+    ParamValidator,
+    StrLenValidator,
+    validate_request_params,
+)
 
 _log = logging.getLogger(__name__)
+
+SESSION_USER_ID_KEY = 'user_id'
+
+REQUEST_QUERY_KEY = 'q'
+REQUEST_PAGE_NUM_KEY = 'p'
+REQUEST_KANA_CONVERT_TYPE_KEY = 'conv'
+
+KANA_CONVERT_TYPE_HIRAGANA = 'hira'
+KANA_CONVERT_TYPE_KATAKANA = 'kata'
+KANA_CONVERT_TYPE_NONE = 'none'
+KANA_CONVERT_TYPES = {
+    KANA_CONVERT_TYPE_HIRAGANA,
+    KANA_CONVERT_TYPE_KATAKANA,
+    KANA_CONVERT_TYPE_NONE,
+}
+
+MAX_QUERY_LEN = 120
 
 _ARTICLE_LEN_GROUPS = [
     (700, 'Short length'),
@@ -84,6 +105,11 @@ def humanize_date(dt: datetime) -> str:
         )
 
 
+def json_serialize_datetime(dt: datetime) -> str:
+    """Serialize a naive datetime to a UTC ISO format string."""
+    return dt.isoformat(timespec='seconds') + 'Z'
+
+
 class ResourceLink(NamedTuple):
     """Info for a link to a resource website."""
     resource_name: str
@@ -99,17 +125,38 @@ class ResourceLinkSet(object):
 
 @dataclass
 class QueryResourceLinks(object):
-    """Manager for all resource links for a query."""
+    """Resource links for a query."""
 
     @utils.add_debug_logging
-    def __init__(self, query: Query) -> None:
+    def __init__(self, query_str: str) -> None:
         """Create the resource link sets for the given query."""
-        self._query_str = query.query_str
+        self._query_str = query_str
 
         self.resource_link_sets: List[ResourceLinkSet] = []
         self.resource_link_sets.append(self._create_jpn_eng_dict_links())
         self.resource_link_sets.append(self._create_sample_sentence_links())
         self.resource_link_sets.append(self._create_jpn_dict_links())
+
+    def json(self) -> Dict[str, Any]:
+        """Return the resource link data in a JSON format."""
+        link_sets_json = []
+        for link_set in self.resource_link_sets:
+            link_json = []
+            for link in link_set.resource_links:
+                link_json.append({
+                    'resourceName': link.resource_name,
+                    'link': link.link,
+                })
+
+            link_sets_json.append({
+                'setName': link_set.set_name,
+                'resourceLinks': link_json,
+            })
+
+        return {
+            'convertedQuery': self._query_str,
+            'resourceLinkSets': link_sets_json,
+        }
 
     def _create_jpn_eng_dict_links(self) -> ResourceLinkSet:
         """Create link set for Jpn->Eng dictionary sites."""
@@ -192,80 +239,94 @@ class QueryResourceLinks(object):
 
 
 @utils.add_method_debug_logging
-class QueryArticleResultSet(object):
-    """The set of article results of a query of the Myaku db."""
+class SearchQueryResult(object):
+    """Search query result for a query of the Crawl db."""
 
     def __init__(self, query: Query) -> None:
-        """Query the Myaku db to get the article result set for query."""
+        """Query the Crawl db to get the article results for query."""
         with CrawlDb(DataAccessMode.READ) as db:
             result_page = db.search_articles(query)
 
-        self._set_surrounding_page_nums(result_page)
+        self.query = query
         self.total_results = result_page.total_results
 
-        _log.debug(
-            'Creating %d query article results',
-            len(result_page.search_results)
-        )
-        self.ranked_article_results = [
-            QueryArticleResult(a) for a in result_page.search_results
-        ]
-        _log.debug('Finished creating query article results')
-
-    def _set_surrounding_page_nums(
-            self, result_page: SearchResultPage
-    ) -> None:
-        """Set the next and previous page numbers for the result set."""
         total_pages = math.ceil(
             result_page.total_results / CrawlDb.SEARCH_RESULTS_PAGE_SIZE
         )
-        if result_page.query.page_num < total_pages:
-            self.next_page_num = result_page.query.page_num + 1
-        else:
-            self.next_page_num = None
+        self.max_page_reached = (
+            query.page_num >= settings.MAX_SEARCH_RESULT_PAGE
+        )
+        self.has_next_page = (
+            query.page_num < total_pages and not self.max_page_reached
+        )
 
-        if result_page.query.page_num > 1:
-            self.previous_page_num = result_page.query.page_num - 1
-        else:
-            self.previous_page_num = None
+        _log.debug(
+            'Creating %d search query article results',
+            len(result_page.search_results)
+        )
+        self.ranked_article_results = [
+            SearchQueryArticleResult(r) for r in result_page.search_results
+        ]
+        _log.debug('Finished creating search query article results')
+
+    def json(self) -> Dict[str, Any]:
+        """Get JSON for the search result data."""
+        return {
+            'convertedQuery': self.query.query_str,
+            'totalResults': self.total_results,
+            'pageNum': self.query.page_num,
+            'hasNextPage': self.has_next_page,
+            'maxPageReached': self.max_page_reached,
+            'articleResults': [
+                r.json() for r in self.ranked_article_results
+            ],
+        }
 
 
-class QueryArticleResult(object):
-    """A single article result of a query of the Myaku db."""
+class SearchQueryArticleResult(object):
+    """A single article result of a search query of the Crawl db."""
 
     def __init__(self, search_result: SearchResult) -> None:
         """Populate article result data using given search result."""
-        self.article = search_result.article
-        self.matched_base_forms = search_result.matched_base_forms
-        self.quality_score = search_result.quality_score
+        article = search_result.article
+        if not article.title or article.title.isspace():
+            self.title = '<Untitled article>'
+        else:
+            self.title = article.title
+
+        self.source_name = article.source_name
         self.instance_count = len(search_result.found_positions)
-        self.tags = self._get_tags(search_result.article)
+        self.tags = self._get_tags(article)
+
+        self.publication_datetime = article.publication_datetime
+        self.last_updated_datetime = article.last_updated_datetime
+
         self.preview = SearchResultArticlePreview(search_result)
 
-        if not self.article.title or self.article.title.isspace():
-            self.article.title = '<Untitled article>'
-
-        self._set_date_attributes(search_result)
-
-    def _set_date_attributes(self, search_result: SearchResult) -> None:
-        """Set the date-related attributes from the search result data."""
-        # Add Z at the end to indicate that the datetime is UTC.
-        self.publication_datetime_isoformat = (
-            search_result.article.publication_datetime.isoformat() + 'Z'
-        )
-        self.publication_date_str = humanize_date(
-            search_result.article.publication_datetime
+    def json(self) -> Dict[str, Any]:
+        """Get JSON for the article search result data."""
+        main_sample_text = convert_sample_text_to_json(
+            self.preview.main_sample_text
         )
 
-        self.last_updated_datetime_isoformat = (
-            search_result.article.last_updated_datetime.isoformat() + 'Z'
-        )
-        self.last_updated_date_str = humanize_date(
-            search_result.article.last_updated_datetime
-        )
-        self.display_last_updated_date = (
-            self._should_display_last_updated_datetime(search_result.article)
-        )
+        extra_sample_texts = []
+        for sample_text in self.preview.extra_sample_texts:
+            extra_sample_texts.append(
+                convert_sample_text_to_json(sample_text)
+            )
+
+        return {
+            'title': self.title,
+            'sourceName': self.source_name,
+            'publicationDatetime':
+                json_serialize_datetime(self.publication_datetime),
+            'lastUpdatedDatetime':
+                json_serialize_datetime(self.last_updated_datetime),
+            'instanceCount': self.instance_count,
+            'tags': self.tags,
+            'mainSampleText': main_sample_text,
+            'extraSampleTexts': extra_sample_texts,
+        }
 
     def _should_display_last_updated_datetime(
         self, article: JpnArticle
@@ -325,74 +386,42 @@ class QueryArticleResult(object):
         return tag_strs
 
 
-def log_request_response(func: Callable) -> Callable:
-    """Log the request and returned response for a request handler."""
-    @functools.wraps(func)
-    def log_request_response_wrapper(request, *args, **kwargs):
-        _log.info('Handling request: %s', request)
-        _log.info('Request meta:\n%s', pformat(request.META))
-        response = func(request, *args, **kwargs)
-        _log.info('Returning response: %s', response)
-        return response
-
-    return log_request_response_wrapper
-
-
 def get_request_convert_type(request: HttpRequest) -> str:
     """Get the romaji conversion type for the request.
 
-    If no convert_type parameter is in the query parameters for the request,
-    tries to use the convert_type from the session instead.
-
-    Will update the request session with the convert_type value for the request
-    as well.
+    Updates the request session with the convert type value for the request as
+    well.
     """
-    if 'convert_type' in request.GET:
-        request.session['convert_type'] = request.GET['convert_type']
-        return request.GET['convert_type']
-    elif 'convert_type' in request.session:
-        return request.session['convert_type']
-    else:
-        request.session['convert_type'] = DEFAULT_QUERY_CONVERT_TYPE
-        return DEFAULT_QUERY_CONVERT_TYPE
+    convert_type = request.GET[REQUEST_KANA_CONVERT_TYPE_KEY]
+    request.session[REQUEST_KANA_CONVERT_TYPE_KEY] = convert_type
+    return convert_type
 
 
-def get_request_query(request: HttpRequest) -> str:
-    """Get the query for a request.
+def get_request_query_str(request: HttpRequest) -> str:
+    """Get the query string for a request.
 
     Converts any romaji in the query string to Japanese using the conversion
-    method (conv) specified in the request.
+    method specified in the request.
     """
-    query = utils.normalize_char_width(request.GET.get('q', ''))
+    query_str = utils.normalize_char_width(request.GET[REQUEST_QUERY_KEY])
     convert_type = get_request_convert_type(request)
-    if convert_type == 'hira':
-        query = romkan.to_hiragana(query)
-    elif convert_type == 'kata':
-        query = romkan.to_katakana(query)
+    if convert_type == KANA_CONVERT_TYPE_HIRAGANA:
+        query_str = romkan.to_hiragana(query_str)
+    elif convert_type == KANA_CONVERT_TYPE_KATAKANA:
+        query_str = romkan.to_katakana(query_str)
 
-    return query
+    return query_str
 
 
 def get_request_page_num(request: HttpRequest) -> int:
     """Get the page number for a request.
 
-    If the page number given in the GET parameters for the request is not a
-    valid page number, will return 1.
-
     If the page number given in the GET parameters for the request is large
-    than MAX_PAGE_NUMBER, will return MAX_PAGE_NUMBER.
+    than MAX_PAGE_NUMBER, will return MAX_PAGE_NUMBER instead.
     """
-    page_num_str = request.GET.get('p', '1')
-    try:
-        page_num = int(page_num_str)
-    except ValueError:
-        page_num = 1
-
-    if page_num < 1:
-        page_num = 1
-    elif page_num > settings.MAX_PAGE_NUM:
-        page_num = settings.MAX_PAGE_NUM
-
+    page_num = int(request.GET[REQUEST_PAGE_NUM_KEY])
+    if page_num > settings.MAX_SEARCH_RESULT_PAGE:
+        page_num = settings.MAX_SEARCH_RESULT_PAGE
     return page_num
 
 
@@ -410,43 +439,69 @@ def get_request_user_id(request: HttpRequest) -> str:
 def create_query(request: HttpRequest) -> Query:
     """Create a query object from the request data."""
     return Query(
-        query_str=get_request_query(request),
+        query_str=get_request_query_str(request),
         page_num=get_request_page_num(request),
         user_id=get_request_user_id(request)
     )
 
 
-@log_request_response
-def index(request: HttpRequest) -> HttpResponse:
-    """Search page request handler."""
-    convert_type = get_request_convert_type(request)
-    if len(request.GET.get('q', '')) == 0:
-        return render(
-            request, 'search/start.html', {'convert_type': convert_type}
-        )
+@validate_request_params([
+    ParamValidator(
+        REQUEST_QUERY_KEY, True, str,
+        [StrLenValidator(1, MAX_QUERY_LEN)]
+    ),
+    ParamValidator(
+        REQUEST_PAGE_NUM_KEY, True, int,
+        [IntRangeValidator(1)]
+    ),
+    ParamValidator(
+        REQUEST_KANA_CONVERT_TYPE_KEY, True, str,
+        [AllowableValueValidator(KANA_CONVERT_TYPES)]
+    ),
+])
+def search(request: HttpRequest) -> JsonResponse:
+    """Handle search API requests.
 
+    Searches the Crawl db for articles using the given query after applying the
+    specified romaji->kana conversion, then returns the specified page of the
+    query results.
+    """
     query = create_query(request)
-    query_result_set = QueryArticleResultSet(query)
-    resource_links = QueryResourceLinks(query)
+    query_result = SearchQueryResult(query)
 
-    _log.debug('Starting "%s" query page render', query)
-    response = render(
-        request, 'search/results.html',
-        {
-            'query': query.query_str,
-            'page_num': query.page_num,
-            'convert_type': convert_type,
-            'max_page_num': settings.MAX_PAGE_NUM,
-            'query_result_set': query_result_set,
-            'resource_links': resource_links,
-        }
-    )
-    _log.debug('Finished "%s" query page render', query)
+    if query.page_num > 2 or query_result.has_next_page:
+        tasks.cache_surrounding_pages.delay(query)
 
-    # Async load the surrounding pages into the cache in memory for the current
-    # query being made for this session.
-    if (query_result_set.next_page_num is not None
-            or query_result_set.previous_page_num is not None):
-        tasks.cache_surrounding_pages_for_user.delay(query)
+    return JsonResponse(query_result.json())
 
-    return response
+
+@validate_request_params([
+    ParamValidator(
+        REQUEST_QUERY_KEY, True, str,
+        [StrLenValidator(1, MAX_QUERY_LEN)]
+    ),
+    ParamValidator(
+        REQUEST_KANA_CONVERT_TYPE_KEY, True, str,
+        [AllowableValueValidator(KANA_CONVERT_TYPES)]
+    ),
+])
+def resource_links(request: HttpRequest) -> JsonResponse:
+    """Handle resource links API requests.
+
+    Returns sets of resource links for the given query with the specified
+    romaji->kana conversion applied to it.
+    """
+    query_resource_links = QueryResourceLinks(get_request_query_str(request))
+    return JsonResponse(query_resource_links.json())
+
+
+@validate_request_params([])
+def session_search_options(request: HttpRequest) -> JsonResponse:
+    """Handle session search options API requests.
+
+    Returns the search options currently set for the session. If an option is
+    not specified in the session, its value will be null in the response.
+    """
+    return JsonResponse({
+        'kanaConvertType': request.session.get(REQUEST_KANA_CONVERT_TYPE_KEY),
+    })

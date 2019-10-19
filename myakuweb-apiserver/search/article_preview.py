@@ -4,7 +4,7 @@ import logging
 import re
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Iterable, List, Set, Tuple
+from typing import Any, Deque, Dict, Iterable, List, Set, Tuple
 
 from myaku import utils
 from myaku.datastore import SearchResult
@@ -99,6 +99,23 @@ class PreviewSampleText(object):
             (self.text_start_index / len(self.article.full_text)) * 100
         )
         return '{}% into article'.format(percent_pos)
+
+
+def convert_sample_text_to_json(
+    sample_text: PreviewSampleText
+) -> Dict[str, Any]:
+    """Convert the given sample text to a JSON representation."""
+    json_segments = []
+    for segment in sample_text.segments:
+        json_segments.append({
+            'isQueryMatch': segment.is_query_match,
+            'text': segment.text,
+        })
+
+    return {
+        'textStartPos': sample_text.get_humanized_text_position(),
+        'segments': json_segments,
+    }
 
 
 def _segments_len(segments: Iterable[PreviewSampleTextSegment]) -> int:
