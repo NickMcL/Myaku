@@ -102,12 +102,20 @@ module.exports = {
             filename: '../index.html',
             minify: false,
         }),
-        // Add preload links to index.html head for all woff2 font files.
         new PreloadWebpackPlugin({
             rel: 'preload',
-            as: 'font',
             include: 'allAssets',
-            fileBlacklist: [/^(?!.*\.woff2$)/],
+            as(entry) {
+                if (/\.svg$/.test(entry)) {
+                    return 'image';
+                }
+                if (/\.woff2$/.test(entry)) {
+                    return 'font';
+                }
+
+                throw new Error(`Unexpected preload entry ${entry}`);
+            },
+            fileWhitelist: [/\.woff2$/, /myaku-logo.*\.svg$/],
         }),
     ],
 };

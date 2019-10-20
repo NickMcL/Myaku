@@ -158,7 +158,12 @@ module.exports = {
         'semi': 'off',  // Handled by TS rule
         'semi-spacing': 'error',
         'semi-style': 'error',
-        'sort-imports': 'error',
+        'sort-imports': [
+            'error',
+            {
+                'memberSyntaxSortOrder': ['none', 'single', 'all', 'multiple'],
+            },
+        ],
         'space-before-blocks': 'error',
         'space-before-function-paren': [
             'error',
@@ -185,15 +190,28 @@ module.exports = {
         'react/button-has-type': 'error',
         'react/no-access-state-in-setstate': 'error',
         'react/no-array-index-key': 'error',
-        'react/no-did-mount-set-state': 'error',
-        'react/no-did-update-set-state': 'error',
+        'react/no-did-mount-set-state': 'off',
+        'react/no-did-update-set-state': 'off',
         'react/no-redundant-should-component-update': 'error',
         'react/no-typos': 'error',
         'react/no-unused-state': 'error',
         'react/prefer-es6-class': 'error',
         'react/prefer-stateless-function': 'error',
         'react/prop-types': 'off',
-        'react/sort-comp': 'error',
+        'react/sort-comp': [
+            'error',
+            {
+                'order': [
+                    'static-variables',
+                    'instance-variables',
+                    'static-methods',
+                    'lifecycle',
+                    '/^bindEventHandlers.*$/',
+                    'everything-else',
+                    'render',
+                ],
+            },
+        ],
         'react/state-in-constructor': 'error',
         'react/static-property-placement': 'error',
         'react/style-prop-object': 'error',
@@ -261,6 +279,20 @@ module.exports = {
             },
         ],
 
+        // JSX a11y rules
+        'jsx-a11y/label-has-associated-control': [
+            'error',
+            {
+                'assert': 'either',
+            },
+        ],
+        'jsx-a11y/label-has-for': [
+            'error',
+            {
+                'required': 'id',
+            },
+        ],
+
         // Typescript rules
         '@typescript-eslint/adjacent-overload-signatures': 'error',
         '@typescript-eslint/array-type': [
@@ -302,7 +334,7 @@ module.exports = {
         '@typescript-eslint/no-empty-function': 'error',
         '@typescript-eslint/no-empty-interface': 'error',
         '@typescript-eslint/no-explicit-any': 'error',
-        '@typescript-eslint/no-floating-promises': 'error',
+        '@typescript-eslint/no-floating-promises': 'off',
         '@typescript-eslint/no-for-in-array': 'error',
         '@typescript-eslint/no-inferrable-types': 'error',
         '@typescript-eslint/no-misused-new': 'error',
@@ -310,7 +342,12 @@ module.exports = {
         '@typescript-eslint/no-namespace': 'error',
         '@typescript-eslint/no-non-null-assertion': 'error',
         '@typescript-eslint/no-this-alias': 'error',
-        '@typescript-eslint/no-unnecessary-condition': 'error',
+        '@typescript-eslint/no-unnecessary-condition': [
+            'error',
+            {
+                'ignoreRhs': true,
+            },
+        ],
         '@typescript-eslint/no-unnecessary-type-assertion': 'error',
         '@typescript-eslint/no-unused-vars': 'error',
         '@typescript-eslint/no-use-before-define': 'error',
@@ -326,14 +363,14 @@ module.exports = {
             'single',
         ],
         '@typescript-eslint/require-array-sort-compare': 'error',
-        '@typescript-eslint/require-await': 'error',
+        '@typescript-eslint/require-await': 'off',
         '@typescript-eslint/semi': [
             'error',
             'always',
         ],
         '@typescript-eslint/triple-slash-reference': 'error',
         '@typescript-eslint/type-annotation-spacing': 'error',
-        '@typescript-eslint/unbound-method': 'error',
+        '@typescript-eslint/unbound-method': 'off',
         '@typescript-eslint/unified-signatures': 'error',
     },
     'overrides': [

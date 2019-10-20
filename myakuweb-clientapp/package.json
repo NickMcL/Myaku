@@ -2,7 +2,7 @@
   "name": "myakuweb-clientapp",
   "version": "1.0.0",
   "description": "Client single-page application for myakuweb.",
-  "main": "index.tsx",
+  "main": "src/index.tsx",
   "scripts": {
     "build": "webpack",
     "build:watch": "webpack --watch",
