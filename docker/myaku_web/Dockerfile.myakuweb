@@ -39,7 +39,7 @@ COPY --chown=myakuweb:myakuweb ./myaku/requirements.txt \
 RUN $PYTHON_BIN -m pip install --user \
     -r $MYAKUWEB_SRC_DIR/myaku_requirements.txt
 
-COPY --chown=myakuweb:myakuweb ./myakuweb/requirements.txt \
+COPY --chown=myakuweb:myakuweb ./myakuweb-apiserver/requirements.txt \
     $MYAKUWEB_SRC_DIR/myakuweb_requirements.txt
 RUN $PYTHON_BIN -m pip install --user \
     -r $MYAKUWEB_SRC_DIR/myakuweb_requirements.txt
@@ -70,7 +70,7 @@ ENV DJANGO_DEBUG_MODE 0
 
 # Copy all source code into the container
 COPY --chown=myakuweb:myakuweb ./myaku $MYAKU_SRC_DIR
-COPY --chown=myakuweb:myakuweb ./myakuweb $DJANGO_SRC_DIR
+COPY --chown=myakuweb:myakuweb ./myakuweb-apiserver $DJANGO_SRC_DIR
 COPY --chown=myakuweb:myakuweb \
     ./docker/myaku_web/run_uwsgi.sh $RUN_UWSGI_SCRIPT
 COPY --chown=myakuweb:myakuweb \

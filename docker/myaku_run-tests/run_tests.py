@@ -27,7 +27,7 @@ _MYAKU_PROJECT_DIR_ENV_VAR = 'MYAKU_PROJECT_DIR'
 _REVERSEPROXY_HOST_ENV_VAR = 'REVERSEPROXY_HOST'
 
 # Relative to the Myaku project dir root
-_MYAKUWEB_SELENIUM_TESTS_REL_DIR = 'myakuweb/selenium_tests'
+_MYAKUWEB_SELENIUM_TESTS_REL_DIR = 'myakuweb-apiserver/selenium_tests'
 
 _TEST_STACK_NAME_PREFIX = 'myaku_test_'
 
