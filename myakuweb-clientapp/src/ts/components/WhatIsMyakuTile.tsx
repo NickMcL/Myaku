@@ -3,23 +3,17 @@
 import React from 'react';
 import Tile from './Tile';
 
-interface WhatIsMyakuTileProps {
-    tileClasses?: string;
-}
-
-var WhatIsMyakuTile: React.FC<WhatIsMyakuTileProps> = function(props) {
+const WhatIsMyakuTile: React.FC<{}> = function() {
     return (
-        <Tile tileClasses={props.tileClasses}>
+        <Tile tileClasses='start-tile'>
             <h4 className='main-tile-header'>What is Myaku?</h4>
             <p>
-                <span className='key-word'>Myaku</span> is a tool for learning
-                Japanese from context.
+                <span className='key-word'>Myaku</span>
+                {' is a tool for learning Japanese from context.'}
             </p>
             <p>
-                {
-                    'It helps develop a natural feel for Japanese by showing '
-                    + 'in what '
-                }
+                {'It helps develop a natural feel for Japanese by showing '}
+                {'in what '}
                 <span className='key-word'>context</span>
                 {' natives use it today.'}
             </p>

@@ -2,13 +2,19 @@
 
 import GettingStartedTile from './GettingStartedTile';
 import React from 'react';
+import { Search } from '../types';
 import WhatIsMyakuTile from './WhatIsMyakuTile';
 
-const StartContent: React.FC<{}> = function() {
+interface StartContentProps {
+    onSearchSubmit: (search: Search) => void;
+}
+type Props = StartContentProps;
+
+const StartContent: React.FC<Props> = function(props) {
     return (
         <div className='start-tile-container'>
-            <WhatIsMyakuTile tileClasses='start-tile' />
-            <GettingStartedTile tileClasses='start-tile' />
+            <WhatIsMyakuTile />
+            <GettingStartedTile onSearchSubmit={props.onSearchSubmit} />
         </div>
     );
 };

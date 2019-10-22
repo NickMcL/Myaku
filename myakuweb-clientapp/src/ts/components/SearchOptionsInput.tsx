@@ -5,6 +5,7 @@ import React from 'react';
 import { KanaConvertType, SearchOptions } from '../types';
 
 interface OnChangeFunc {
+    // </> comment is to stop JSX syntax highlighting from applying
     <K extends keyof SearchOptions> /* </> */ (
         changedOption: K, newValue: SearchOptions[K]
     ): void;

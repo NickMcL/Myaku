@@ -8,7 +8,9 @@ import SearchOptionsInput from './SearchOptionsInput';
 import { getSessionSearchOptions } from '../apiRequests';
 
 import {
+    DEFAULT_SEARCH_OPTIONS,
     KanaConvertType,
+    Search,
     SearchOptions,
     SessionSearchOptionsResponse,
     isKanaConvertType,
@@ -16,27 +18,21 @@ import {
 } from '../types';
 
 interface HeaderSearchFormProps {
-    onSearchSubmit: (
-        query: string, pageNum: number, searchOptions: SearchOptions,
-        queryConvertedCallback: (convertedQuery: string) => void
-    ) => void;
+    searchQuery: string;
+    loadingSearch: boolean;
+    onSearchSubmit: (search: Search) => void;
+    onSearchQueryChange: (newValue: string) => void;
 }
 type Props = HeaderSearchFormProps;
 
 interface HeaderSearchFormState {
-    query: string;
     options: SearchOptions;
     optionsCollapsed: boolean;
     optionsCollapseAnimating: boolean;
 }
 type State = HeaderSearchFormState;
 
-const SEARCH_OPTIONS_DEFAULTS: SearchOptions = {
-    kanaConvertType: 'hira',
-};
-
 const SEARCH_URL_PARAMS = {
-    query: 'q',
     pageNum: 'p',
     kanaConvertType: 'conv',
 };
@@ -79,19 +75,17 @@ class HeaderSearchForm extends React.Component<Props, State> {
 
         var urlParams = new URLSearchParams(window.location.search);
         this.state = {
-            query: urlParams.get(SEARCH_URL_PARAMS.query) || '',
             options: this.getInitSearchOptions(urlParams),
             optionsCollapsed: true,
             optionsCollapseAnimating: false,
         };
 
-        if (this.state.query.length > 0) {
-            this.props.onSearchSubmit(
-                this.state.query,
-                getPageNumUrlParam(urlParams) || 1,
-                this.state.options,
-                this.handleSearchQueryChange
-            );
+        if (this.props.searchQuery.length > 0) {
+            this.props.onSearchSubmit({
+                query: this.props.searchQuery,
+                pageNum: getPageNumUrlParam(urlParams) || 1,
+                options: this.state.options,
+            });
         }
 
         if (this._defaultSearchOptionUsed.size > 0) {
@@ -103,7 +97,6 @@ class HeaderSearchForm extends React.Component<Props, State> {
 
     bindEventHandlers(): void {
         this.handleSubmit = this.handleSubmit.bind(this);
-        this.handleSearchQueryChange = this.handleSearchQueryChange.bind(this);
         this.handleSearchOptionsChange = (
             this.handleSearchOptionsChange.bind(this)
         );
@@ -121,7 +114,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
     getInitSearchOptions(urlParams: URLSearchParams): SearchOptions {
         var kanaConvertType = getKanaConvertTypeUrlParam(urlParams);
         if (kanaConvertType === null) {
-            kanaConvertType = SEARCH_OPTIONS_DEFAULTS.kanaConvertType;
+            kanaConvertType = DEFAULT_SEARCH_OPTIONS.kanaConvertType;
             this._defaultSearchOptionUsed.add('kanaConvertType');
         }
 
@@ -132,15 +125,10 @@ class HeaderSearchForm extends React.Component<Props, State> {
 
     handleSubmit(event: React.FormEvent): void {
         event.preventDefault();
-        this.props.onSearchSubmit(
-            this.state.query, 1, this.state.options,
-            this.handleSearchQueryChange
-        );
-    }
-
-    handleSearchQueryChange(searchQuery: string): void {
-        this.setState({
-            query: searchQuery,
+        this.props.onSearchSubmit({
+            query: this.props.searchQuery,
+            pageNum: 1,
+            options: this.state.options,
         });
     }
 
@@ -194,14 +182,20 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     handleSearchOptionsCollapseToggle(): void {
-        if (this.state.optionsCollapseAnimating) {
-            return;
+        function updateState(prevState: State): Pick<
+            State, 'optionsCollapsed' | 'optionsCollapseAnimating'
+        > | null {
+            if (prevState.optionsCollapseAnimating) {
+                return null;
+            }
+
+            return {
+                optionsCollapsed: !prevState.optionsCollapsed,
+                optionsCollapseAnimating: true,
+            };
         }
 
-        this.setState((prevState: State) => ({
-            optionsCollapsed: !prevState.optionsCollapsed,
-            optionsCollapseAnimating: true,
-        }));
+        this.setState(updateState);
     }
 
     handleSearchOptionsCollapseAnimationEnd(): void {
@@ -215,8 +209,8 @@ class HeaderSearchForm extends React.Component<Props, State> {
             <div className='search-container'>
                 <form className='search-form' onSubmit={this.handleSubmit}>
                     <SearchBarInput
-                        searchQuery={this.state.query}
-                        onChange={this.handleSearchQueryChange}
+                        searchQuery={this.props.searchQuery}
+                        onChange={this.props.onSearchQueryChange}
                     />
                     <Collapsable
                         collapsed={this.state.optionsCollapsed}

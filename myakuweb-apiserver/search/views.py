@@ -69,42 +69,6 @@ def is_very_recent(dt: datetime) -> bool:
     return days_since_dt <= _VERY_RECENT_DAYS
 
 
-def get_day_ordinal_suffix(day: int) -> str:
-    """Get the ordinal suffix for a day (e.g. 1 -> st, 2 -> nd, ...)."""
-    if not (1 <= day <= 31):
-        raise ValueError('Not a valid day of the month: {}'.format(day))
-
-    if 4 <= day <= 20 or 24 <= day <= 30:
-        return 'th'
-    return ['st', 'nd', 'rd'][(day % 10) - 1]
-
-
-def humanize_date(dt: datetime) -> str:
-    """Convert the datetime to a string with a nice human-readable date.
-
-    Args:
-        dt: datetime to convert.
-
-    Returns:
-        If the datetime is within a week of now, a string stating how many
-        days ago the datetime was (i.e. today, yesterday, 2 days ago, ...).
-        If the datetime is not within a week, a formatted date string in the
-        form "Jan 1st, 2019".
-    """
-    days_since_dt = (datetime.utcnow() - dt).days
-    if days_since_dt == 0:
-        return 'today'
-    elif days_since_dt == 1:
-        return 'yesterday'
-    elif days_since_dt < 7:
-        return '{} days ago'.format(days_since_dt)
-    else:
-        return '{month} {day}{ordinal}, {year}'.format(
-            month=dt.strftime('%b'), day=str(dt.day),
-            ordinal=get_day_ordinal_suffix(dt.day), year=str(dt.year)
-        )
-
-
 def json_serialize_datetime(dt: datetime) -> str:
     """Serialize a naive datetime to a UTC ISO format string."""
     return dt.isoformat(timespec='seconds') + 'Z'
@@ -289,12 +253,14 @@ class SearchQueryArticleResult(object):
     def __init__(self, search_result: SearchResult) -> None:
         """Populate article result data using given search result."""
         article = search_result.article
+        self.article_id = article.database_id
         if not article.title or article.title.isspace():
             self.title = '<Untitled article>'
         else:
             self.title = article.title
 
         self.source_name = article.source_name
+        self.source_url = article.source_url
         self.instance_count = len(search_result.found_positions)
         self.tags = self._get_tags(article)
 
@@ -309,15 +275,17 @@ class SearchQueryArticleResult(object):
             self.preview.main_sample_text
         )
 
-        extra_sample_texts = []
+        more_sample_texts = []
         for sample_text in self.preview.extra_sample_texts:
-            extra_sample_texts.append(
+            more_sample_texts.append(
                 convert_sample_text_to_json(sample_text)
             )
 
         return {
+            'articleId': self.article_id,
             'title': self.title,
             'sourceName': self.source_name,
+            'sourceUrl': self.source_url,
             'publicationDatetime':
                 json_serialize_datetime(self.publication_datetime),
             'lastUpdatedDatetime':
@@ -325,48 +293,8 @@ class SearchQueryArticleResult(object):
             'instanceCount': self.instance_count,
             'tags': self.tags,
             'mainSampleText': main_sample_text,
-            'extraSampleTexts': extra_sample_texts,
+            'moreSampleTexts': more_sample_texts,
         }
-
-    def _should_display_last_updated_datetime(
-        self, article: JpnArticle
-    ) -> bool:
-        """Determine if last updated datetime should be displayed for article.
-
-        The last updated datetime is not worth displaying if it's close to the
-        publication date.
-
-        Additionally, if the publication date is older, the amount of time
-        between publication and the update must be greater in order for the
-        update to be worth displaying.
-
-        Args:
-            article: Article to determine if its last updated datetime should
-                be displayed.
-
-        Returns:
-            True if the last updated datetime should be displayed, or False if
-            it shouldn't be displayed.
-        """
-        days_since_update = (
-            (article.last_updated_datetime - article.publication_datetime).days
-        )
-        days_since_publish = (
-            (datetime.utcnow() - article.publication_datetime).days
-        )
-
-        if (days_since_update < 1
-                or is_very_recent(article.publication_datetime)):
-            return False
-
-        if (is_very_recent(article.last_updated_datetime)
-                or days_since_publish < 180 and days_since_update > 30
-                or days_since_publish < 365 and days_since_update > 90
-                or days_since_publish < 365 * 2 and days_since_update > 180
-                or days_since_update > 365):
-            return True
-
-        return False
 
     def _get_tags(self, article: JpnArticle) -> List[str]:
         """Get the tags applicable for the article."""

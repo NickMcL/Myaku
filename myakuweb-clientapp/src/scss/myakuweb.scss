@@ -427,7 +427,7 @@ blockquote > footer::before {
     border-top: 1px solid rgba(0, 0, 0, 0.125);
 }
 
-.show-more-button {
+.tile-footer-button {
     color: $muted-text-color;
 }
 
@@ -449,13 +449,17 @@ blockquote > footer::before {
     display: inline;
 }
 .article-info > li:nth-child(2)::before {
-    content: "-";
+    content: " - ";
 }
 
 .article-tags {
     list-style: none;
     padding: 0;
     margin: 0;
+}
+
+.article-tags > li {
+    margin-right: 0.25rem;
 }
 
 .tag-badge {
@@ -531,15 +535,15 @@ blockquote > footer::before {
     }
 
     .article-info > li:not(:first-child)::before {
-        content: "- ";
+        content: " - ";
     }
 
     .article-info > li.updated-datetime::before {
-        content: "(";
+        content: " (";
     }
 
     .article-info > li.updated-datetime::after {
-        content: ")";
+        content: ") ";
     }
 }
 

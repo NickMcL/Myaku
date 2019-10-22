@@ -63,10 +63,6 @@ module.exports = {
         ],
         'comma-spacing': 'error',
         'comma-style': 'error',
-        'complexity': [
-            'error',
-            10,
-        ],
         'computed-property-spacing': [
             'error',
             'never',
@@ -98,7 +94,13 @@ module.exports = {
             'error',
             'unix',
         ],
-        'lines-between-class-members': 'error',
+        'lines-between-class-members': [
+            'error',
+            'always',
+            {
+                'exceptAfterSingleLine': true,
+            },
+        ],
         'max-len': [
             'error',
             {
@@ -194,7 +196,7 @@ module.exports = {
         'react/no-did-update-set-state': 'off',
         'react/no-redundant-should-component-update': 'error',
         'react/no-typos': 'error',
-        'react/no-unused-state': 'error',
+        'react/no-unused-state': 'off',
         'react/prefer-es6-class': 'error',
         'react/prefer-stateless-function': 'error',
         'react/prop-types': 'off',
@@ -320,6 +322,12 @@ module.exports = {
         '@typescript-eslint/indent': [
             'error',
             4,
+            {
+                'ignoredNodes': [
+                    'TSParenthesizedType',
+                    'TSTypeParameterInstantiation',
+                ],
+            },
         ],
         '@typescript-eslint/interface-name-prefix': 'error',
         '@typescript-eslint/member-delimiter-style': 'error',

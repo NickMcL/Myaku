@@ -1,11 +1,17 @@
-/** @module Tile with sample searches */
+/** @module Tile with sample searches component */
 
 import React from 'react';
 import Tile from './Tile';
 
+import {
+    DEFAULT_SEARCH_OPTIONS,
+    Search,
+} from '../types';
+
 interface GettingStartedTileProps {
-    tileClasses?: string;
+    onSearchSubmit: (search: Search) => void;
 }
+type Props = GettingStartedTileProps;
 
 interface SampleSearch {
     query: string;
@@ -31,29 +37,53 @@ const SAMPLE_SEARCHES: SampleSearch[] = [
     },
 ];
 
-var GettingStartedTile: React.FC<GettingStartedTileProps> = function(props) {
-    var sampleSearchElements: React.ReactNodeArray = [];
+
+function getSearchSubmitHandler(
+    query: string, onSearchSubmit: (search: Search) => void
+): (event: React.SyntheticEvent) => void {
+    return function(event: React.SyntheticEvent): void {
+        event.preventDefault();
+        onSearchSubmit({
+            query: query,
+            pageNum: 1,
+            options: DEFAULT_SEARCH_OPTIONS,
+        });
+    };
+}
+
+function getSampleSearchLis(
+    onSearchSubmit: (search: Search) => void
+): React.ReactElement[] {
+    var sampleSearchLis: React.ReactElement[] = [];
     for (const sampleSearch of SAMPLE_SEARCHES) {
-        sampleSearchElements.push(
+        sampleSearchLis.push(
             <li key={sampleSearch.query}>
                 {`${sampleSearch.explanation} - `}
                 <span className='japanese-text' lang='ja'>
-                    <a href={'/?q=' + sampleSearch.query}>
+                    <a
+                        href={`/?q=${sampleSearch.query}`}
+                        onClick={getSearchSubmitHandler(
+                            sampleSearch.query, onSearchSubmit
+                        )}
+                    >
                         {sampleSearch.query}
                     </a>
                 </span>
             </li>
         );
     }
+    return sampleSearchLis;
+}
 
+const GettingStartedTile: React.FC<Props> = function(props) {
     return (
-        <Tile tileClasses={props.tileClasses}>
+        <Tile tileClasses='start-tile'>
             <h4 className='main-tile-header'>Getting Started</h4>
             <p className='list-start-text'>
                 Here are some sample searches to get started:
             </p>
             <ul className='myaku-ul'>
-                {sampleSearchElements}
+                {getSampleSearchLis(props.onSearchSubmit)}
             </ul>
         </Tile>
     );

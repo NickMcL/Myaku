@@ -1,10 +1,14 @@
 /* Functions for making requests to MyakuWeb API */
 
-import { recursivelyApply } from './utils';
+import { recursivelyTransform } from './utils';
 import {
+    KanaConvertType,
     PrimativeType,
     ResourceLinksResponse,
+    Search,
     SearchOptions,
+    SearchResources,
+    SearchResultPage,
     SearchResultPageResponse,
     SessionSearchOptionsResponse,
 } from './types';
@@ -29,37 +33,70 @@ async function fetchJson(url: string): Promise<unknown> {
         cache: 'no-cache',
     };
 
-    return fetch(request, init)
-        .then(async response => response.json())
-        .then(function(responseJson) {
-            recursivelyApply(
-                responseJson, convertIsoFormatToDate, isDatetimeKey
-            );
-            return responseJson;
-        });
+    var response = await fetch(request, init);
+    var responseJson = await response.json();
+    recursivelyTransform(
+        responseJson, convertIsoFormatToDate, isDatetimeKey
+    );
+    return responseJson;
 }
 
-export async function getSessionSearchOptions(
-): Promise<SessionSearchOptionsResponse> {
-    return fetchJson('/api/session-search-options') as (
-        Promise<SessionSearchOptionsResponse>
+export async function getSessionSearchOptions(): Promise<SearchOptions> {
+    var requestUrl = '/api/session-search-options';
+    var response = await (
+        fetchJson(requestUrl) as Promise<SessionSearchOptionsResponse>
     );
+
+    return {
+        kanaConvertType: response.kanaConvertType,
+    };
 }
 
 export async function getSearchResultPage(
-    query: string, pageNum: number, searchOptions: SearchOptions
-): Promise<SearchResultPageResponse> {
-    return fetchJson(
+    search: Search
+): Promise<SearchResultPage> {
+    var requestUrl = (
         '/api/search'
-        + `?q=${query}&p=${pageNum}&conv=${searchOptions.kanaConvertType}`
-    ) as Promise<SearchResultPageResponse>;
+        + `?q=${search.query}`
+        + `&p=${search.pageNum}`
+        + `&conv=${search.options.kanaConvertType}`
+    );
+    var response = await (
+        fetchJson(requestUrl) as Promise<SearchResultPageResponse>
+    );
+
+    return {
+        search: {
+            query: response.convertedQuery,
+            pageNum: response.pageNum,
+            options: search.options,
+        },
+        totalResults: response.totalResults,
+        hasNextPage: response.hasNextPage,
+        maxPageReached: response.maxPageReached,
+        results: response.articleResults,
+    };
 }
 
-export async function getResourceLinks(
-    query: string, searchOptions: SearchOptions
-): Promise<ResourceLinksResponse> {
-    return fetchJson(
-        '/api/search'
-        + `?q=${query}&conv=${searchOptions.kanaConvertType}`
-    ) as Promise<ResourceLinksResponse>;
+export async function getSearchResources(
+    query: string, kanaConvertType: KanaConvertType
+): Promise<SearchResources> {
+    var requestUrl = `/api/resource-links?q=${query}&conv=${kanaConvertType}`;
+    var response = await (
+        fetchJson(requestUrl) as Promise<ResourceLinksResponse>
+    );
+
+    return {
+        query: response.convertedQuery,
+        resourceLinkSets: response.resourceLinkSets,
+    };
+}
+
+export async function getSearchWithResources(
+    search: Search
+): Promise<[SearchResultPage, SearchResources]> {
+    return Promise.all([
+        getSearchResultPage(search),
+        getSearchResources(search.query, search.options.kanaConvertType),
+    ]);
 }
