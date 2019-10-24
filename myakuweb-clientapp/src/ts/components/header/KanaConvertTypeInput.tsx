@@ -1,11 +1,12 @@
 /** @module Romaji->kana conversion setting input component */
 
 import React from 'react';
+import useInputChangeHandler from 'ts/hooks/useInputChangeHandler';
 
 import {
     KANA_CONVERT_TYPE_VALUES,
     KanaConvertType,
-} from '../types';
+} from 'ts/types/types';
 
 interface KanaConvertTypeInputProps {
     kanaConvertType: KanaConvertType;
@@ -52,9 +53,7 @@ function createRadioInputs(
 }
 
 const KanaConvertTypeInput: React.FC<Props> = function(props) {
-    function handleChange(event: React.FormEvent<HTMLInputElement>): void {
-        props.onChange(event.currentTarget.value as KanaConvertType);
-    }
+    const handleChange = useInputChangeHandler(props.onChange);
 
     return (
         <fieldset className='kana-conv-field'>

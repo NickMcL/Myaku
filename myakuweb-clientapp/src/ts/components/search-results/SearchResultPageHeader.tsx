@@ -1,7 +1,7 @@
 /** @module Header component for a page of search results */
 
 import React from 'react';
-import Tile from './Tile';
+import Tile from 'ts/components/generic/Tile';
 
 interface SearchResultPageHeaderProps {
     totalResults: number;

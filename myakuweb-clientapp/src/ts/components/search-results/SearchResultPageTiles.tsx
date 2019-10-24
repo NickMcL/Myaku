@@ -1,14 +1,17 @@
 /** @module Search result component that displays as tiles */
 
 import React from 'react';
-import SearchResultPageHeader from './SearchResultPageHeader';
-import SearchResultPageNav from './SearchResultPageNav';
-import SearchResultTile from './SearchResultTile';
+import SearchResultPageHeader from
+    'ts/components/search-results/SearchResultPageHeader';
+import SearchResultPageNav from
+    'ts/components/search-results/SearchResultPageNav';
+import SearchResultTile from
+    'ts/components/search-results/SearchResultTile';
 
 import {
     PageDirection,
     SearchResultPage,
-} from '../types';
+} from 'ts/types/types';
 
 interface SearchResultPageTilesProps {
     resultPage: SearchResultPage;

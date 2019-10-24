@@ -1,6 +1,6 @@
 /** @module Search result tag list component */
 
-import { ArticleSearchResult } from '../types';
+import { ArticleSearchResult } from 'ts/types/types';
 import React from 'react';
 
 interface SearchResultTagsProps {

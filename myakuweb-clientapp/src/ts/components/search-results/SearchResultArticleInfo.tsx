@@ -1,12 +1,12 @@
 /** @module Search result article info list component */
 
-import { ArticleSearchResult } from '../types';
+import { ArticleSearchResult } from 'ts/types/types';
 import React from 'react';
 
 import {
     getDaysBetween,
     humanizeDate,
-} from '../utils';
+} from 'ts/app/utils';
 
 interface SearchResultArticleInfoProps {
     searchResult: ArticleSearchResult;

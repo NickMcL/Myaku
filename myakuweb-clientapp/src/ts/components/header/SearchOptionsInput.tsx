@@ -1,8 +1,9 @@
 /** @module Wrapper for all search options input components  */
 
-import KanaConvertTypeInput from './KanaConvertTypeInput';
+import KanaConvertTypeInput from 'ts/components/header/KanaConvertTypeInput';
 import React from 'react';
-import { KanaConvertType, SearchOptions } from '../types';
+
+import { KanaConvertType, SearchOptions } from 'ts/types/types';
 
 interface OnChangeFunc {
     // </> comment is to stop JSX syntax highlighting from applying

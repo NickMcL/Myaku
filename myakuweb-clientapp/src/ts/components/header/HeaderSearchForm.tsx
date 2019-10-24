@@ -1,11 +1,12 @@
 /** @module Main header search form component  */
 
-import Collapsable from './Collapsable';
+import Collapsable from 'ts/components/generic/Collapsable';
 import React from 'react';
-import SearchBarInput from './SearchBarInput';
-import SearchOptionsCollapseToggle from './SearchOptionsCollapseToggle';
-import SearchOptionsInput from './SearchOptionsInput';
-import { getSessionSearchOptions } from '../apiRequests';
+import SearchBarInput from 'ts/components/header/SearchBarInput';
+import SearchOptionsCollapseToggle from
+    'ts/components/header/SearchOptionsCollapseToggle';
+import SearchOptionsInput from 'ts/components/header/SearchOptionsInput';
+import { getSessionSearchOptions } from 'ts/app/apiRequests';
 
 import {
     DEFAULT_SEARCH_OPTIONS,
@@ -15,7 +16,7 @@ import {
     SessionSearchOptionsResponse,
     isKanaConvertType,
     isSearchOption,
-} from '../types';
+} from 'ts/types/types';
 
 interface HeaderSearchFormProps {
     searchQuery: string;

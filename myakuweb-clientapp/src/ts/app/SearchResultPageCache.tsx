@@ -6,7 +6,7 @@ import {
     SEARCH_OPTIONS,
     Search,
     SearchResultPage,
-} from './types';
+} from 'ts/types/types';
 
 
 /**

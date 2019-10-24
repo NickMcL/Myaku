@@ -26,6 +26,7 @@ module.exports = {
     },
     'plugins': [
         'react',
+        'react-hooks',
         'jsx-a11y',
         '@typescript-eslint',
     ],
@@ -218,6 +219,10 @@ module.exports = {
         'react/static-property-placement': 'error',
         'react/style-prop-object': 'error',
         'react/void-dom-elements-no-children': 'error',
+
+        // React hooks rules
+        'react-hooks/rules-of-hooks': 'error',
+        'react-hooks/exhaustive-deps': 'error',
 
         // React JSX rules
         'react/jsx-boolean-value': 'error',

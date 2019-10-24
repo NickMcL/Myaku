@@ -1,14 +1,17 @@
 /** @module Search result tile component */
 
-import { ArticleSearchResult } from '../types';
-import Collapsable from './Collapsable';
+import { ArticleSearchResult } from 'ts/types/types';
+import Collapsable from 'ts/components/generic/Collapsable';
 import React from 'react';
-import SearchResultArticleInfo from './SearchResultArticleInfo';
-import SearchResultHeader from './SearchResultHeader';
-import SearchResultSampleText from './SearchResultSampleText';
-import SearchResultTags from './SearchResultTags';
-import Tile from './Tile';
-import TileFooterButton from './TileFooterButton';
+import SearchResultArticleInfo from
+    'ts/components/search-results/SearchResultArticleInfo';
+import SearchResultHeader from
+    'ts/components/search-results/SearchResultHeader';
+import SearchResultSampleText from
+    'ts/components/search-results/SearchResultSampleText';
+import SearchResultTags from 'ts/components/search-results/SearchResultTags';
+import Tile from 'ts/components/generic/Tile';
+import TileFooterButton from 'ts/components/generic/TileFooterButton';
 
 interface SearchResultTileProps {
     searchQuery: string;

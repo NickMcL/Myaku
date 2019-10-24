@@ -1,7 +1,7 @@
 /** @module Tile with an explation of the MyakuWeb site */
 
 import React from 'react';
-import Tile from './Tile';
+import Tile from 'ts/components/generic/Tile';
 
 const WhatIsMyakuTile: React.FC<{}> = function() {
     return (

@@ -9,7 +9,7 @@ import {
     Search,
     isIndexable,
     isPrimativeType,
-} from './types';
+} from 'ts/types/types';
 
 interface MonthMap {
     [key: number]: string;

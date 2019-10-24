@@ -1,25 +1,27 @@
 /** @module Root component for MyakuWeb */
 
-import Header from './Header';
-import HeaderNav from './HeaderNav';
-import HeaderSearchForm from './HeaderSearchForm';
-import MainContent from './MainContent';
+import Header from 'ts/components/header/Header';
+import HeaderNav from 'ts/components/header/HeaderNav';
+import HeaderSearchForm from 'ts/components/header/HeaderSearchForm';
+import MainContent from 'ts/components/generic/MainContent';
 import React from 'react';
-import SearchResourceTiles from './SearchResourceTiles';
-import SearchResultPageCache from '../SearchResultPageCache';
-import SearchResultPageTiles from './SearchResultPageTiles';
-import StartContent from './StartContent';
-import { getSearchUrl } from '../utils';
+import SearchResourceTiles from
+    'ts/components/search-results/SearchResourceTiles';
+import SearchResultPageCache from 'ts/app/SearchResultPageCache';
+import SearchResultPageTiles from
+    'ts/components/search-results/SearchResultPageTiles';
+import StartContent from 'ts/components/start-page/StartContent';
+import { getSearchUrl } from 'ts/app/utils';
 
 import {
     Search,
     SearchResources,
     SearchResultPage,
-} from '../types';
+} from 'ts/types/types';
 import {
     getSearchResultPage,
     getSearchWithResources,
-} from '../apiRequests';
+} from 'ts/app/apiRequests';
 
 const enum SearchType {
     NewQuery = 'query',

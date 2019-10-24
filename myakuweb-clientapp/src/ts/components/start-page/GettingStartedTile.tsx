@@ -1,12 +1,12 @@
 /** @module Tile with sample searches component */
 
 import React from 'react';
-import Tile from './Tile';
+import Tile from 'ts/components/generic/Tile';
 
 import {
     DEFAULT_SEARCH_OPTIONS,
     Search,
-} from '../types';
+} from 'ts/types/types';
 
 interface GettingStartedTileProps {
     onSearchSubmit: (search: Search) => void;

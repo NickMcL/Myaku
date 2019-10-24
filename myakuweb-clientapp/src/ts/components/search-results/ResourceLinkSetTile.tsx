@@ -1,8 +1,8 @@
 /** @module Resource link set tile component */
 
 import React from 'react';
-import { ResourceLinkSet } from '../types';
-import Tile from './Tile';
+import { ResourceLinkSet } from 'ts/types/types';
+import Tile from 'ts/components/generic/Tile';
 
 interface ResourceLinkSetTileProps {
     query: string;

@@ -1,6 +1,6 @@
 /** @module Header component for an article search result */
 
-import { ArticleSearchResult } from '../types';
+import { ArticleSearchResult } from 'ts/types/types';
 import React from 'react';
 
 interface SearchResultHeaderProps {

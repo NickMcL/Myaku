@@ -3,9 +3,10 @@
  */
 
 import React from 'react';
-import ResourceLinkSetTile from './ResourceLinkSetTile';
-import { SearchResources } from '../types';
-import Tile from './Tile';
+import ResourceLinkSetTile from
+    'ts/components/search-results/ResourceLinkSetTile';
+import { SearchResources } from 'ts/types/types';
+import Tile from 'ts/components/generic/Tile';
 
 interface SearchResourceTilesProps {
     resources: SearchResources;

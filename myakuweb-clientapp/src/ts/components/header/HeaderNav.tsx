@@ -1,7 +1,7 @@
 /** @module Nav component for the main MyakuWeb header */
 
 import React from 'react';
-import myakuLogoUrl from '../../images/myaku-logo.svg';
+import myakuLogoUrl from 'images/myaku-logo.svg';
 
 interface HeaderNavProps {
     onReturnToStart: () => void;

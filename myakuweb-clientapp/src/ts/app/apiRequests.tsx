@@ -1,6 +1,6 @@
 /* Functions for making requests to MyakuWeb API */
 
-import { recursivelyTransform } from './utils';
+import { recursivelyTransform } from 'ts/app/utils';
 import {
     KanaConvertType,
     PrimativeType,
@@ -11,7 +11,7 @@ import {
     SearchResultPage,
     SearchResultPageResponse,
     SessionSearchOptionsResponse,
-} from './types';
+} from 'ts/types/types';
 
 function isDatetimeKey(key: string): boolean {
     return key.endsWith('Datetime');

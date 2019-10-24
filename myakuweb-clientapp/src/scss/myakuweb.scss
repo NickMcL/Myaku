@@ -498,33 +498,12 @@ blockquote > footer::before {
     margin: 0 0 1rem 0;
 }
 
-.page-info-short,
-.page-info-long {
+.page-info {
     color: $muted-text-color;
-}
-
-.page-nav-short,
-.page-info-short {
-    display: block;
-}
-
-.page-nav-long,
-.page-info-long {
-    display: none;
 }
 
 @media (min-width: $sm-min-width) {
     .result-header-page-number {
-        display: block;
-    }
-
-    .page-nav-short,
-    .page-info-short {
-        display: none;
-    }
-
-    .page-nav-long,
-    .page-info-long {
         display: block;
     }
 }

@@ -47,6 +47,7 @@ repos:
           - "@typescript-eslint/parser@2.3.3"
           - eslint-plugin-jsx-a11y@6.2.3
           - eslint-plugin-react@7.16.0
+          - eslint-plugin-react-hooks@2.2.0
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
     rev: v1.1.0

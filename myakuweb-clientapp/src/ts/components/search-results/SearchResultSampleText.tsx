@@ -1,6 +1,6 @@
 /** @module Search result article sample text component */
 
-import { ArticleSampleText } from '../types';
+import { ArticleSampleText } from 'ts/types/types';
 import React from 'react';
 
 interface SearchResultSampleTextProps {

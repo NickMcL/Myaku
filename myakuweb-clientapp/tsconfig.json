@@ -2,9 +2,11 @@
   "compilerOptions": {
     "target": "ES5",
     "module": "ES6",
-    "moduleResolution": "Node",
     "jsx": "react",
+
+    "moduleResolution": "Node",
     "sourceMap": true,
+    "baseUrl": "./src",
     "outDir": "lib",
 
     "strict": true,
@@ -12,5 +14,11 @@
     "noUnusedParameters": true,
 
     "allowSyntheticDefaultImports": true
-  }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

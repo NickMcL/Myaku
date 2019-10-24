@@ -1,7 +1,7 @@
 /** @module Wrapper for a collapsable component */
 
 import React from 'react';
-import { reflow } from '../utils';
+import { reflow } from 'ts/app/utils';
 
 interface CollapsableProps {
     children: React.ReactNode;

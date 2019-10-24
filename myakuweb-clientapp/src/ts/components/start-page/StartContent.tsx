@@ -1,9 +1,9 @@
 /** @module Start page content for MyakuWeb */
 
-import GettingStartedTile from './GettingStartedTile';
+import GettingStartedTile from 'ts/components/start-page/GettingStartedTile';
 import React from 'react';
-import { Search } from '../types';
-import WhatIsMyakuTile from './WhatIsMyakuTile';
+import { Search } from 'ts/types/types';
+import WhatIsMyakuTile from 'ts/components/start-page/WhatIsMyakuTile';
 
 interface StartContentProps {
     onSearchSubmit: (search: Search) => void;
