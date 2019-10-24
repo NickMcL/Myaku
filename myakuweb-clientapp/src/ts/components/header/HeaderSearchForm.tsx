@@ -1,7 +1,6 @@
 /** @module Main header search form component  */
 
 import Collapsable from 'ts/components/generic/Collapsable';
-import HistoryStateSaver from 'ts/components/generic/HistoryStateSaver';
 import { PAGE_NAVIGATION_EVENT } from 'ts/app/events';
 import React from 'react';
 import SearchBarInput from 'ts/components/header/SearchBarInput';
@@ -30,11 +29,14 @@ type Props = HeaderSearchFormProps;
 
 interface HeaderSearchFormState {
     options: SearchOptions;
+    errorValueSubmitted: boolean;
     optionsCollapsed: boolean;
     optionsCollapseAnimating: boolean;
     optionsCollapseAnimateEnabled: boolean;
 }
 type State = HeaderSearchFormState;
+
+const MAX_QUERY_LENGTH = 100;
 
 const SEARCH_URL_PARAMS = {
     pageNum: 'p',
@@ -42,7 +44,8 @@ const SEARCH_URL_PARAMS = {
 };
 
 
-function getPageNumUrlParam(urlParams: URLSearchParams): number | null {
+function getPageNumUrlParam(): number | null {
+    var urlParams = new URLSearchParams(window.location.search);
     var pageNumParamValue = urlParams.get(SEARCH_URL_PARAMS.pageNum);
     if (pageNumParamValue === null) {
         return null;
@@ -77,18 +80,25 @@ class HeaderSearchForm extends React.Component<Props, State> {
         this.bindEventHandlers();
         this._defaultSearchOptionUsed = new Set<keyof SearchOptions>();
 
-        var urlParams = new URLSearchParams(window.location.search);
         this.state = {
-            options: this.getInitSearchOptions(urlParams),
+            options: this.getInitSearchOptions(),
+            errorValueSubmitted: false,
             optionsCollapsed: true,
             optionsCollapseAnimating: false,
             optionsCollapseAnimateEnabled: false,
         };
+    }
+
+    componentDidMount(): void {
+        window.addEventListener('popstate', this.handlePageNavigation);
+        window.addEventListener(
+            PAGE_NAVIGATION_EVENT, this.handlePageNavigation
+        );
 
         if (this.props.searchQuery.length > 0) {
-            this.props.onSearchSubmit({
+            this.submitSearch({
                 query: this.props.searchQuery,
-                pageNum: getPageNumUrlParam(urlParams) || 1,
+                pageNum: getPageNumUrlParam() || 1,
                 options: this.state.options,
             });
         }
@@ -100,24 +110,19 @@ class HeaderSearchForm extends React.Component<Props, State> {
         }
     }
 
-    componentDidMount(): void {
-        window.addEventListener(
-            PAGE_NAVIGATION_EVENT, this.handlePageNavigation
-        );
-    }
-
     componentWillUnmount(): void {
+        window.removeEventListener('popstate', this.handlePageNavigation);
         window.removeEventListener(
             PAGE_NAVIGATION_EVENT, this.handlePageNavigation
         );
     }
 
     bindEventHandlers(): void {
-        this.handleRestoreStateFromHistory = (
-            this.handleRestoreStateFromHistory.bind(this)
-        );
         this.handlePageNavigation = this.handlePageNavigation.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
+        this.handleInputtedQueryChange = (
+            this.handleInputtedQueryChange.bind(this)
+        );
         this.handleSearchOptionsChange = (
             this.handleSearchOptionsChange.bind(this)
         );
@@ -132,7 +137,8 @@ class HeaderSearchForm extends React.Component<Props, State> {
         );
     }
 
-    getInitSearchOptions(urlParams: URLSearchParams): SearchOptions {
+    getInitSearchOptions(): SearchOptions {
+        var urlParams = new URLSearchParams(window.location.search);
         var kanaConvertType = getKanaConvertTypeUrlParam(urlParams);
         if (kanaConvertType === null) {
             kanaConvertType = DEFAULT_SEARCH_OPTIONS.kanaConvertType;
@@ -144,29 +150,48 @@ class HeaderSearchForm extends React.Component<Props, State> {
         };
     }
 
-    revertOptionsCollapsedToDefault(): void {
+    submitSearch(search: Search): void {
+        if (search.query.length > MAX_QUERY_LENGTH) {
+            this.setState({
+                errorValueSubmitted: true,
+            });
+        } else {
+            this.props.onSearchSubmit(search);
+        }
+    }
+
+    handlePageNavigation(): void {
         this.setState({
+            errorValueSubmitted: false,
             optionsCollapsed: true,
             optionsCollapseAnimating: false,
             optionsCollapseAnimateEnabled: false,
         });
     }
 
-    handleRestoreStateFromHistory(): void {
-        this.revertOptionsCollapsedToDefault();
-    }
-
-    handlePageNavigation(): void {
-        this.revertOptionsCollapsedToDefault();
-    }
-
     handleSubmit(event: React.FormEvent): void {
         event.preventDefault();
-        this.props.onSearchSubmit({
+        this.submitSearch({
             query: this.props.searchQuery,
             pageNum: 1,
             options: this.state.options,
         });
+    }
+
+    handleInputtedQueryChange(newValue: string): void {
+        function updateState(prevState: State): (
+            Pick<State, 'errorValueSubmitted'> | null
+        ) {
+            if (!prevState.errorValueSubmitted) {
+                return null;
+            }
+            return {
+                errorValueSubmitted: false,
+            };
+        }
+
+        this.setState(updateState);
+        this.props.onSearchQueryChange(newValue);
     }
 
     handleSearchOptionsChange<K extends keyof SearchOptions>(
@@ -219,7 +244,9 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     handleSearchOptionsCollapseToggle(): void {
-        function updateState(prevState: State): Omit<State, 'options'> | null {
+        function updateState(prevState: State): (
+            Omit<State, 'options' | 'errorValueSubmitted'> | null
+        ) {
             if (prevState.optionsCollapseAnimating) {
                 return null;
             }
@@ -243,17 +270,12 @@ class HeaderSearchForm extends React.Component<Props, State> {
     render(): React.ReactElement {
         return (
             <div className='search-container'>
-                <HistoryStateSaver
-                    componentKey={'HeaderSearchForm'}
-                    currentState={null}
-                    onRestoreStateFromHistory={
-                        this.handleRestoreStateFromHistory
-                    }
-                />
                 <form className='search-form' onSubmit={this.handleSubmit}>
                     <SearchBarInput
                         searchQuery={this.props.searchQuery}
-                        onChange={this.props.onSearchQueryChange}
+                        maxQueryLength={MAX_QUERY_LENGTH}
+                        errorValueSubmitted={this.state.errorValueSubmitted}
+                        onChange={this.handleInputtedQueryChange}
                     />
                     <Collapsable
                         collapsed={this.state.optionsCollapsed}
