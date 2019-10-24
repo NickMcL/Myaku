@@ -40,6 +40,9 @@ repos:
           - .js,.jsx,.ts,.tsx
           - --quiet
           - myakuweb-clientapp/
+        files: ".*(\\.js|\\.jsx|\\.ts|\\.tsx)$"
+        types:
+          - file
         additional_dependencies:
           - eslint@6.5.1
           - typescript@3.6.3
