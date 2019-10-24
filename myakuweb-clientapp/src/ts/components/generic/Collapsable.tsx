@@ -6,6 +6,7 @@ import { reflow } from 'ts/app/utils';
 interface CollapsableProps {
     children: React.ReactNode;
     collapsed: boolean;
+    animate: boolean;
     onAnimationStart?: () => void;
     onAnimationEnd?: () => void;
 }
@@ -46,12 +47,18 @@ class Collapsable extends React.Component<Props, State> {
             return;
         }
 
-        reflow(collapsable);
-        this.setState({
-            animationStarted: true,
-        });
-        if (this.props.onAnimationStart) {
-            this.props.onAnimationStart();
+        if (this.props.animate) {
+            reflow(collapsable);
+            this.setState({
+                animationStarted: true,
+            });
+            if (this.props.onAnimationStart) {
+                this.props.onAnimationStart();
+            }
+        } else {
+            this.setState({
+                collapsed: this.props.collapsed,
+            });
         }
     }
 
@@ -123,7 +130,10 @@ class Collapsable extends React.Component<Props, State> {
     render(): React.ReactElement {
         var classList: string[] = [];
         var style: CollapsableStyle = {};
-        if (this.props.collapsed === this.state.collapsed) {
+        if (
+            this.props.collapsed === this.state.collapsed
+            || !this.props.animate
+        ) {
             classList = this.getNoAnimationClassList();
         } else {
             classList = this.getAnimationClassList();

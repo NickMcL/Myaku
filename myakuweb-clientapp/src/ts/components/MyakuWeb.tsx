@@ -3,7 +3,9 @@
 import Header from 'ts/components/header/Header';
 import HeaderNav from 'ts/components/header/HeaderNav';
 import HeaderSearchForm from 'ts/components/header/HeaderSearchForm';
+import HistoryStateSaver from 'ts/components/generic/HistoryStateSaver';
 import MainContent from 'ts/components/generic/MainContent';
+import { PAGE_NAVIGATION_EVENT } from 'ts/app/events';
 import React from 'react';
 import SearchResourceTiles from
     'ts/components/search-results/SearchResourceTiles';
@@ -48,16 +50,6 @@ type RequestedSearchState = Pick<
 const SEARCH_QUERY_URL_PARAM = 'q';
 
 
-function getDocumentTitle(state: State): string {
-    var title = 'Myaku';
-    if (state.requestedSearch !== null) {
-        const query = state.requestedSearch.query;
-        const pageNum = state.requestedSearch.pageNum;
-        title = `${query} - Page ${pageNum} - Myaku`;
-    }
-    return title;
-}
-
 function getStartState(): State {
     return {
         inputtedSearchQuery: '',
@@ -69,19 +61,23 @@ function getStartState(): State {
     };
 }
 
-function pushWindowState(state: State, replace = false): void {
-    var title = getDocumentTitle(state);
+function getDocumentTitle(state: State): string {
+    if (state.requestedSearch === null) {
+        return 'Myaku';
+    } else {
+        const query = state.requestedSearch.query;
+        const pageNum = state.requestedSearch.pageNum;
+        return `${query} - Page ${pageNum} - Myaku`;
+    }
+}
+
+function pushWindowState(state: State): void {
     var url = '/';
     if (state.requestedSearch !== null) {
         url = getSearchUrl(state.requestedSearch);
     }
-
-    document.title = title;
-    if (replace) {
-        window.history.replaceState(state, title, url);
-    } else {
-        window.history.pushState(state, title, url);
-    }
+    window.history.pushState(null, getDocumentTitle(state), url);
+    window.dispatchEvent(new Event(PAGE_NAVIGATION_EVENT));
 }
 
 class MyakuWeb extends React.Component<{}, State> {
@@ -100,16 +96,18 @@ class MyakuWeb extends React.Component<{}, State> {
     }
 
     componentDidMount(): void {
-        pushWindowState(this.state, true);
-        window.addEventListener('popstate', this.handleWindowPopState);
+        document.title = getDocumentTitle(this.state);
+        window.history.scrollRestoration = 'manual';
     }
 
-    componentWillUnmount(): void {
-        window.removeEventListener('popstate', this.handleWindowPopState);
+    componentDidUpdate(): void {
+        document.title = getDocumentTitle(this.state);
     }
 
     bindEventHandlers(): void {
-        this.handleWindowPopState = this.handleWindowPopState.bind(this);
+        this.handleRestoreStateFromHistory = (
+            this.handleRestoreStateFromHistory.bind(this)
+        );
         this.handleInputtedSearchQueryChange = (
             this.handleInputtedSearchQueryChange.bind(this)
         );
@@ -120,18 +118,15 @@ class MyakuWeb extends React.Component<{}, State> {
         this.handleSearchWithResourcesResponse = (
             this.handleSearchWithResourcesResponse.bind(this)
         );
-        this.handlePageChanged = this.handlePageChanged.bind(this);
+        this.handlePageChange = this.handlePageChange.bind(this);
+        this.handleSearchResultPageLoaded = (
+            this.handleSearchResultPageLoaded.bind(this)
+        );
     }
 
-    handleWindowPopState(event: PopStateEvent): void {
-        function updateState(): State {
-            document.title = getDocumentTitle(event.state);
-            return event.state as State;
-        }
-
-        if (event.state !== null) {
-            this.setState(updateState);
-        }
+    handleRestoreStateFromHistory(restoreState: State): void {
+        window.scrollTo(0, 0);
+        this.setState(restoreState);
     }
 
     handleInputtedSearchQueryChange(newValue: string): void {
@@ -141,9 +136,7 @@ class MyakuWeb extends React.Component<{}, State> {
     }
 
     handleSearchPageChange(newPageNum: number): void {
-        function updateState(
-            this: MyakuWeb, prevState: State
-        ): (
+        function updateState(this: MyakuWeb, prevState: State): (
             RequestedSearchState
             | RequestedSearchState & {searchResultPage: SearchResultPage}
             | null
@@ -155,29 +148,34 @@ class MyakuWeb extends React.Component<{}, State> {
                 return null;
             }
 
+            var updatedState;
             var search: Search = {
                 ...prevState.requestedSearch,
                 pageNum: newPageNum,
             };
             var cachedPage = this._visitedPageCache.get(search);
             if (cachedPage !== null) {
-                return {
+                updatedState = {
                     requestedSearch: search,
                     requestedSearchType: SearchType.NewPage,
                     searchResultPage: cachedPage,
                     fetchingSearchResults: false,
                 };
+            } else {
+                getSearchResultPage(search).then(this.handleSearchResponse);
+                updatedState = {
+                    requestedSearch: search,
+                    requestedSearchType: SearchType.NewPage,
+                    fetchingSearchResults: true,
+                };
             }
-
-            getSearchResultPage(search).then(this.handleSearchResponse);
-            return {
-                requestedSearch: search,
-                requestedSearchType: SearchType.NewPage,
-                fetchingSearchResults: true,
-            };
+            pushWindowState({...prevState, ...updatedState});
+            return updatedState;
         }
 
-        this.setState(updateState.bind(this), this.handlePageChanged);
+        this.setState(
+            updateState.bind(this), this.handleSearchResultPageLoaded
+        );
     }
 
     handleSearchSubmit(search: Search): void {
@@ -199,22 +197,30 @@ class MyakuWeb extends React.Component<{}, State> {
             }
 
             this._visitedPageCache.clear();
-            return {
+            var updatedState = {
                 requestedSearch: search,
                 requestedSearchType: SearchType.NewQuery,
                 fetchingSearchResults: true,
             };
+            pushWindowState({...prevState, ...updatedState});
+            return updatedState;
         }
 
         this.setState(updateState.bind(this));
     }
 
     handleReturnToStart(): void {
-        this.setState(getStartState(), this.handlePageChanged);
+        function updateState(this: MyakuWeb): State {
+            var startState = getStartState();
+            pushWindowState(startState);
+            return startState;
+        }
+
+        this.setState(updateState.bind(this));
     }
 
     handleSearchResponse(response: SearchResultPage): void {
-        function updateState(prevState: State): Pick<
+        function updateState(this: MyakuWeb, prevState: State): Pick<
             State,
             'inputtedSearchQuery'
             | 'searchResultPage'
@@ -231,13 +237,15 @@ class MyakuWeb extends React.Component<{}, State> {
             };
         }
 
-        this.setState(updateState, this.handlePageChanged);
+        this.setState(
+            updateState.bind(this), this.handleSearchResultPageLoaded
+        );
     }
 
     handleSearchWithResourcesResponse(
         response: [SearchResultPage, SearchResources]
     ): void {
-        function updateState(prevState: State): Pick<
+        function updateState(this: MyakuWeb, prevState: State): Pick<
             State,
             'inputtedSearchQuery'
             | 'searchResultPage'
@@ -256,16 +264,21 @@ class MyakuWeb extends React.Component<{}, State> {
             };
         }
 
-        this.setState(updateState, this.handlePageChanged);
+        this.setState(
+            updateState.bind(this), this.handleSearchResultPageLoaded
+        );
     }
 
-    handlePageChanged(): void {
+    handlePageChange(updatedState: Partial<State>): void {
+        pushWindowState({...this.state, ...updatedState});
+    }
+
+    handleSearchResultPageLoaded(): void {
         if (this.state.fetchingSearchResults) {
             return;
         }
 
         window.scrollTo(0, 0);
-        pushWindowState(this.state);
         if (
             this.state.requestedSearch !== null
             && this.state.searchResultPage !== null
@@ -317,6 +330,13 @@ class MyakuWeb extends React.Component<{}, State> {
 
         return (
             <React.Fragment>
+                <HistoryStateSaver
+                    componentKey={'MyakuWeb'}
+                    currentState={this.state}
+                    onRestoreStateFromHistory={
+                        this.handleRestoreStateFromHistory
+                    }
+                />
                 <Header>
                     <HeaderNav onReturnToStart={this.handleReturnToStart} />
                     <HeaderSearchForm

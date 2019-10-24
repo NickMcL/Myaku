@@ -86,6 +86,7 @@ class SearchResultTile extends React.Component<Props, State> {
         }
         return (
             <Collapsable
+                animate
                 collapsed={this.state.moreSampleTextsCollapsed}
                 onAnimationEnd={this.handleMoreSampleTextCollapseAnimationEnd}
             >

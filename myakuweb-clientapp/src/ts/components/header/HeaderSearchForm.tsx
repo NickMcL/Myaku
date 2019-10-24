@@ -1,6 +1,8 @@
 /** @module Main header search form component  */
 
 import Collapsable from 'ts/components/generic/Collapsable';
+import HistoryStateSaver from 'ts/components/generic/HistoryStateSaver';
+import { PAGE_NAVIGATION_EVENT } from 'ts/app/events';
 import React from 'react';
 import SearchBarInput from 'ts/components/header/SearchBarInput';
 import SearchOptionsCollapseToggle from
@@ -30,6 +32,7 @@ interface HeaderSearchFormState {
     options: SearchOptions;
     optionsCollapsed: boolean;
     optionsCollapseAnimating: boolean;
+    optionsCollapseAnimateEnabled: boolean;
 }
 type State = HeaderSearchFormState;
 
@@ -79,6 +82,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
             options: this.getInitSearchOptions(urlParams),
             optionsCollapsed: true,
             optionsCollapseAnimating: false,
+            optionsCollapseAnimateEnabled: false,
         };
 
         if (this.props.searchQuery.length > 0) {
@@ -96,7 +100,23 @@ class HeaderSearchForm extends React.Component<Props, State> {
         }
     }
 
+    componentDidMount(): void {
+        window.addEventListener(
+            PAGE_NAVIGATION_EVENT, this.handlePageNavigation
+        );
+    }
+
+    componentWillUnmount(): void {
+        window.removeEventListener(
+            PAGE_NAVIGATION_EVENT, this.handlePageNavigation
+        );
+    }
+
     bindEventHandlers(): void {
+        this.handleRestoreStateFromHistory = (
+            this.handleRestoreStateFromHistory.bind(this)
+        );
+        this.handlePageNavigation = this.handlePageNavigation.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleSearchOptionsChange = (
             this.handleSearchOptionsChange.bind(this)
@@ -122,6 +142,22 @@ class HeaderSearchForm extends React.Component<Props, State> {
         return {
             kanaConvertType: kanaConvertType,
         };
+    }
+
+    revertOptionsCollapsedToDefault(): void {
+        this.setState({
+            optionsCollapsed: true,
+            optionsCollapseAnimating: false,
+            optionsCollapseAnimateEnabled: false,
+        });
+    }
+
+    handleRestoreStateFromHistory(): void {
+        this.revertOptionsCollapsedToDefault();
+    }
+
+    handlePageNavigation(): void {
+        this.revertOptionsCollapsedToDefault();
     }
 
     handleSubmit(event: React.FormEvent): void {
@@ -183,9 +219,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     handleSearchOptionsCollapseToggle(): void {
-        function updateState(prevState: State): Pick<
-            State, 'optionsCollapsed' | 'optionsCollapseAnimating'
-        > | null {
+        function updateState(prevState: State): Omit<State, 'options'> | null {
             if (prevState.optionsCollapseAnimating) {
                 return null;
             }
@@ -193,6 +227,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
             return {
                 optionsCollapsed: !prevState.optionsCollapsed,
                 optionsCollapseAnimating: true,
+                optionsCollapseAnimateEnabled: true,
             };
         }
 
@@ -208,6 +243,13 @@ class HeaderSearchForm extends React.Component<Props, State> {
     render(): React.ReactElement {
         return (
             <div className='search-container'>
+                <HistoryStateSaver
+                    componentKey={'HeaderSearchForm'}
+                    currentState={null}
+                    onRestoreStateFromHistory={
+                        this.handleRestoreStateFromHistory
+                    }
+                />
                 <form className='search-form' onSubmit={this.handleSubmit}>
                     <SearchBarInput
                         searchQuery={this.props.searchQuery}
@@ -215,6 +257,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
                     />
                     <Collapsable
                         collapsed={this.state.optionsCollapsed}
+                        animate={this.state.optionsCollapseAnimateEnabled}
                         onAnimationEnd={
                             this.handleSearchOptionsCollapseAnimationEnd
                         }
