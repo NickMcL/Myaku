@@ -6,6 +6,7 @@
 import { recursivelyTransform } from 'ts/app/utils';
 
 import {
+    Indexable,
     KanaConvertType,
     PrimativeType,
     ResourceLinksResponse,
@@ -15,9 +16,12 @@ import {
     SearchResultPageResponse,
 } from 'ts/types/types';
 
-const REQUEST_CACHE_NAME = 'MyakuWebApiRequests';
-const MAX_CACHED_REQUESTS = 100;
+interface CachedResponse {
+    expireTime: number;
+    json: Indexable;
+}
 
+const CACHED_REQUEST_ORDER_KEY = 'CachedRequestOrder';
 const DEFAULT_RESPONSE_MAX_AGE = 1800;
 const CACHE_CONTROL_MAX_AGE_REGEX = /max-age=(\d+)/i;
 
@@ -34,15 +38,19 @@ function convertIsoFormatToDate(
     return new Date(isoFormatString);
 }
 
-function isExpired(response: Response): boolean {
+function isExpired(cachedResponse: CachedResponse): boolean {
+    return cachedResponse.expireTime <= (new Date()).getTime();
+}
+
+function getExpireTime(response: Response): number {
     var responseDate = response.headers.get('date');
     if (responseDate === null) {
-        return true;
+        return 0;
     }
 
     var responseTime = (new Date(responseDate)).getTime();
     if (isNaN(responseTime)) {
-        return true;
+        return 0;
     }
 
     var maxAge = DEFAULT_RESPONSE_MAX_AGE;
@@ -54,30 +62,81 @@ function isExpired(response: Response): boolean {
         }
     }
 
-    return (responseTime + (maxAge * 1000)) < (new Date()).getTime();
+    return (responseTime + (maxAge * 1000)) + 1;
 }
 
-async function moveToFrontOfCache(
-    request: Request, response: Response
-): Promise<void> {
-    var cache = await window.caches.open(REQUEST_CACHE_NAME);
-    await cache.delete(request);
-    await cache.put(request, response);
+function freeCacheSpace(): boolean {
+    var cachedRequestOrderStr = window.sessionStorage.getItem(
+        CACHED_REQUEST_ORDER_KEY
+    );
+    if (cachedRequestOrderStr === null) {
+        return false;
+    }
+
+    var cachedRequestOrder = JSON.parse(cachedRequestOrderStr) as string[];
+    var itemsToDelete = Math.ceil(cachedRequestOrder.length / 2);
+    for (let i = 0; i < itemsToDelete; ++i) {
+        window.sessionStorage.removeItem(cachedRequestOrder[i]);
+    }
+    window.sessionStorage.setItem(
+        CACHED_REQUEST_ORDER_KEY,
+        JSON.stringify(cachedRequestOrder.splice(0, itemsToDelete))
+    );
+
+    return (cachedRequestOrder.length - itemsToDelete) > 0;
+}
+
+function isOutOfSpaceException(exception: DOMException): boolean {
+    if (exception.code === 22 || exception.code === 1014) {
+        return true;
+    }
+    return false;
+}
+
+function freeSpaceAndCache(key: string, value: string): void {
+    var canFreeMore = true;
+    while (canFreeMore) {
+        try {
+            window.sessionStorage.setItem(key, value);
+            break;
+        } catch (e) {
+            if (isOutOfSpaceException(e)) {
+                canFreeMore = freeCacheSpace();
+            } else {
+                throw e;
+            }
+        }
+    }
+}
+
+function addToCachedRequestOrder(requestUrl: string): void {
+    var cachedRequestOrder: string[];
+    var cachedRequestOrderStr = window.sessionStorage.getItem(
+        CACHED_REQUEST_ORDER_KEY
+    );
+    if (cachedRequestOrderStr === null) {
+        cachedRequestOrder = [requestUrl];
+    } else {
+        cachedRequestOrder = JSON.parse(cachedRequestOrderStr) as string[];
+        cachedRequestOrder.push(requestUrl);
+    }
+
+    freeSpaceAndCache(
+        CACHED_REQUEST_ORDER_KEY, JSON.stringify(cachedRequestOrder)
+    );
 }
 
 async function cacheRequest(
-    request: Request, response: Response
-): Promise<void> {
-    var cache = await window.caches.open(REQUEST_CACHE_NAME);
-    var cachedRequests = await cache.keys();
-    const requestsToDelete = cachedRequests.length - MAX_CACHED_REQUESTS + 1;
-    if (requestsToDelete > 0) {
-        for (let i = 0; i < requestsToDelete; ++i) {
-            await cache.delete(cachedRequests[i]);
-        }
-    }
+    requestUrl: string, response: Response
+): Promise<Indexable> {
+    const cachedResponse: CachedResponse = {
+        expireTime: getExpireTime(response),
+        json: await response.json(),
+    };
+    addToCachedRequestOrder(requestUrl);
+    freeSpaceAndCache(requestUrl, JSON.stringify(cachedResponse));
 
-    await cache.put(request, response);
+    return cachedResponse.json;
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -87,15 +146,20 @@ async function fetchJson(url: string): Promise<unknown> {
         method: 'GET',
     };
 
-    var response = await window.caches.match(request);
-    if (response && !isExpired(response)) {
-        moveToFrontOfCache(request, response.clone());
-    } else {
-        response = await fetch(request, init);
-        cacheRequest(request, response.clone());
+    var responseJson = null;
+    const cachedResponseStr = window.sessionStorage.getItem(url);
+    if (cachedResponseStr !== null) {
+        const cachedResponse = JSON.parse(cachedResponseStr) as CachedResponse;
+        if (!isExpired(cachedResponse)) {
+            responseJson = cachedResponse.json;
+        }
     }
 
-    var responseJson = await response.json();
+    if (responseJson === null) {
+        const response = await fetch(request, init);
+        responseJson = await cacheRequest(url, response);
+    }
+
     recursivelyTransform(
         responseJson, convertIsoFormatToDate, isDatetimeKey
     );
