@@ -1,17 +1,9 @@
 /** @module Tile with sample searches component */
 
+import { Link } from 'react-router-dom';
 import React from 'react';
 import Tile from 'ts/components/generic/Tile';
-
-import {
-    DEFAULT_SEARCH_OPTIONS,
-    Search,
-} from 'ts/types/types';
-
-interface GettingStartedTileProps {
-    onSearchSubmit: (search: Search) => void;
-}
-type Props = GettingStartedTileProps;
+import { getSearchUrl } from 'ts/app/search';
 
 interface SampleSearch {
     query: string;
@@ -38,36 +30,16 @@ const SAMPLE_SEARCHES: SampleSearch[] = [
 ];
 
 
-function getSearchSubmitHandler(
-    query: string, onSearchSubmit: (search: Search) => void
-): (event: React.SyntheticEvent) => void {
-    return function(event: React.SyntheticEvent): void {
-        event.preventDefault();
-        onSearchSubmit({
-            query: query,
-            pageNum: 1,
-            options: DEFAULT_SEARCH_OPTIONS,
-        });
-    };
-}
-
-function getSampleSearchLis(
-    onSearchSubmit: (search: Search) => void
-): React.ReactElement[] {
+function getSampleSearchLis(): React.ReactElement[] {
     var sampleSearchLis: React.ReactElement[] = [];
     for (const sampleSearch of SAMPLE_SEARCHES) {
         sampleSearchLis.push(
             <li key={sampleSearch.query}>
                 {`${sampleSearch.explanation} - `}
                 <span className='japanese-text' lang='ja'>
-                    <a
-                        href={`/?q=${sampleSearch.query}`}
-                        onClick={getSearchSubmitHandler(
-                            sampleSearch.query, onSearchSubmit
-                        )}
-                    >
+                    <Link to={getSearchUrl(sampleSearch.query)}>
                         {sampleSearch.query}
-                    </a>
+                    </Link>
                 </span>
             </li>
         );
@@ -75,7 +47,7 @@ function getSampleSearchLis(
     return sampleSearchLis;
 }
 
-const GettingStartedTile: React.FC<Props> = function(props) {
+const GettingStartedTile: React.FC<{}> = function() {
     return (
         <Tile tileClasses='start-tile'>
             <h4 className='main-tile-header'>Getting Started</h4>
@@ -83,7 +55,7 @@ const GettingStartedTile: React.FC<Props> = function(props) {
                 Here are some sample searches to get started:
             </p>
             <ul className='myaku-ul'>
-                {getSampleSearchLis(props.onSearchSubmit)}
+                {getSampleSearchLis()}
             </ul>
         </Tile>
     );

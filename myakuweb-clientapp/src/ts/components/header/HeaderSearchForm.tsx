@@ -1,29 +1,35 @@
-/** @module Main header search form component  */
+/**
+ * Header Search query from component
+ * @module ts/components/header/HeaderSearchForm
+ */
 
 import Collapsable from 'ts/components/generic/Collapsable';
-import { PAGE_NAVIGATION_EVENT } from 'ts/app/events';
+import History from 'history';
 import React from 'react';
 import SearchBarInput from 'ts/components/header/SearchBarInput';
 import SearchOptionsCollapseToggle from
     'ts/components/header/SearchOptionsCollapseToggle';
 import SearchOptionsInput from 'ts/components/header/SearchOptionsInput';
-import { getSessionSearchOptions } from 'ts/app/apiRequests';
 
 import {
-    DEFAULT_SEARCH_OPTIONS,
-    KanaConvertType,
-    Search,
+    AllNullable,
     SearchOptions,
-    SessionSearchOptionsResponse,
-    isKanaConvertType,
     isSearchOption,
 } from 'ts/types/types';
+import {
+    applyDefaultSearchOptions,
+    getSearchOptionsFromLocation,
+    getSearchUrl,
+    loadUserSearchOptions,
+    setUserSearchOption,
+} from 'ts/app/search';
 
 interface HeaderSearchFormProps {
     searchQuery: string;
     loadingSearch: boolean;
-    onSearchSubmit: (search: Search) => void;
     onSearchQueryChange: (newValue: string) => void;
+    location: History.Location;
+    history: History.History;
 }
 type Props = HeaderSearchFormProps;
 
@@ -38,47 +44,23 @@ type State = HeaderSearchFormState;
 
 const MAX_QUERY_LENGTH = 100;
 
-const SEARCH_URL_PARAMS = {
-    pageNum: 'p',
-    kanaConvertType: 'conv',
-};
 
-
-function getPageNumUrlParam(): number | null {
-    var urlParams = new URLSearchParams(window.location.search);
-    var pageNumParamValue = urlParams.get(SEARCH_URL_PARAMS.pageNum);
-    if (pageNumParamValue === null) {
-        return null;
-    }
-
-    var pageNum = Number(pageNumParamValue);
-    if (Number.isInteger(pageNum) && pageNum > 0) {
-        return pageNum;
-    } else {
-        return null;
-    }
-}
-
-function getKanaConvertTypeUrlParam(
-    urlParams: URLSearchParams
-): KanaConvertType | null {
-    var kanaConvertTypeParamValue = urlParams.get(
-        SEARCH_URL_PARAMS.kanaConvertType
+function logNoIndexedDbWarning(): void {
+    console.warn(
+        'Unable to use IndexedDB, so user-specified search options will not '
+        + 'be stored across sessions.'
     );
-    if (isKanaConvertType(kanaConvertTypeParamValue)) {
-        return kanaConvertTypeParamValue;
-    } else {
-        return null;
-    }
 }
 
 class HeaderSearchForm extends React.Component<Props, State> {
     private _defaultSearchOptionUsed: Set<keyof SearchOptions>;
+    private _historyUnlistenCallback: History.UnregisterCallback | null;
 
     constructor(props: Props) {
         super(props);
         this.bindEventHandlers();
         this._defaultSearchOptionUsed = new Set<keyof SearchOptions>();
+        this._historyUnlistenCallback = null;
 
         this.state = {
             options: this.getInitSearchOptions(),
@@ -90,31 +72,30 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     componentDidMount(): void {
-        window.addEventListener('popstate', this.handlePageNavigation);
-        window.addEventListener(
-            PAGE_NAVIGATION_EVENT, this.handlePageNavigation
+        function handleHistoryChange(
+            this: HeaderSearchForm, location: History.Location
+        ): void {
+            if (location.pathname === '/') {
+                this.handleInputtedQueryChange('');
+            }
+            this.handlePageNavigation();
+        }
+        this._historyUnlistenCallback = this.props.history.listen(
+            handleHistoryChange.bind(this)
         );
 
-        if (this.props.searchQuery.length > 0) {
-            this.submitSearch({
-                query: this.props.searchQuery,
-                pageNum: getPageNumUrlParam() || 1,
-                options: this.state.options,
-            });
-        }
-
         if (this._defaultSearchOptionUsed.size > 0) {
-            getSessionSearchOptions().then(
-                this.handleSessionSearchOptionsResponse
+            loadUserSearchOptions().then(
+                this.handleLoadedUserSearchOptions,
+                logNoIndexedDbWarning
             );
         }
     }
 
     componentWillUnmount(): void {
-        window.removeEventListener('popstate', this.handlePageNavigation);
-        window.removeEventListener(
-            PAGE_NAVIGATION_EVENT, this.handlePageNavigation
-        );
+        if (this._historyUnlistenCallback !== null) {
+            this._historyUnlistenCallback();
+        }
     }
 
     bindEventHandlers(): void {
@@ -126,8 +107,8 @@ class HeaderSearchForm extends React.Component<Props, State> {
         this.handleSearchOptionsChange = (
             this.handleSearchOptionsChange.bind(this)
         );
-        this.handleSessionSearchOptionsResponse = (
-            this.handleSessionSearchOptionsResponse.bind(this)
+        this.handleLoadedUserSearchOptions = (
+            this.handleLoadedUserSearchOptions.bind(this)
         );
         this.handleSearchOptionsCollapseToggle = (
             this.handleSearchOptionsCollapseToggle.bind(this)
@@ -138,26 +119,20 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     getInitSearchOptions(): SearchOptions {
-        var urlParams = new URLSearchParams(window.location.search);
-        var kanaConvertType = getKanaConvertTypeUrlParam(urlParams);
-        if (kanaConvertType === null) {
-            kanaConvertType = DEFAULT_SEARCH_OPTIONS.kanaConvertType;
-            this._defaultSearchOptionUsed.add('kanaConvertType');
+        const locationOptions = getSearchOptionsFromLocation(
+            this.props.location
+        );
+        for (const optionKey of Object.keys(locationOptions)) {
+            if (!isSearchOption(optionKey)) {
+                continue;
+            }
+
+            if (locationOptions[optionKey] === null) {
+                this._defaultSearchOptionUsed.add(optionKey);
+            }
         }
 
-        return {
-            kanaConvertType: kanaConvertType,
-        };
-    }
-
-    submitSearch(search: Search): void {
-        if (search.query.length > MAX_QUERY_LENGTH) {
-            this.setState({
-                errorValueSubmitted: true,
-            });
-        } else {
-            this.props.onSearchSubmit(search);
-        }
+        return applyDefaultSearchOptions(locationOptions);
     }
 
     handlePageNavigation(): void {
@@ -171,11 +146,21 @@ class HeaderSearchForm extends React.Component<Props, State> {
 
     handleSubmit(event: React.FormEvent): void {
         event.preventDefault();
-        this.submitSearch({
-            query: this.props.searchQuery,
-            pageNum: 1,
-            options: this.state.options,
-        });
+        if (
+            this.props.searchQuery.length === 0
+            || this.props.searchQuery.length > MAX_QUERY_LENGTH
+        ) {
+            this.setState({
+                errorValueSubmitted: true,
+            });
+        } else {
+            var searchUrl = getSearchUrl({
+                query: this.props.searchQuery,
+                pageNum: 1,
+                options: this.state.options,
+            });
+            this.props.history.push(searchUrl);
+        }
     }
 
     handleInputtedQueryChange(newValue: string): void {
@@ -199,11 +184,14 @@ class HeaderSearchForm extends React.Component<Props, State> {
     ): void {
         function applyChange(
             this: HeaderSearchForm, prevState: State
-        ): {options: SearchOptions} {
+        ): Pick<State, 'options'> | null {
             if (newValue === prevState.options[changedOption]) {
-                return prevState;
+                return null;
             }
 
+            setUserSearchOption(changedOption, newValue).catch(
+                logNoIndexedDbWarning
+            );
             this._defaultSearchOptionUsed.delete(changedOption);
             return {
                 options: {
@@ -216,23 +204,24 @@ class HeaderSearchForm extends React.Component<Props, State> {
         this.setState(applyChange.bind(this));
     }
 
-    handleSessionSearchOptionsResponse(
-        response: SessionSearchOptionsResponse
+    handleLoadedUserSearchOptions(
+        loadedOptions: AllNullable<SearchOptions>
     ): void {
-        function applySessionSearchOptions(
+        function applyUserSearchOptions(
             this: HeaderSearchForm, prevState: State
-        ): {options: SearchOptions} {
+        ): Pick<State, 'options'> {
             var updatedOptions = {...prevState.options};
-            for (const searchOption of Object.keys(response)) {
-                if (!isSearchOption(searchOption)) {
+            for (const optionKey of Object.keys(updatedOptions)) {
+                if (!isSearchOption(optionKey)) {
                     continue;
                 }
 
+                const loadedOptionValue = loadedOptions[optionKey];
                 if (
-                    this._defaultSearchOptionUsed.has(searchOption)
-                    && response[searchOption] !== null
+                    this._defaultSearchOptionUsed.has(optionKey)
+                    && loadedOptionValue !== null
                 ) {
-                    updatedOptions[searchOption] = response[searchOption];
+                    updatedOptions[optionKey] = loadedOptionValue;
                 }
             }
             return {
@@ -240,7 +229,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
             };
         }
 
-        this.setState(applySessionSearchOptions.bind(this));
+        this.setState(applyUserSearchOptions.bind(this));
     }
 
     handleSearchOptionsCollapseToggle(): void {
@@ -273,6 +262,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
                 <form className='search-form' onSubmit={this.handleSubmit}>
                     <SearchBarInput
                         searchQuery={this.props.searchQuery}
+                        loading={this.props.loadingSearch}
                         maxQueryLength={MAX_QUERY_LENGTH}
                         errorValueSubmitted={this.state.errorValueSubmitted}
                         onChange={this.handleInputtedQueryChange}

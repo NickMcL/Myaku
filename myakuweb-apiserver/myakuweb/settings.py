@@ -65,7 +65,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'search.middleware.NoCacheMiddleware',
+    'search.middleware.ShortCacheMiddleware',
     'search.middleware.LogRequestMiddleware',
 ]
 

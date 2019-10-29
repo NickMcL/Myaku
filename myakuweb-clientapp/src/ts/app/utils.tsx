@@ -6,7 +6,6 @@
 import {
     Indexable,
     PrimativeType,
-    Search,
     isIndexable,
     isPrimativeType,
 } from 'ts/types/types';
@@ -68,18 +67,6 @@ export function recursivelyTransform(
  */
 export function reflow(element: HTMLElement): number {
     return element.offsetHeight;
-}
-
-/**
- * Get a URL that will make the given search when loaded.
- */
-export function getSearchUrl(search: Search): string {
-    return (
-        '/'
-        + `?q=${search.query}`
-        + `&p=${search.pageNum}`
-        + `&conv=${search.options.kanaConvertType}`
-    );
 }
 
 /**

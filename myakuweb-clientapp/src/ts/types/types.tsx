@@ -1,5 +1,9 @@
 /* Types used across the MyakuWeb project */
 
+export type AllNullable<T> = {
+    [P in keyof T]: T[P] | null;
+};
+
 export type PrimativeType = string | number | symbol | null | undefined;
 
 export function isPrimativeType(value: unknown): value is PrimativeType {
@@ -41,10 +45,6 @@ export const SEARCH_OPTIONS: Array<keyof SearchOptions> = [
     'kanaConvertType',
 ];
 
-export const DEFAULT_SEARCH_OPTIONS: SearchOptions = {
-    kanaConvertType: 'hira',
-};
-
 export function isSearchOption(value: unknown): value is keyof SearchOptions {
     if (typeof value !== 'string') {
         return false;
@@ -61,10 +61,6 @@ export interface Search {
     query: string;
     pageNum: number;
     options: SearchOptions;
-}
-
-export interface SessionSearchOptionsResponse {
-    readonly kanaConvertType: KanaConvertType;
 }
 
 export interface ArticleSampleTextSegment {

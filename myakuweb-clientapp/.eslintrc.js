@@ -246,7 +246,7 @@ module.exports = {
             'error',
             4,
             {
-                'checkAttributes': true,
+                'checkAttributes': false,
                 'indentLogicalExpressions': true,
             },
         ],
@@ -255,7 +255,7 @@ module.exports = {
             4,
         ],
         'react/jsx-key': 'error',
-        'react/jsx-no-bind': 'error',
+        'react/jsx-no-bind': 'off',
         'react/jsx-no-useless-fragment': 'error',
         'react/jsx-fragments': [
             'error',

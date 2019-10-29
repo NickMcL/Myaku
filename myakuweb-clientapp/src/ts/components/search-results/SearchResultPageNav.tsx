@@ -3,10 +3,11 @@
  * @module ts/components/search-results/SearchResultPageNav
  */
 
+import { Link } from 'react-router-dom';
 import React from 'react';
 import Tile from 'ts/components/generic/Tile';
 import { ViewportSize } from 'ts/app/viewport';
-import { getSearchUrl } from 'ts/app/utils';
+import { getSearchUrl } from 'ts/app/search';
 import useViewportReactiveValue from 'ts/hooks/useViewportReactiveValue';
 
 import {
@@ -19,7 +20,6 @@ interface SearchResultPageNavProps {
     hasNextPage: boolean;
     maxPageReached: boolean;
     loadingPageDirection: PageDirection | null;
-    onPageChange: (newPageNum: number) => void;
 }
 type Props = SearchResultPageNavProps;
 
@@ -52,13 +52,18 @@ const VIEWPORT_MAX_PAGE_TEXT = {
 };
 
 
-function getPageNavClickHandler(
-    newPageNum: number, onPageChange: (newPageNum: number) => void
-): (event: React.SyntheticEvent) => void {
-    return function(event: React.SyntheticEvent): void {
-        event.preventDefault();
-        onPageChange(newPageNum);
-    };
+function getPageLoadingIcon(
+    loadingDirection: PageDirection | null, linkDirection: PageDirection
+): React.ReactElement | null {
+    if (loadingDirection === null) {
+        return null;
+    }
+
+    if (loadingDirection === linkDirection) {
+        return <div className='content-loading-page-spinner'></div>;
+    } else {
+        return null;
+    }
 }
 
 function usePreviousPageLink(props: Props): React.ReactElement | null {
@@ -74,14 +79,15 @@ function usePreviousPageLink(props: Props): React.ReactElement | null {
         ...props.search,
         pageNum: prevPageNum,
     });
-    const handlePrevPageNav = getPageNavClickHandler(
-        prevPageNum, props.onPageChange
+    const loadingIcon = getPageLoadingIcon(
+        props.loadingPageDirection, PageDirection.Previous
     );
     return (
-        <a key='previous' href={prevPageLink} onClick={handlePrevPageNav}>
+        <Link key='previous' to={prevPageLink}>
             <i className='fa fa-arrow-left'></i>
-            {` ${prevPageLinkText}`}
-        </a>
+            {` ${prevPageLinkText} `}
+            {loadingIcon}
+        </Link>
     );
 }
 
@@ -130,14 +136,15 @@ function useNextPageLink(props: Props): React.ReactElement {
         ...props.search,
         pageNum: nextPageNum,
     });
-    const handleNextPageNav = getPageNavClickHandler(
-        nextPageNum, props.onPageChange
+    const loadingIcon = getPageLoadingIcon(
+        props.loadingPageDirection, PageDirection.Next
     );
     return (
-        <a key='next' href={nextPageLink} onClick={handleNextPageNav}>
-            {`${nextPageLinkText} `}
+        <Link key='next' to={nextPageLink}>
+            {loadingIcon}
+            {` ${nextPageLinkText} `}
             <i className='fa fa-arrow-right'></i>
-        </a>
+        </Link>
     );
 }
 

@@ -5,9 +5,15 @@
 
 import 'scss/myakuweb.scss';
 
-import MyakuWeb from 'ts/components/MyakuWeb';
+import { BrowserRouter } from 'react-router-dom';
+import MyakuWebRouter from 'ts/components/MyakuWebRouter';
 import React from 'react';
 import ReactDOM from 'react-dom';
 
 
-ReactDOM.render(<MyakuWeb />, document.getElementById('root'));
+ReactDOM.render(
+    <BrowserRouter>
+        <MyakuWebRouter />
+    </BrowserRouter>,
+    document.getElementById('root')
+);

@@ -16,7 +16,6 @@ import {
 interface SearchResultPageTilesProps {
     resultPage: SearchResultPage;
     loadingPageNum: number | null;
-    onPageChange: (newPageNum: number) => void;
 }
 type Props = SearchResultPageTilesProps;
 
@@ -73,7 +72,6 @@ function getPageNav(props: Props): React.ReactNode {
             loadingPageDirection={
                 getLoadingPageDirection(pageNum, props.loadingPageNum)
             }
-            onPageChange={props.onPageChange}
         />
     );
 }

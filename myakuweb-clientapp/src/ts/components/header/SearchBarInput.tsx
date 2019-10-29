@@ -11,6 +11,7 @@ import useViewportReactiveValue from 'ts/hooks/useViewportReactiveValue';
 
 interface SearchBarInputProps {
     searchQuery: string;
+    loading: boolean;
     maxQueryLength: number;
     errorValueSubmitted: boolean;
     onChange: (searchQuery: string) => void;
@@ -34,7 +35,7 @@ const VIEWPORT_PLACEHOLDERS = {
 
 function useSearchInput(
     currentValue: string, handleChange: (value: string) => void,
-    errorState: ErrorState
+    loading: boolean, errorState: ErrorState
 ): React.ReactElement {
     const placeholder = useViewportReactiveValue(
         DEFAULT_PLACEHOLDER, VIEWPORT_PLACEHOLDERS
@@ -56,19 +57,21 @@ function useSearchInput(
             aria-label='Search input'
             value={currentValue}
             placeholder={placeholder}
+            readOnly={loading}
             onChange={useInputChangeHandler(handleChange)}
         />
     );
 }
 
 function useSearchClearButton(
-    handleChange: (value: string) => void
+    handleChange: (value: string) => void, loading: boolean
 ): React.ReactElement {
     return (
         <button
             className='search-clear'
             type='button'
             aria-label='Search clear'
+            disabled={loading}
             onClick={useInputClearHandler(handleChange)}
         >
             <i className='fa fa-times'></i>
@@ -76,42 +79,66 @@ function useSearchClearButton(
     );
 }
 
-function getSearchSubmitButton(): React.ReactElement {
+function getSearchSubmitButton(loading: boolean): React.ReactElement {
+    var icon = <i className='fa fa-search'></i>;
+    if (loading) {
+        icon = <div className='content-loading-query-spinner'></div>;
+    }
     return (
         <button
             className='search-submit'
             type='submit'
             aria-label='Search submit button'
+            disabled={loading}
         >
-            <i className='fa fa-search'></i>
+            {icon}
         </button>
+    );
+}
+
+function getNoQueryErrorElement(className: string): React.ReactElement {
+    return <p className={className}>No search query entered</p>;
+}
+
+function getQueryTooLongErrorElement(
+    className: string, inputtedQuery: string, maxQueryLength: number,
+    errorState: ErrorState
+): React.ReactElement {
+    var action = 'Inputted';
+    if (errorState === ErrorState.Error) {
+        action = 'Submitted';
+    }
+    return (
+        <p className={className}>
+            <span>{`${action} search query is too long `}</span>
+            <span>
+                {`(${inputtedQuery.length} / ${maxQueryLength} characters)`}
+            </span>
+        </p>
     );
 }
 
 function getErrorMessageElement(
     inputtedQuery: string, maxQueryLength: number, errorState: ErrorState
 ): React.ReactElement | null {
-    if (
-        errorState === ErrorState.OK
-        || inputtedQuery.length <= maxQueryLength
-    ) {
+    var className;
+    if (errorState == ErrorState.Warning) {
+        className = 'input-warning-text';
+    } else if (errorState === ErrorState.Error) {
+        className = 'input-error-text';
+    } else {
         return null;
     }
 
-    var className = 'input-warning-text';
-    var action = 'Inputted';
-    if (errorState === ErrorState.Error) {
-        action = 'Submitted';
-        className = 'input-error-text';
+    if (inputtedQuery.length === 0) {
+        return getNoQueryErrorElement(className);
+    } else if (inputtedQuery.length > maxQueryLength) {
+        return getQueryTooLongErrorElement(
+            className, inputtedQuery, maxQueryLength, errorState
+        );
+    } else {
+        return null;
     }
-    return (
-        <p className={className}>
-            <span>{`${action} query is too long `}</span>
-            <span>
-                {`(${inputtedQuery.length} / ${maxQueryLength} characters)`}
-            </span>
-        </p>
-    );
 }
 
 function getErrorState(
@@ -133,9 +160,12 @@ const SearchBarInput: React.FC<Props> = function(props) {
     return (
         <React.Fragment>
             <div className='search-bar'>
-                {useSearchInput(props.searchQuery, props.onChange, errorState)}
-                {useSearchClearButton(props.onChange)}
-                {getSearchSubmitButton()}
+                {useSearchInput(
+                    props.searchQuery, props.onChange, props.loading,
+                    errorState
+                )}
+                {useSearchClearButton(props.onChange, props.loading)}
+                {getSearchSubmitButton(props.loading)}
             </div>
             {getErrorMessageElement(
                 props.searchQuery, props.maxQueryLength, errorState

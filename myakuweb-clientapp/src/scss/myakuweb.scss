@@ -13,13 +13,15 @@ $md-min-width: 768px;
 $lg-min-width: 992px;
 $xl-min-width: 1200px;
 
-$body-bg-color: #f8f9fa;  // Light gray
+$body-bg-color: #f8f9fa;
 $myaku-color: #1d4381;  // Myaku logo color
 $link-color: #5272a6;
 $badge-color: #126b9c;
 $muted-text-color: #6c757d;
 $input-text-color: #495057;
 $input-border-color: #ced4da;
+$input-disabled-color: #e9ecef;
+
 $warning-text-color: #856404;
 $warning-border-color: #ffeeba;
 $error-text-color: #721c24;
@@ -121,6 +123,12 @@ blockquote > footer::before {
     border: 2px solid $error-border-color !important;
 }
 
+.form-disabled {
+    background-color: $input-disabled-color;
+    opacity: 1;
+}
+
+
 /* Collapse animations */
 .collapse:not(.show) {
     display: none;
@@ -133,16 +141,96 @@ blockquote > footer::before {
     transition: height 0.35s ease;
 }
 
+/* Content loading indicators */
+.content-loader-dots {
+    display: flex;
+    justify-content: center;
+
+    width: 100%;
+    padding: 0.75rem;
+    background-color: rgba(0, 0, 0, 0.03);
+
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
+}
+
+.content-loader-dots > div {
+    width: 1.25rem;
+    height: 1.25rem;
+
+    margin: 2rem 0.3rem;
+    background: $myaku-color;
+    border-radius: 50%;
+
+    animation: 600ms bounce infinite alternate;
+}
+
+.content-loader-dots > div:nth-child(2) {
+    animation-delay: 200ms;
+}
+
+.content-loader-dots > div:nth-child(3) {
+    animation-delay: 400ms;
+}
+
+@keyframes bounce {
+    to {
+        opacity: 0.3;
+        transform: translate3d(0, -1rem, 0);
+    }
+}
+
+.content-loading-query-spinner {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    border: 0.25rem solid white;
+    border-top-color: black;
+
+    animation: 600ms spin infinite linear;
+}
+
+.content-loading-page-spinner {
+    display: inline-block;
+
+    width: 1rem;
+    height: 1rem;
+    margin-left: 0.25rem;
+    margin-right: 0.25rem;
+    border-radius: 50%;
+    border: 0.25rem solid rgba(0, 0, 0, 0.2);
+    border-top-color: $myaku-color;
+
+    animation: 600ms spin infinite linear;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (min-width: $sm-min-width) {
+    .content-loader-dots > div {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+}
+
 
 /* Responsive width container class for all page content */
 .content-container {
     width: 100%;
     margin: 0 auto;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 
 @media (min-width: $sm-min-width) {
     .content-container {
         max-width: 540px;
+        padding-left: 0;
+        padding-right: 0;
     }
 }
 

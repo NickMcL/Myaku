@@ -314,17 +314,6 @@ class SearchQueryArticleResult(object):
         return tag_strs
 
 
-def get_request_convert_type(request: HttpRequest) -> str:
-    """Get the romaji conversion type for the request.
-
-    Updates the request session with the convert type value for the request as
-    well.
-    """
-    convert_type = request.GET[REQUEST_KANA_CONVERT_TYPE_KEY]
-    request.session[REQUEST_KANA_CONVERT_TYPE_KEY] = convert_type
-    return convert_type
-
-
 def get_request_query_str(request: HttpRequest) -> str:
     """Get the query string for a request.
 
@@ -332,7 +321,7 @@ def get_request_query_str(request: HttpRequest) -> str:
     method specified in the request.
     """
     query_str = utils.normalize_char_width(request.GET[REQUEST_QUERY_KEY])
-    convert_type = get_request_convert_type(request)
+    convert_type = request.GET[REQUEST_KANA_CONVERT_TYPE_KEY]
     if convert_type == KANA_CONVERT_TYPE_HIRAGANA:
         query_str = romkan.to_hiragana(query_str)
     elif convert_type == KANA_CONVERT_TYPE_KATAKANA:
@@ -421,15 +410,3 @@ def resource_links(request: HttpRequest) -> JsonResponse:
     """
     query_resource_links = QueryResourceLinks(get_request_query_str(request))
     return JsonResponse(query_resource_links.json())
-
-
-@validate_request_params([])
-def session_search_options(request: HttpRequest) -> JsonResponse:
-    """Handle session search options API requests.
-
-    Returns the search options currently set for the session. If an option is
-    not specified in the session, its value will be null in the response.
-    """
-    return JsonResponse({
-        'kanaConvertType': request.session.get(REQUEST_KANA_CONVERT_TYPE_KEY),
-    })

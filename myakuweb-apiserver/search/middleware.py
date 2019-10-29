@@ -14,21 +14,21 @@ _log = logging.getLogger(__name__)
 utils.toggle_myaku_package_log(filename_base='myakuweb', package='search')
 
 
-class NoCacheMiddleware(object):
-    """Set headers in all responses to prevent client caching."""
+class ShortCacheMiddleware(object):
+    """Set headers in all responses for brief client caching."""
 
     _CACHE_CONTROL_HEADER = 'Cache-Control'
+    _CACHE_DURATION = 1800  # 30 minutes
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
         """Set the get_response callable to use for the middleware."""
         self._get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        """Set headers in response to prevent client caching.
+        """Set headers in response for brief client caching.
 
-        Uses the Cache-Control headers to enforce that the client always checks
-        with the server for changes when a resource is requested instead of
-        directly using a cached response.
+        Uses the Cache-Control headers to request that the client caches the
+        response for a brief duration.
 
         Will not modify the Cache-Control header if it is already set on the
         request.
@@ -36,7 +36,9 @@ class NoCacheMiddleware(object):
         response = self._get_response(request)
 
         if not response.has_header(self._CACHE_CONTROL_HEADER):
-            response[self._CACHE_CONTROL_HEADER] = 'no-cache'
+            response[self._CACHE_CONTROL_HEADER] = (
+                f'public, max-age={self._CACHE_DURATION}'
+            )
 
         return response
 
