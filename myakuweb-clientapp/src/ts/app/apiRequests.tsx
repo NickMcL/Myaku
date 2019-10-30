@@ -15,14 +15,17 @@ import {
     SearchResultPageResponse,
 } from 'ts/types/types';
 
-interface CachedResponse {
+interface ApiResponse {
     expireTime: number;
     json: unknown;
 }
 
+const API_RESPONSE_ERROR_KEY = 'errors';
+
 const CACHED_REQUEST_ORDER_KEY = 'CachedRequestOrder';
-const DEFAULT_RESPONSE_MAX_AGE = 1800;
+const DEFAULT_RESPONSE_MAX_AGE = 3600;  // in seconds
 const CACHE_CONTROL_MAX_AGE_REGEX = /max-age=(\d+)/i;
+
 
 function isDatetimeKey(key: string): boolean {
     return key.endsWith('Datetime');
@@ -37,8 +40,8 @@ function convertIsoFormatToDate(
     return new Date(isoFormatString);
 }
 
-function isExpired(cachedResponse: CachedResponse): boolean {
-    return cachedResponse.expireTime <= (new Date()).getTime();
+function isExpired(apiResponse: ApiResponse): boolean {
+    return apiResponse.expireTime <= (new Date()).getTime();
 }
 
 function getExpireTime(response: Response): number {
@@ -133,34 +136,65 @@ function addToCachedRequestOrder(requestUrl: string): void {
     );
 }
 
-async function cacheResponse(
-    requestUrl: string, response: Response
-): Promise<unknown> {
-    const cachedResponse: CachedResponse = {
-        expireTime: getExpireTime(response),
-        json: await response.json(),
-    };
+function cacheApiResponse(
+    requestUrl: string, apiResponse: ApiResponse
+): void {
     addToCachedRequestOrder(requestUrl);
-    freeSpaceAndCache(requestUrl, JSON.stringify(cachedResponse));
-
-    return cachedResponse.json;
+    freeSpaceAndCache(requestUrl, JSON.stringify(apiResponse));
 }
 
-async function fetchJson(url: string): Promise<unknown> {
-    const request = new Request(url);
+function isNonArrayObject(value: unknown): boolean {
+    return (
+        typeof value === 'object'
+        && value !== null
+        && !(value instanceof Array)
+    );
+}
 
+async function fetchApiRequest(requestUrl: string): Promise<ApiResponse> {
+    const response = await fetch(requestUrl);
+    if (!response.ok) {
+        throw new Error(
+            `Request for ${requestUrl} failed with status: `
+            + `${response.status} - ${response.statusText}`
+        );
+    }
+
+    const responseJson = await response.json();
+    if (!isNonArrayObject(responseJson)) {
+        throw new Error(
+            `Response JSON for ${requestUrl} request is not a non-array `
+            + `object: "${JSON.stringify(responseJson)}"`
+        );
+    }
+
+    if (responseJson[API_RESPONSE_ERROR_KEY] !== undefined) {
+        throw new Error(
+            `Response JSON for ${requestUrl} request contains errors: `
+            + `"${JSON.stringify(responseJson)}"`
+        );
+    }
+
+    return {
+        expireTime: getExpireTime(response),
+        json: responseJson,
+    };
+}
+
+async function fetchApiJson(url: string): Promise<unknown> {
     var responseJson: unknown | null = null;
-    const cachedResponseStr = window.sessionStorage.getItem(url);
-    if (cachedResponseStr !== null) {
-        const cachedResponse = JSON.parse(cachedResponseStr) as CachedResponse;
-        if (!isExpired(cachedResponse)) {
-            responseJson = cachedResponse.json;
+    const apiResponseStr = window.sessionStorage.getItem(url);
+    if (apiResponseStr !== null) {
+        const apiResponse = JSON.parse(apiResponseStr) as ApiResponse;
+        if (!isExpired(apiResponse)) {
+            responseJson = apiResponse.json;
         }
     }
 
     if (responseJson === null) {
-        const response = await fetch(request);
-        responseJson = await cacheResponse(url, response);
+        const apiResponse = await fetchApiRequest(url);
+        cacheApiResponse(url, apiResponse);
+        responseJson = apiResponse.json;
     }
 
     recursivelyTransform(
@@ -179,7 +213,7 @@ export async function getSearchResultPage(
         + `&conv=${search.options.kanaConvertType}`
     );
     var response = await (
-        fetchJson(requestUrl) as Promise<SearchResultPageResponse>
+        fetchApiJson(requestUrl) as Promise<SearchResultPageResponse>
     );
 
     return {
@@ -200,7 +234,7 @@ export async function getSearchResources(
 ): Promise<SearchResources> {
     var requestUrl = `/api/resource-links?q=${query}&conv=${kanaConvertType}`;
     var response = await (
-        fetchJson(requestUrl) as Promise<ResourceLinksResponse>
+        fetchApiJson(requestUrl) as Promise<ResourceLinksResponse>
     );
 
     return {

@@ -5,6 +5,7 @@
 
 import History from 'history';
 import React from 'react';
+import SearchFailedTile from 'ts/components/search-results/SearchFailedTile';
 import SearchResourceTiles from
     'ts/components/search-results/SearchResourceTiles';
 import SearchResultPageTiles from
@@ -26,11 +27,6 @@ import {
     getSearchWithResources,
 } from 'ts/app/apiRequests';
 
-const enum SearchType {
-    NewQuery = 'query',
-    NewPage = 'page',
-}
-
 interface SearchResultsProps {
     onSearchQueryChange: (newValue: string) => void;
     onLoadingNewSearchQueryChange: (loading: boolean) => void;
@@ -41,13 +37,14 @@ type Props = SearchResultsProps;
 
 interface SearchResultsState {
     requestedSearch: Search | null;
-    requestedSearchType: SearchType | null;
     loadedSearch: Search | null;
     searchResultPage: SearchResultPage | null;
     searchResources: SearchResources | null;
     showResultsLoadingTiles: boolean;
     showResourcesLoadingTiles: boolean;
     showPageNavLoadingIndicator: boolean;
+    searchFailed: boolean;
+    searchFailErrorMessage: string | null;
 }
 type State = SearchResultsState;
 
@@ -55,11 +52,9 @@ type LoadingTileState = (
     Pick<State, 'showResultsLoadingTiles' | 'showResourcesLoadingTiles'>
 );
 
-type RequestedSearchState = (
-    Pick<State, 'requestedSearch' | 'requestedSearchType'>
+type SearchResponseState = (
+    Omit<State, 'searchFailed' | 'searchFailErrorMessage'>
 );
-
-type SearchResponseState = Omit<State, 'requestedSearchType'>;
 
 type SearchResponse = SearchResultPage | [SearchResultPage, SearchResources];
 
@@ -73,7 +68,8 @@ function getDocumentTitle(search: Search): string {
 function isSearchLoading(search: Search, state: State, props: Props): boolean {
     const urlSearch = getSearchFromLocation(props.location);
     if (
-        !isSearchEqual(search, urlSearch)
+        state.searchFailed
+        || !isSearchEqual(search, urlSearch)
         || isSearchEqual(search, state.loadedSearch)
     ) {
         return false;
@@ -90,13 +86,14 @@ class SearchResults extends React.Component<Props, State> {
         this._historyUnlistenCallback = null;
         this.state = {
             requestedSearch: null,
-            requestedSearchType: null,
             loadedSearch: null,
             searchResultPage: null,
             searchResources: null,
             showResultsLoadingTiles: false,
             showResourcesLoadingTiles: false,
             showPageNavLoadingIndicator: false,
+            searchFailed: false,
+            searchFailErrorMessage: null,
         };
     }
 
@@ -131,6 +128,7 @@ class SearchResults extends React.Component<Props, State> {
             || this.state.showResourcesLoadingTiles
             || this.state.showPageNavLoadingIndicator
         ) {
+            this.props.onLoadingNewSearchQueryChange(false);
             this.setState({
                 showResultsLoadingTiles: false,
                 showResourcesLoadingTiles: false,
@@ -139,17 +137,34 @@ class SearchResults extends React.Component<Props, State> {
         }
     }
 
+    clearSearchError(): void {
+        function updateState(prevState: State): (
+            Pick<State, 'searchFailed' | 'searchFailErrorMessage'> | null
+        ) {
+            if (!prevState.searchFailed) {
+                return null;
+            }
+
+            return {
+                searchFailed: false,
+                searchFailErrorMessage: null,
+            };
+        }
+
+        this.setState(updateState);
+    }
+
     handleHistoryChange(
         location: History.Location, action: History.Action
     ): void {
-        if (action !== 'POP') {
-            return;
-        }
+        this.clearSearchError();
 
-        const search = getSearchFromLocation(location);
-        setTimeout(
-            this.getShowTilesLoadingHandler(search), SHOW_LOADING_TIMEOUT
-        );
+        if (action === 'POP') {
+            const search = getSearchFromLocation(location);
+            setTimeout(
+                this.getShowTilesLoadingHandler(search), SHOW_LOADING_TIMEOUT
+            );
+        }
     }
 
     handleLocationChange(): void {
@@ -160,11 +175,17 @@ class SearchResults extends React.Component<Props, State> {
             return;
         }
 
-        if (isSearchEqual(search, this.state.loadedSearch)) {
+        if (
+            this.state.searchFailed
+            || isSearchEqual(search, this.state.loadedSearch)
+        ) {
             this.disableLoadingIndicators();
         }
 
-        if (!isSearchEqual(search, this.state.requestedSearch)) {
+        if (
+            !this.state.searchFailed
+            && !isSearchEqual(search, this.state.requestedSearch)
+        ) {
             this.handleSearchRequest(search);
         }
     }
@@ -172,35 +193,61 @@ class SearchResults extends React.Component<Props, State> {
     handleSearchRequest(search: Search): void {
         function updateState(
             this: SearchResults, prevState: State, props: Props
-        ): RequestedSearchState {
-            var searchType: SearchType;
+        ): Pick<State, 'requestedSearch'> {
             var showLoadingHandler: () => void;
+            var searchResponsePromise: Promise<SearchResponse>;
             if (
                 prevState.loadedSearch !== null
                 && search.query === prevState.loadedSearch.query
             ) {
-                searchType = SearchType.NewPage;
                 showLoadingHandler = this.getShowPageNavLoadingHandler(search);
-                getSearchResultPage(search).then(
-                    this.getSearchResponseHandler(search)
-                );
+                searchResponsePromise = getSearchResultPage(search);
             } else {
-                searchType = SearchType.NewQuery;
                 showLoadingHandler = this.getShowTilesLoadingHandler(search);
-                getSearchWithResources(search).then(
-                    this.getSearchResponseHandler(search)
-                );
+                searchResponsePromise = getSearchWithResources(search);
             }
+            searchResponsePromise.then(
+                this.getSearchResponseHandler(search),
+                this.getSearchFailureHandler(search)
+            );
 
             props.onSearchQueryChange(search.query);
             setTimeout(showLoadingHandler, SHOW_LOADING_TIMEOUT);
             return {
                 requestedSearch: search,
-                requestedSearchType: searchType,
             };
         }
 
         this.setState(updateState.bind(this));
+    }
+
+    getSearchFailureHandler(search: Search): (error: Error) => void {
+        function handler(this: SearchResults, error: Error): void {
+            function updateState(prevState: State, props: Props): (
+                State | null
+            ) {
+                if (!isSearchEqual(search, prevState.requestedSearch)) {
+                    return null;
+                }
+
+                props.onLoadingNewSearchQueryChange(false);
+                return {
+                    searchFailed: true,
+                    searchFailErrorMessage: `${error.name}: ${error.message}`,
+                    requestedSearch: null,
+                    loadedSearch: null,
+                    searchResultPage: null,
+                    searchResources: null,
+                    showResultsLoadingTiles: false,
+                    showResourcesLoadingTiles: false,
+                    showPageNavLoadingIndicator: false,
+                };
+            }
+
+            this.setState(updateState);
+        }
+
+        return handler.bind(this);
     }
 
     getShowTilesLoadingHandler(loadingSearch: Search): () => void {
@@ -333,6 +380,10 @@ class SearchResults extends React.Component<Props, State> {
     }
 
     render(): React.ReactElement {
+        if (this.state.searchFailed) {
+            return <SearchFailedTile />;
+        }
+
         return (
             <React.Fragment>
                 <SearchResultPageTiles

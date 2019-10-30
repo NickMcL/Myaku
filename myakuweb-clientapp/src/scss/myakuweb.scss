@@ -374,10 +374,12 @@ blockquote > footer::before {
     display: inline-block;
 }
 
+.warning-text,
 .input-warning-text {
     color: $warning-text-color;
 }
 
+.error-text,
 .input-error-text {
     color: $error-text-color;
 }

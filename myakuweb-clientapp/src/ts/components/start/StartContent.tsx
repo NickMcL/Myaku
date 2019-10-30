@@ -1,4 +1,7 @@
-/** @module Start page content for MyakuWeb */
+/**
+ * Start page content for MyakuWeb.
+ * @module ts/components/start/StartContent
+ */
 
 import GettingStartedTile from 'ts/components/start/GettingStartedTile';
 import React from 'react';
@@ -9,7 +12,7 @@ import { useEffect } from 'react';
 const StartContent: React.FC<{}> = function() {
     useEffect(function() {
         document.title = 'Myaku';
-    });
+    }, []);
 
     return (
         <div className='start-tile-container'>

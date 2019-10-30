@@ -18,7 +18,7 @@ class ShortCacheMiddleware(object):
     """Set headers in all responses for brief client caching."""
 
     _CACHE_CONTROL_HEADER = 'Cache-Control'
-    _CACHE_DURATION = 1800  # 30 minutes
+    _CACHE_DURATION = 3600  # 1 hour
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
         """Set the get_response callable to use for the middleware."""
