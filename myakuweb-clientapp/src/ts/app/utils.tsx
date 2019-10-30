@@ -4,7 +4,6 @@
  */
 
 import {
-    Indexable,
     PrimativeType,
     isIndexable,
     isPrimativeType,
@@ -41,10 +40,14 @@ const MONTH_SHORT_NAME_MAP: MonthMap = {
  * true when given to this function will have their values transformed.
  */
 export function recursivelyTransform(
-    obj: Indexable,
+    obj: unknown,
     transformFunc: (value: PrimativeType) => unknown,
     condFunc?: (key: string, value: PrimativeType) => boolean
 ): void {
+    if (!isIndexable(obj)) {
+        return;
+    }
+
     for (const [key, value] of Object.entries(obj)) {
         if (isIndexable(value) && typeof value !== 'function') {
             recursivelyTransform(value, transformFunc, condFunc);

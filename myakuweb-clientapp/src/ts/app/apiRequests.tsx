@@ -1,12 +1,11 @@
 /**
- * Functions for making requests to MyakuWeb API.
+ * Functions for making requests to the MyakuWeb API.
  * @module ts/app/apiRequests
  */
 
 import { recursivelyTransform } from 'ts/app/utils';
 
 import {
-    Indexable,
     KanaConvertType,
     PrimativeType,
     ResourceLinksResponse,
@@ -18,7 +17,7 @@ import {
 
 interface CachedResponse {
     expireTime: number;
-    json: Indexable;
+    json: unknown;
 }
 
 const CACHED_REQUEST_ORDER_KEY = 'CachedRequestOrder';
@@ -43,18 +42,18 @@ function isExpired(cachedResponse: CachedResponse): boolean {
 }
 
 function getExpireTime(response: Response): number {
-    var responseDate = response.headers.get('date');
+    const responseDate = response.headers.get('date');
     if (responseDate === null) {
         return 0;
     }
 
-    var responseTime = (new Date(responseDate)).getTime();
+    const responseTime = (new Date(responseDate)).getTime();
     if (isNaN(responseTime)) {
         return 0;
     }
 
     var maxAge = DEFAULT_RESPONSE_MAX_AGE;
-    var cacheControlSetting = response.headers.get('cache-control');
+    const cacheControlSetting = response.headers.get('cache-control');
     if (cacheControlSetting !== null) {
         const match = CACHE_CONTROL_MAX_AGE_REGEX.exec(cacheControlSetting);
         if (match !== null) {
@@ -62,11 +61,15 @@ function getExpireTime(response: Response): number {
         }
     }
 
+    // maxAge is in seconds while responseTime is in milliseconds, so must
+    // multiply maxAge by 1000 to convert it to milliseconds.
+    // A response expires the second after responseTime + maxAge, so 1 must be
+    // added to get the expire time.
     return (responseTime + (maxAge * 1000)) + 1;
 }
 
 function freeCacheSpace(): boolean {
-    var cachedRequestOrderStr = window.sessionStorage.getItem(
+    const cachedRequestOrderStr = window.sessionStorage.getItem(
         CACHED_REQUEST_ORDER_KEY
     );
     if (cachedRequestOrderStr === null) {
@@ -74,7 +77,11 @@ function freeCacheSpace(): boolean {
     }
 
     var cachedRequestOrder = JSON.parse(cachedRequestOrderStr) as string[];
-    var itemsToDelete = Math.ceil(cachedRequestOrder.length / 2);
+    if (cachedRequestOrder.length === 0) {
+        return false;
+    }
+
+    const itemsToDelete = Math.ceil(cachedRequestOrder.length / 2);
     for (let i = 0; i < itemsToDelete; ++i) {
         window.sessionStorage.removeItem(cachedRequestOrder[i]);
     }
@@ -82,11 +89,11 @@ function freeCacheSpace(): boolean {
         CACHED_REQUEST_ORDER_KEY,
         JSON.stringify(cachedRequestOrder.splice(0, itemsToDelete))
     );
-
-    return (cachedRequestOrder.length - itemsToDelete) > 0;
+    return true;
 }
 
 function isOutOfSpaceException(exception: DOMException): boolean {
+    // Firefox uses code 1014, but all other major browsers use code 22.
     if (exception.code === 22 || exception.code === 1014) {
         return true;
     }
@@ -94,14 +101,14 @@ function isOutOfSpaceException(exception: DOMException): boolean {
 }
 
 function freeSpaceAndCache(key: string, value: string): void {
-    var canFreeMore = true;
-    while (canFreeMore) {
+    var cacheSpaceFreed = true;
+    while (cacheSpaceFreed) {
         try {
             window.sessionStorage.setItem(key, value);
             break;
         } catch (e) {
             if (isOutOfSpaceException(e)) {
-                canFreeMore = freeCacheSpace();
+                cacheSpaceFreed = freeCacheSpace();
             } else {
                 throw e;
             }
@@ -111,7 +118,7 @@ function freeSpaceAndCache(key: string, value: string): void {
 
 function addToCachedRequestOrder(requestUrl: string): void {
     var cachedRequestOrder: string[];
-    var cachedRequestOrderStr = window.sessionStorage.getItem(
+    const cachedRequestOrderStr = window.sessionStorage.getItem(
         CACHED_REQUEST_ORDER_KEY
     );
     if (cachedRequestOrderStr === null) {
@@ -126,9 +133,9 @@ function addToCachedRequestOrder(requestUrl: string): void {
     );
 }
 
-async function cacheRequest(
+async function cacheResponse(
     requestUrl: string, response: Response
-): Promise<Indexable> {
+): Promise<unknown> {
     const cachedResponse: CachedResponse = {
         expireTime: getExpireTime(response),
         json: await response.json(),
@@ -140,13 +147,9 @@ async function cacheRequest(
 }
 
 async function fetchJson(url: string): Promise<unknown> {
-    var request = new Request(url);
-    var init: RequestInit = {
-        cache: 'default',
-        method: 'GET',
-    };
+    const request = new Request(url);
 
-    var responseJson = null;
+    var responseJson: unknown | null = null;
     const cachedResponseStr = window.sessionStorage.getItem(url);
     if (cachedResponseStr !== null) {
         const cachedResponse = JSON.parse(cachedResponseStr) as CachedResponse;
@@ -156,8 +159,8 @@ async function fetchJson(url: string): Promise<unknown> {
     }
 
     if (responseJson === null) {
-        const response = await fetch(request, init);
-        responseJson = await cacheRequest(url, response);
+        const response = await fetch(request);
+        responseJson = await cacheResponse(url, response);
     }
 
     recursivelyTransform(
