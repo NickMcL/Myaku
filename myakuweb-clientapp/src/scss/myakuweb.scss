@@ -387,8 +387,9 @@ blockquote > footer::before {
 .search-clear {
     @extend %input-text;
 
-    margin-left: -1px;
     border: 1px solid $input-border-color;
+    border-left-width: 0;
+    border-right-width: 0;
 }
 
 .search-clear:focus {
@@ -396,7 +397,6 @@ blockquote > footer::before {
 }
 
 .search-submit {
-    margin-left: -1px;
     color: white;
     background-color: $myaku-color;
 
@@ -411,15 +411,16 @@ blockquote > footer::before {
     border-color: #0f326a;
 }
 
-.search-submit:focus {
+.search-submit:focus,
+.search-clear:focus {
+    z-index: 1;
     outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(41, 141, 124, 0.25);
 }
 
-.search-input:focus,
-.search-clear:focus {
+.search-input:focus {
     outline: 0;
-    border-color: #cccccc;
+    border-color: $input-border-color;
     box-shadow: none;
 }
 

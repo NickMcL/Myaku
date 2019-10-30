@@ -10,6 +10,7 @@ import SearchBarInput from 'ts/components/header/SearchBarInput';
 import SearchOptionsCollapseToggle from
     'ts/components/header/SearchOptionsCollapseToggle';
 import SearchOptionsInput from 'ts/components/header/SearchOptionsInput';
+import { blurActiveElement } from 'ts/app/utils';
 
 import {
     AllNullable,
@@ -146,6 +147,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
 
     handleSubmit(event: React.FormEvent): void {
         event.preventDefault();
+        blurActiveElement();
         if (
             this.props.searchQuery.length === 0
             || this.props.searchQuery.length > MAX_QUERY_LENGTH

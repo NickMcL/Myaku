@@ -5,8 +5,8 @@
 
 import React from 'react';
 import { ViewportSize } from 'ts/app/viewport';
+import { useCallback } from 'react';
 import useInputChangeHandler from 'ts/hooks/useInputChangeHandler';
-import useInputClearHandler from 'ts/hooks/useInputClearHandler';
 import useViewportReactiveValue from 'ts/hooks/useViewportReactiveValue';
 
 interface SearchBarInputProps {
@@ -64,15 +64,23 @@ function useSearchInput(
 }
 
 function useSearchClearButton(
-    handleChange: (value: string) => void, loading: boolean
+    handleInputChange: (value: string) => void, loading: boolean
 ): React.ReactElement {
+    const handleInputClear = useCallback(
+        function(event: React.SyntheticEvent<HTMLButtonElement>): void {
+            event.currentTarget.blur();
+            handleInputChange('');
+        },
+        [handleInputChange]
+    );
+
     return (
         <button
             className='search-clear'
             type='button'
             aria-label='Search clear'
             disabled={loading}
-            onClick={useInputClearHandler(handleChange)}
+            onClick={handleInputClear}
         >
             <i className='fa fa-times'></i>
         </button>

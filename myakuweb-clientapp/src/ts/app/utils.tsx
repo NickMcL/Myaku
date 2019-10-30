@@ -63,6 +63,12 @@ export function scrollToTop(): void {
     window.scrollTo(0, 0);
 }
 
+export function blurActiveElement(): void {
+    if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
+}
+
 /**
  * Forces a redraw of the element by the browser.
  *
