@@ -8,6 +8,7 @@ import React from 'react';
 import SearchHeader from 'ts/components/header/SearchHeader';
 import SearchResults from 'ts/components/search-results/SearchResults';
 import StartContent from 'ts/components/start/StartContent';
+import { scrollToTop } from 'ts/app/utils';
 
 import {
     Route,
@@ -58,10 +59,6 @@ function getSearchResultsRoute(
             )}
         />
     );
-}
-
-function scrollToTop(): void {
-    window.scrollTo(0, 0);
 }
 
 const MyakuWebRouter: React.FC<{}> = function() {

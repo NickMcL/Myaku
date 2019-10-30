@@ -10,36 +10,54 @@ import SearchResultTile from
 
 import {
     PageDirection,
+    Search,
     SearchResultPage,
 } from 'ts/types/types';
 
 interface SearchResultPageTilesProps {
-    resultPage: SearchResultPage;
+    search: Search | null;
+    resultPage: SearchResultPage | null;
     loadingPageNum: number | null;
 }
 type Props = SearchResultPageTilesProps;
 
+const LOADING_TILE_COUNT = 10;
+const MAX_DISPLAY_PAGE_NUM = 99;
+
 
 function getHeaderPageNum(props: Props): number | null {
-    if (
-        props.resultPage.search.pageNum === 1
-        && !props.resultPage.hasNextPage
-    ) {
+    if (props.search === null) {
         return null;
     }
-    return props.resultPage.search.pageNum;
+
+    if (props.search.pageNum > MAX_DISPLAY_PAGE_NUM) {
+        return MAX_DISPLAY_PAGE_NUM;
+    }
+    return props.search.pageNum;
 }
 
 function getSearchResultTiles(props: Props): React.ReactElement[] {
     var tiles: React.ReactElement[] = [];
-    for (const result of props.resultPage.results) {
-        tiles.push(
-            <SearchResultTile
-                key={result.articleId}
-                searchQuery={props.resultPage.search.query}
-                searchResult={result}
-            />
-        );
+    if (props.resultPage === null) {
+        for (let i = 0; i < LOADING_TILE_COUNT; ++i) {
+            tiles.push(
+                <SearchResultTile
+                    key={i}
+                    searchQuery={null}
+                    searchResult={null}
+                />
+            );
+        }
+    } else {
+        for (const result of props.resultPage.results) {
+            tiles.push(
+                <SearchResultTile
+                    key={result.articleId}
+                    searchQuery={props.resultPage.search.query}
+                    searchResult={result}
+                />
+            );
+        }
     }
     return tiles;
 }
@@ -59,7 +77,7 @@ function getLoadingPageDirection(
 }
 
 function getPageNav(props: Props): React.ReactNode {
-    if (props.resultPage.totalResults === 0) {
+    if (props.resultPage === null || props.resultPage.totalResults === 0) {
         return null;
     }
 
@@ -77,10 +95,15 @@ function getPageNav(props: Props): React.ReactNode {
 }
 
 const SearchResultPageTiles: React.FC<Props> = function(props) {
+    var totalResults = null;
+    if (props.resultPage !== null) {
+        totalResults = props.resultPage.totalResults;
+    }
+
     return (
         <div className='result-tile-container'>
             <SearchResultPageHeader
-                totalResults={props.resultPage.totalResults}
+                totalResults={totalResults}
                 pageNum={getHeaderPageNum(props)}
             />
             {getSearchResultTiles(props)}

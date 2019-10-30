@@ -9,29 +9,55 @@ import { SearchResources } from 'ts/types/types';
 import Tile from 'ts/components/generic/Tile';
 
 interface SearchResourceTilesProps {
-    resources: SearchResources;
+    resources: SearchResources | null;
 }
 type Props = SearchResourceTilesProps;
 
+const LOADING_TILE_COUNT = 3;
+
+
+function getHeaderTile(): React.ReactElement {
+    var classList = ['aside-tile', 'resource-header-tile'];
+    return (
+        <Tile tileClasses={classList.join(' ')}>
+            <h4>More Resources</h4>
+        </Tile>
+    );
+}
+
+function getResourceLinkSetTiles(
+    resources: SearchResources | null
+): React.ReactNodeArray {
+    var linkSetTiles: React.ReactElement[] = [];
+    if (resources) {
+        for (const linkSet of resources.resourceLinkSets) {
+            linkSetTiles.push(
+                <ResourceLinkSetTile
+                    key={linkSet.setName}
+                    query={resources.query}
+                    linkSet={linkSet}
+                />
+            );
+        }
+    } else {
+        for (let i = 0; i < LOADING_TILE_COUNT; ++i) {
+            linkSetTiles.push(
+                <ResourceLinkSetTile
+                    key={i}
+                    query={null}
+                    linkSet={null}
+                />
+            );
+        }
+    }
+    return linkSetTiles;
+}
 
 const SearchResourceTiles: React.FC<Props> = function(props) {
-    var linkSetTiles: React.ReactElement[] = [];
-    for (const linkSet of props.resources.resourceLinkSets) {
-        linkSetTiles.push(
-            <ResourceLinkSetTile
-                key={linkSet.setName}
-                query={props.resources.query}
-                linkSet={linkSet}
-            />
-        );
-    }
-
     return (
         <aside className='resource-links-aside'>
-            <Tile tileClasses='aside-tile resource-header-tile'>
-                <h4>More Resources</h4>
-            </Tile>
-            {linkSetTiles}
+            {getHeaderTile()}
+            {getResourceLinkSetTiles(props.resources)}
         </aside>
     );
 };

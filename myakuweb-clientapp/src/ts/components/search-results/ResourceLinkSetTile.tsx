@@ -5,34 +5,51 @@ import { ResourceLinkSet } from 'ts/types/types';
 import Tile from 'ts/components/generic/Tile';
 
 interface ResourceLinkSetTileProps {
-    query: string;
-    linkSet: ResourceLinkSet;
+    query: string | null;
+    linkSet: ResourceLinkSet | null;
 }
 type Props = ResourceLinkSetTileProps;
 
+const LOADING_HEIGHT = '6.125rem';
 
-const ResourceLinkSetTile: React.FC<Props> = function(props) {
+
+function getResourceLinkLis(
+    linkSet: ResourceLinkSet, query: string
+): React.ReactNodeArray {
     var resourceLinkLis: React.ReactElement[] = [];
-    for (const resourceLink of props.linkSet.resourceLinks) {
+    for (const resourceLink of linkSet.resourceLinks) {
         resourceLinkLis.push(
             <li key={resourceLink.resourceName}>
                 <a href={resourceLink.link}>
                     {`Search ${resourceLink.resourceName} for `}
                     <span className='japanese-text' lang='ja'>
-                        {props.query}
+                        {query}
                     </span>
                 </a>
             </li>
         );
     }
+    return resourceLinkLis;
+}
+
+const ResourceLinkSetTile: React.FC<Props> = function(props) {
+    var classList = ['aside-tile', 'resource-links-tile'];
+    if (props.query === null || props.linkSet === null) {
+        return (
+            <Tile
+                tileClasses={classList.join(' ')}
+                loadingHeight={LOADING_HEIGHT}
+            />
+        );
+    }
 
     return (
-        <Tile tileClasses='aside-tile resource-links-tile'>
+        <Tile tileClasses={classList.join(' ')}>
             <h5>
                 {props.linkSet.setName}
             </h5>
             <ul className='resource-links-list'>
-                {resourceLinkLis}
+                {getResourceLinkLis(props.linkSet, props.query)}
             </ul>
         </Tile>
     );

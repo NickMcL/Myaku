@@ -3,14 +3,12 @@
  * @module ts/components/search-results/SearchResults
  */
 
-import ContentLoader from 'ts/components/generic/ContentLoader';
 import History from 'history';
 import React from 'react';
 import SearchResourceTiles from
     'ts/components/search-results/SearchResourceTiles';
 import SearchResultPageTiles from
     'ts/components/search-results/SearchResultPageTiles';
-import StartContent from 'ts/components/start/StartContent';
 
 import {
     Search,
@@ -41,8 +39,10 @@ type Props = SearchResultsProps;
 
 interface SearchResultsState {
     fetchingSearchResults: boolean;
+    showLoadingIndicator: boolean;
     requestedSearch: Search | null;
     requestedSearchType: SearchType | null;
+    loadedSearch: Search | null;
     searchResultPage: SearchResultPage | null;
     searchResources: SearchResources | null;
 }
@@ -57,6 +57,28 @@ type RequestedSearchState = (
     >
 );
 
+type SearchResponseState = (
+    Pick<
+        State,
+        'searchResultPage'
+        | 'loadedSearch'
+        | 'fetchingSearchResults'
+        | 'showLoadingIndicator'
+    >
+    | Pick<
+        State,
+        'searchResultPage'
+        | 'searchResources'
+        | 'loadedSearch'
+        | 'fetchingSearchResults'
+        | 'showLoadingIndicator'
+    >
+);
+
+type SearchResponse = SearchResultPage | [SearchResultPage, SearchResources];
+
+const SHOW_LOADING_TIMEOUT = 100;
+
 
 function getDocumentTitle(search: Search): string {
     return `${search.query} - Page ${search.pageNum} - Myaku`;
@@ -67,8 +89,10 @@ class SearchResults extends React.Component<Props, State> {
         super(props);
         this.state = {
             fetchingSearchResults: false,
+            showLoadingIndicator: false,
             requestedSearch: null,
             requestedSearchType: null,
+            loadedSearch: null,
             searchResultPage: null,
             searchResources: null,
         };
@@ -107,13 +131,16 @@ class SearchResults extends React.Component<Props, State> {
                 );
             } else {
                 searchType = SearchType.NewQuery;
-                props.onLoadingNewSearchQueryChange(true);
                 getSearchWithResources(search).then(
-                    this.getSearchWithResourcesResponseHandler(search)
+                    this.getSearchResponseHandler(search)
                 );
             }
 
             props.onSearchQueryChange(search.query);
+            setTimeout(
+                this.getShowLoadingIndicatorHandler(search),
+                SHOW_LOADING_TIMEOUT
+            );
             return {
                 requestedSearch: search,
                 requestedSearchType: searchType,
@@ -124,65 +151,66 @@ class SearchResults extends React.Component<Props, State> {
         this.setState(updateState.bind(this));
     }
 
+    getShowLoadingIndicatorHandler(search: Search): () => void {
+        function handler(this: SearchResults): void {
+            function updateState(prevState: State, props: Props): (
+                Pick<State, 'showLoadingIndicator'> | null
+            ) {
+                if (isSearchEqual(search, prevState.loadedSearch)) {
+                    return null;
+                }
+
+                if (
+                    prevState.loadedSearch === null
+                    || search.query !== prevState.loadedSearch.query
+                ) {
+                    props.onLoadingNewSearchQueryChange(true);
+                }
+                return {
+                    showLoadingIndicator: true,
+                };
+            }
+
+            this.setState(updateState);
+        }
+
+        return handler.bind(this);
+    }
+
     handleSearchResultsLoaded(): void {
         window.scrollTo(0, 0);
     }
 
     getSearchResponseHandler(
         search: Search
-    ): (response: SearchResultPage) => void {
-        function handler(
-            this: SearchResults, response: SearchResultPage
-        ): void {
+    ): (response: SearchResponse) => void {
+        function handler(this: SearchResults, response: SearchResponse): void {
             function updateState(prevState: State, props: Props): (
-                Pick<State, 'searchResultPage' | 'fetchingSearchResults'>
-                | null
+                SearchResponseState | null
             ) {
                 if (!isSearchEqual(search, prevState.requestedSearch)) {
                     return null;
                 }
 
-                document.title = getDocumentTitle(response.search);
-                props.onSearchQueryChange(response.search.query);
-                props.onLoadingNewSearchQueryChange(false);
-                return {
-                    searchResultPage: response,
-                    fetchingSearchResults: false,
-                };
-            }
-
-            this.setState(updateState, this.handleSearchResultsLoaded);
-        }
-
-        return handler.bind(this);
-    }
-
-    getSearchWithResourcesResponseHandler(
-        search: Search
-    ): (response: [SearchResultPage, SearchResources]) => void {
-        function handler(
-            this: SearchResults, response: [SearchResultPage, SearchResources]
-        ): void {
-            function updateState(prevState: State, props: Props): (
-                Pick<
-                    State,
-                    'searchResultPage'
-                    | 'searchResources'
-                    | 'fetchingSearchResults'
-                >
-                | null
-            ) {
-                if (!isSearchEqual(search, prevState.requestedSearch)) {
-                    return null;
+                var searchResultPage;
+                var searchResources;
+                if (response instanceof Array) {
+                    searchResultPage = response[0];
+                    searchResources = response[1];
+                } else {
+                    searchResultPage = response;
+                    searchResources = prevState.searchResources;
                 }
 
-                document.title = getDocumentTitle(response[0].search);
-                props.onSearchQueryChange(response[0].search.query);
+                document.title = getDocumentTitle(searchResultPage.search);
+                props.onSearchQueryChange(searchResultPage.search.query);
                 props.onLoadingNewSearchQueryChange(false);
                 return {
-                    searchResultPage: response[0],
-                    searchResources: response[1],
+                    searchResultPage: searchResultPage,
+                    searchResources: searchResources,
+                    loadedSearch: search,
                     fetchingSearchResults: false,
+                    showLoadingIndicator: false,
                 };
             }
 
@@ -194,7 +222,7 @@ class SearchResults extends React.Component<Props, State> {
 
     getLoadingPageNum(): number | null {
         if (
-            this.state.fetchingSearchResults
+            this.state.showLoadingIndicator
             && this.state.requestedSearch !== null
             && this.state.requestedSearchType === SearchType.NewPage
         ) {
@@ -204,36 +232,17 @@ class SearchResults extends React.Component<Props, State> {
         }
     }
 
-    getSearchResultsContent(): React.ReactNode {
-        if (
-            this.state.searchResultPage === null
-            || this.state.searchResources === null
-        ) {
-            return null;
-        }
-
+    render(): React.ReactElement {
         return (
             <React.Fragment>
                 <SearchResultPageTiles
+                    search={this.state.requestedSearch}
                     resultPage={this.state.searchResultPage}
                     loadingPageNum={this.getLoadingPageNum()}
                 />
                 <SearchResourceTiles resources={this.state.searchResources} />
             </React.Fragment>
         );
-    }
-
-    render(): React.ReactNode {
-        if (
-            this.state.searchResultPage !== null
-            && this.state.searchResources !== null
-        ) {
-            return this.getSearchResultsContent();
-        } else if (this.props.history.length === 1) {
-            return <ContentLoader />;
-        } else {
-            return <StartContent />;
-        }
     }
 }
 

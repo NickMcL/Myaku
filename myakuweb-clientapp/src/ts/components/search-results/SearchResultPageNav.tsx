@@ -8,6 +8,7 @@ import React from 'react';
 import Tile from 'ts/components/generic/Tile';
 import { ViewportSize } from 'ts/app/viewport';
 import { getSearchUrl } from 'ts/app/search';
+import { scrollToTop } from 'ts/app/utils';
 import useViewportReactiveValue from 'ts/hooks/useViewportReactiveValue';
 
 import {
@@ -148,11 +149,24 @@ function useNextPageLink(props: Props): React.ReactElement {
     );
 }
 
+function getGoToTopButton(): React.ReactElement {
+    return (
+        <button
+            className='button-link page-nav-button'
+            key='top'
+            type='button'
+            onClick={scrollToTop}
+        >
+            Top
+        </button>
+    );
+}
+
 const SearchResultPageNav: React.FC<Props> = function(props) {
     return (
         <Tile tileClasses='page-nav-tile'>
             {usePreviousPageLink(props)}
-            <a key='top' href='#top'>Top</a>
+            {getGoToTopButton()}
             {useNextPageLink(props)}
         </Tile>
     );

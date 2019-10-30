@@ -1,4 +1,7 @@
-/** @module Search result tile component */
+/**
+ * Search result tile component.
+ * @module ts/components/search-results/SearchResultTile
+ */
 
 import { ArticleSearchResult } from 'ts/types/types';
 import Collapsable from 'ts/components/generic/Collapsable';
@@ -14,8 +17,8 @@ import Tile from 'ts/components/generic/Tile';
 import TileFooterButton from 'ts/components/generic/TileFooterButton';
 
 interface SearchResultTileProps {
-    searchQuery: string;
-    searchResult: ArticleSearchResult;
+    searchQuery: string | null;
+    searchResult: ArticleSearchResult | null;
 }
 type Props = SearchResultTileProps;
 
@@ -24,6 +27,8 @@ interface SearchResultTileState {
     moreSampleTextsCollapseAnimating: boolean;
 }
 type State = SearchResultTileState;
+
+const LOADING_HEIGHT = '13rem';
 
 
 class SearchResultTile extends React.Component<Props, State> {
@@ -66,16 +71,20 @@ class SearchResultTile extends React.Component<Props, State> {
         });
     }
 
-    hasMoreSampleText(): boolean {
-        return this.props.searchResult.moreSampleTexts.length > 0;
+    hasMoreSampleText(searchResult: ArticleSearchResult | null): boolean {
+        return (
+            searchResult !== null && searchResult.moreSampleTexts.length > 0
+        );
     }
 
-    getMoreSampleTextElement(): React.ReactElement | null {
-        if (!this.hasMoreSampleText()) {
+    getMoreSampleTextElement(
+        searchResult: ArticleSearchResult | null
+    ): React.ReactElement | null {
+        if (!this.hasMoreSampleText(searchResult) || searchResult === null) {
             return null;
         }
 
-        var moreSampleTexts = this.props.searchResult.moreSampleTexts;
+        var moreSampleTexts = searchResult.moreSampleTexts;
         var moreSampleTextLis: React.ReactElement[] = [];
         for (let i = 0; i < moreSampleTexts.length; ++i) {
             moreSampleTextLis.push(
@@ -97,8 +106,10 @@ class SearchResultTile extends React.Component<Props, State> {
         );
     }
 
-    getMoreSampleTextCollapseToggleElement(): React.ReactElement | null {
-        if (!this.hasMoreSampleText()) {
+    getMoreSampleTextCollapseToggleElement(
+        searchQuery: string | null, searchResult: ArticleSearchResult | null
+    ): React.ReactElement | null {
+        if (!this.hasMoreSampleText(searchResult) || searchQuery === null) {
             return null;
         }
 
@@ -112,14 +123,30 @@ class SearchResultTile extends React.Component<Props, State> {
             >
                 {buttonStartText}
                 <span className='japanese-text' lang='ja'>
-                    {this.props.searchQuery}
+                    {searchQuery}
                 </span>
                 {' instances from this article'}
             </TileFooterButton>
         );
     }
 
+    getLoadingTile(): React.ReactElement {
+        return (
+            <Tile
+                tileClasses='result-tile'
+                loadingHeight={LOADING_HEIGHT}
+            />
+        );
+    }
+
     render(): React.ReactElement {
+        if (
+            this.props.searchQuery === null
+            || this.props.searchResult === null
+        ) {
+            return this.getLoadingTile();
+        }
+
         return (
             <Tile tileClasses='result-tile'>
                 <SearchResultHeader
@@ -136,8 +163,10 @@ class SearchResultTile extends React.Component<Props, State> {
                 <SearchResultSampleText
                     sampleText={this.props.searchResult.mainSampleText}
                 />
-                {this.getMoreSampleTextElement()}
-                {this.getMoreSampleTextCollapseToggleElement()}
+                {this.getMoreSampleTextElement(this.props.searchResult)}
+                {this.getMoreSampleTextCollapseToggleElement(
+                    this.props.searchQuery, this.props.searchResult
+                )}
             </Tile>
         );
     }

@@ -3,21 +3,35 @@
 import React from 'react';
 
 interface TileProps {
-    children: React.ReactNode;
+    children?: React.ReactNode;
     tileClasses?: string;
+    loadingHeight?: string;
 }
+type Props = TileProps;
 
-const Tile: React.FC<TileProps> = function(props) {
-    var tileClasses = 'tile';
+
+const Tile: React.FC<Props> = function(props) {
+    var tileClasses = ['tile'];
     if (props.tileClasses) {
-        tileClasses += ` ${props.tileClasses}`;
+        tileClasses.push(props.tileClasses);
     }
 
-    return (
-        <section className={tileClasses}>
-            {props.children}
-        </section>
-    );
+    if (props.loadingHeight) {
+        tileClasses.push('loading');
+        const style: React.CSSProperties = {
+            width: '100%',
+            height: props.loadingHeight,
+        };
+        return (
+            <section className={tileClasses.join(' ')} style={style}></section>
+        );
+    } else {
+        return (
+            <section className={tileClasses.join(' ')}>
+                {props.children || null}
+            </section>
+        );
+    }
 };
 
 export default Tile;

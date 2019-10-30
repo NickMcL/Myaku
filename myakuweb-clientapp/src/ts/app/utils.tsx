@@ -56,6 +56,10 @@ export function recursivelyTransform(
     }
 }
 
+export function scrollToTop(): void {
+    window.scrollTo(0, 0);
+}
+
 /**
  * Forces a redraw of the element by the browser.
  *

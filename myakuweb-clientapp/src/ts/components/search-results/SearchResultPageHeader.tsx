@@ -4,22 +4,43 @@ import React from 'react';
 import Tile from 'ts/components/generic/Tile';
 
 interface SearchResultPageHeaderProps {
-    totalResults: number;
+    totalResults: number | null;
     pageNum: number | null;
 }
 type Props = SearchResultPageHeaderProps;
 
 
-const SearchResultPageHeader: React.FC<Props> = function(props) {
-    var pageNumElement: React.ReactElement | null = null;
-    if (props.pageNum !== null) {
-        pageNumElement = (
-            <small className='result-header-page-number'>
-                {`Page ${props.pageNum.toLocaleString('en-US')}`}
-            </small>
-        );
+function getTotalResultsElement(
+    totalResults: number | null
+): React.ReactNode {
+    if (totalResults === null) {
+        var style: React.CSSProperties = {
+            width: '5em',
+            height: '1em',
+            display: 'inline-block',
+        };
+        return <div className='loading' style={style}></div>;
     }
 
+    return `${totalResults.toLocaleString('en-US')} found`;
+}
+
+function getPageNumElement(
+    pageNum: number | null, totalResults: number | null
+): React.ReactNode {
+    if (pageNum === null || totalResults === 0) {
+        return null;
+    }
+
+    var classList = ['result-header-page-number'];
+    return (
+        <small className={classList.join(' ')}>
+            {`Page ${pageNum.toLocaleString('en-US')}`}
+        </small>
+    );
+}
+
+const SearchResultPageHeader: React.FC<Props> = function(props) {
     return (
         <Tile tileClasses='results-header-tile'>
             <h3>
@@ -27,11 +48,10 @@ const SearchResultPageHeader: React.FC<Props> = function(props) {
                     {'Articles '}
                     <small>
                         {'— '}
-                        {props.totalResults.toLocaleString('en-US')}
-                        {' found'}
+                        {getTotalResultsElement(props.totalResults)}
                     </small>
                 </span>
-                {pageNumElement}
+                {getPageNumElement(props.pageNum, props.totalResults)}
             </h3>
         </Tile>
     );
