@@ -10,7 +10,7 @@ interface ResourceLinkSetTileProps {
 }
 type Props = ResourceLinkSetTileProps;
 
-const LOADING_HEIGHT = '6.125rem';
+const LOADING_HEIGHT = '6.625rem';
 
 
 function getResourceLinkLis(

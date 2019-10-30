@@ -15,7 +15,8 @@ import {
 } from 'ts/types/types';
 
 interface SearchResultPageTilesProps {
-    search: Search | null;
+    requestedSearch: Search | null;
+    loadedSearch: Search | null;
     resultPage: SearchResultPage | null;
     loadingPageNum: number | null;
 }
@@ -26,14 +27,14 @@ const MAX_DISPLAY_PAGE_NUM = 99;
 
 
 function getHeaderPageNum(props: Props): number | null {
-    if (props.search === null) {
+    if (props.requestedSearch === null) {
         return null;
     }
 
-    if (props.search.pageNum > MAX_DISPLAY_PAGE_NUM) {
+    if (props.requestedSearch.pageNum > MAX_DISPLAY_PAGE_NUM) {
         return MAX_DISPLAY_PAGE_NUM;
     }
-    return props.search.pageNum;
+    return props.requestedSearch.pageNum;
 }
 
 function getSearchResultTiles(props: Props): React.ReactElement[] {
@@ -77,14 +78,18 @@ function getLoadingPageDirection(
 }
 
 function getPageNav(props: Props): React.ReactNode {
-    if (props.resultPage === null || props.resultPage.totalResults === 0) {
+    if (
+        props.loadedSearch === null
+        || props.resultPage === null
+        || props.resultPage.totalResults === 0
+    ) {
         return null;
     }
 
     var pageNum = props.resultPage.search.pageNum;
     return (
         <SearchResultPageNav
-            search={props.resultPage.search}
+            search={props.loadedSearch}
             hasNextPage={props.resultPage.hasNextPage}
             maxPageReached={props.resultPage.maxPageReached}
             loadingPageDirection={

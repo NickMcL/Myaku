@@ -72,16 +72,8 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     componentDidMount(): void {
-        function handleHistoryChange(
-            this: HeaderSearchForm, location: History.Location
-        ): void {
-            if (location.pathname === '/') {
-                this.handleInputtedQueryChange('');
-            }
-            this.handlePageNavigation();
-        }
         this._historyUnlistenCallback = this.props.history.listen(
-            handleHistoryChange.bind(this)
+            this.handleHistoryChange
         );
 
         if (this._defaultSearchOptionUsed.size > 0) {
@@ -99,6 +91,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     bindEventHandlers(): void {
+        this.handleHistoryChange = this.handleHistoryChange.bind(this);
         this.handlePageNavigation = this.handlePageNavigation.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputtedQueryChange = (
@@ -133,6 +126,13 @@ class HeaderSearchForm extends React.Component<Props, State> {
         }
 
         return applyDefaultSearchOptions(locationOptions);
+    }
+
+    handleHistoryChange(location: History.Location): void {
+        if (location.pathname === '/') {
+            this.handleInputtedQueryChange('');
+        }
+        this.handlePageNavigation();
     }
 
     handlePageNavigation(): void {
