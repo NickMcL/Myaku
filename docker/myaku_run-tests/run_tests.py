@@ -58,9 +58,9 @@ arg_parser.add_argument(
     action='store', choices=['prod', 'test'],
     help=(
         'Instead of building new prod images for the tests, use existing '
-        'images instead.'
+        'images. '
         'If "prod" is specified, uses the images specified in the  base '
-        'docker compose file (./docker/docker-compose.yml).'
+        'docker compose file (./docker/docker-compose.yml). '
         'If "test" is specified, uses the images with the :test tag.'
     )
 )
