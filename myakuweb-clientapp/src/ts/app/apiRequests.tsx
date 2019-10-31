@@ -6,7 +6,6 @@
 import { recursivelyTransform } from 'ts/app/utils';
 
 import {
-    KanaConvertType,
     PrimativeType,
     ResourceLinksResponse,
     Search,
@@ -210,7 +209,6 @@ export async function getSearchResultPage(
         '/api/search'
         + `?q=${search.query}`
         + `&p=${search.pageNum}`
-        + `&conv=${search.options.kanaConvertType}`
     );
     var response = await (
         fetchApiJson(requestUrl) as Promise<SearchResultPageResponse>
@@ -218,9 +216,8 @@ export async function getSearchResultPage(
 
     return {
         search: {
-            query: response.convertedQuery,
+            query: search.query,
             pageNum: response.pageNum,
-            options: search.options,
         },
         totalResults: response.totalResults,
         hasNextPage: response.hasNextPage,
@@ -230,15 +227,15 @@ export async function getSearchResultPage(
 }
 
 export async function getSearchResources(
-    query: string, kanaConvertType: KanaConvertType
+    query: string
 ): Promise<SearchResources> {
-    var requestUrl = `/api/resource-links?q=${query}&conv=${kanaConvertType}`;
+    var requestUrl = `/api/resource-links?q=${query}`;
     var response = await (
         fetchApiJson(requestUrl) as Promise<ResourceLinksResponse>
     );
 
     return {
-        query: response.convertedQuery,
+        query: query,
         resourceLinkSets: response.resourceLinkSets,
     };
 }
@@ -248,6 +245,6 @@ export async function getSearchWithResources(
 ): Promise<[SearchResultPage, SearchResources]> {
     return Promise.all([
         getSearchResultPage(search),
-        getSearchResources(search.query, search.options.kanaConvertType),
+        getSearchResources(search.query),
     ]);
 }

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, NamedTuple
 
-import romkan
 from django.conf import settings
 from django.http import JsonResponse
 from django.http.request import HttpRequest
@@ -22,7 +21,6 @@ from search.article_preview import (
     convert_sample_text_to_json,
 )
 from search.request_validation import (
-    AllowableValueValidator,
     IntRangeValidator,
     ParamValidator,
     StrLenValidator,
@@ -35,16 +33,6 @@ SESSION_USER_ID_KEY = 'user_id'
 
 REQUEST_QUERY_KEY = 'q'
 REQUEST_PAGE_NUM_KEY = 'p'
-REQUEST_KANA_CONVERT_TYPE_KEY = 'conv'
-
-KANA_CONVERT_TYPE_HIRAGANA = 'hira'
-KANA_CONVERT_TYPE_KATAKANA = 'kata'
-KANA_CONVERT_TYPE_NONE = 'none'
-KANA_CONVERT_TYPES = {
-    KANA_CONVERT_TYPE_HIRAGANA,
-    KANA_CONVERT_TYPE_KATAKANA,
-    KANA_CONVERT_TYPE_NONE,
-}
 
 MAX_QUERY_LEN = 120
 
@@ -317,17 +305,9 @@ class SearchQueryArticleResult(object):
 def get_request_query_str(request: HttpRequest) -> str:
     """Get the query string for a request.
 
-    Converts any romaji in the query string to Japanese using the conversion
-    method specified in the request.
+    Normalizes the query using the normalization rules of the Crawl DB.
     """
-    query_str = utils.normalize_char_width(request.GET[REQUEST_QUERY_KEY])
-    convert_type = request.GET[REQUEST_KANA_CONVERT_TYPE_KEY]
-    if convert_type == KANA_CONVERT_TYPE_HIRAGANA:
-        query_str = romkan.to_hiragana(query_str)
-    elif convert_type == KANA_CONVERT_TYPE_KATAKANA:
-        query_str = romkan.to_katakana(query_str)
-
-    return query_str
+    return utils.normalize_char_width(request.GET[REQUEST_QUERY_KEY])
 
 
 def get_request_page_num(request: HttpRequest) -> int:
@@ -371,17 +351,12 @@ def create_query(request: HttpRequest) -> Query:
         REQUEST_PAGE_NUM_KEY, True, int,
         [IntRangeValidator(1)]
     ),
-    ParamValidator(
-        REQUEST_KANA_CONVERT_TYPE_KEY, True, str,
-        [AllowableValueValidator(KANA_CONVERT_TYPES)]
-    ),
 ])
 def search(request: HttpRequest) -> JsonResponse:
     """Handle search API requests.
 
-    Searches the Crawl db for articles using the given query after applying the
-    specified romaji->kana conversion, then returns the specified page of the
-    query results.
+    Searches the Crawl db for articles using the given query, then returns the
+    specified page of the query results.
     """
     query = create_query(request)
     query_result = SearchQueryResult(query)
@@ -397,16 +372,11 @@ def search(request: HttpRequest) -> JsonResponse:
         REQUEST_QUERY_KEY, True, str,
         [StrLenValidator(1, MAX_QUERY_LEN)]
     ),
-    ParamValidator(
-        REQUEST_KANA_CONVERT_TYPE_KEY, True, str,
-        [AllowableValueValidator(KANA_CONVERT_TYPES)]
-    ),
 ])
 def resource_links(request: HttpRequest) -> JsonResponse:
     """Handle resource links API requests.
 
-    Returns sets of resource links for the given query with the specified
-    romaji->kana conversion applied to it.
+    Returns sets of resource links for the given query.
     """
     query_resource_links = QueryResourceLinks(get_request_query_str(request))
     return JsonResponse(query_resource_links.json())

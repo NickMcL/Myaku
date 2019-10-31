@@ -60,7 +60,6 @@ export const enum PageDirection {
 export interface Search {
     query: string;
     pageNum: number;
-    options: SearchOptions;
 }
 
 export interface ArticleSampleTextSegment {
@@ -95,7 +94,6 @@ export interface SearchResultPage {
 }
 
 export interface SearchResultPageResponse {
-    readonly convertedQuery: string;
     readonly totalResults: number;
     readonly pageNum: number;
     readonly hasNextPage: boolean;
@@ -119,6 +117,5 @@ export interface SearchResources {
 }
 
 export interface ResourceLinksResponse {
-    readonly convertedQuery: string;
     readonly resourceLinkSets: ResourceLinkSet[];
 }

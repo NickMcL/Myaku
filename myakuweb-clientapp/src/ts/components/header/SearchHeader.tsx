@@ -10,9 +10,7 @@ import History from 'history';
 import React from 'react';
 
 interface SearchHeaderProps {
-    searchQuery: string;
     loadingSearch: boolean;
-    onSearchQueryChange: (newValue: string) => void;
     location: History.Location;
     history: History.History;
 }
@@ -24,9 +22,7 @@ const SearchHeader: React.FC<Props> = function(props) {
         <Header>
             <HeaderNav />
             <HeaderSearchForm
-                searchQuery={props.searchQuery}
                 loadingSearch={props.loadingSearch}
-                onSearchQueryChange={props.onSearchQueryChange}
                 location={props.location}
                 history={props.history}
             />

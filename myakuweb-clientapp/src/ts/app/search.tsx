@@ -7,10 +7,8 @@ import History from 'history';
 
 import {
     AllNullable,
-    KanaConvertType,
     Search,
     SearchOptions,
-    isKanaConvertType,
     isSearchOption,
 } from 'ts/types/types';
 
@@ -51,7 +49,6 @@ export function getSearchUrl(search: Search | string): string {
         '/search/'
         + `?q=${search.query}`
         + `&p=${search.pageNum}`
-        + `&conv=${search.options.kanaConvertType}`
     );
 }
 
@@ -67,16 +64,6 @@ export function isSearchEqual(
         || search.pageNum !== cmpSearch.pageNum
     ) {
         return false;
-    }
-
-    for (const optionKey of Object.keys(search.options)) {
-        if (!isSearchOption(optionKey)) {
-            continue;
-        }
-
-        if (search.options[optionKey] !== cmpSearch.options[optionKey]) {
-            return false;
-        }
     }
     return true;
 }
@@ -95,25 +82,16 @@ function getPageNumUrlParam(urlParams: URLSearchParams): number | null {
     }
 }
 
-function getKanaConvertTypeUrlParam(
-    urlParams: URLSearchParams
-): KanaConvertType | null {
-    const kanaConvertTypeParamValue = urlParams.get(
-        SEARCH_URL_PARAMS.kanaConvertType
-    );
-    if (isKanaConvertType(kanaConvertTypeParamValue)) {
-        return kanaConvertTypeParamValue;
-    } else {
-        return null;
-    }
+export function getSearchQueryFromLocation(
+    location: History.Location
+): string | null {
+    const urlParams = new URLSearchParams(location.search);
+    return urlParams.get(SEARCH_URL_PARAMS.query);
 }
 
-export function getSearchOptionsFromLocation(
-    location: History.Location
-): AllNullable<SearchOptions> {
-    const urlParams = new URLSearchParams(location.search);
+export function getSearchOptionsFromLocation(): AllNullable<SearchOptions> {
     return {
-        kanaConvertType: getKanaConvertTypeUrlParam(urlParams),
+        kanaConvertType: null,
     };
 }
 
@@ -136,11 +114,9 @@ export function applyDefaultSearchOptions(
 
 export function getSearchFromLocation(location: History.Location): Search {
     const urlParams = new URLSearchParams(location.search);
-    const locationOptions = getSearchOptionsFromLocation(location);
     return {
         query: urlParams.get(SEARCH_URL_PARAMS.query) || '',
         pageNum: getPageNumUrlParam(urlParams) || 1,
-        options: applyDefaultSearchOptions(locationOptions),
     };
 }
 

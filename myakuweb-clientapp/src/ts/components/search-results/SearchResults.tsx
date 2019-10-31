@@ -19,7 +19,6 @@ import {
 } from 'ts/types/types';
 import {
     getSearchFromLocation,
-    getSearchUrl,
     isSearchEqual,
 } from 'ts/app/search';
 import {
@@ -28,7 +27,6 @@ import {
 } from 'ts/app/apiRequests';
 
 interface SearchResultsProps {
-    onSearchQueryChange: (newValue: string) => void;
     onLoadingNewSearchQueryChange: (loading: boolean) => void;
     location: History.Location;
     history: History.History;
@@ -53,7 +51,7 @@ type LoadingTileState = (
 );
 
 type SearchResponseState = (
-    Omit<State, 'searchFailed' | 'searchFailErrorMessage'>
+    Omit<State, 'requestedSearch' | 'searchFailed' | 'searchFailErrorMessage'>
 );
 
 type SearchResponse = SearchResultPage | [SearchResultPage, SearchResources];
@@ -117,9 +115,6 @@ class SearchResults extends React.Component<Props, State> {
 
     bindEventHandlers(): void {
         this.handleHistoryChange = this.handleHistoryChange.bind(this);
-        this.handleSearchResponseLoaded = (
-            this.handleSearchResponseLoaded.bind(this)
-        );
     }
 
     disableLoadingIndicators(): void {
@@ -192,7 +187,7 @@ class SearchResults extends React.Component<Props, State> {
 
     handleSearchRequest(search: Search): void {
         function updateState(
-            this: SearchResults, prevState: State, props: Props
+            this: SearchResults, prevState: State
         ): Pick<State, 'requestedSearch'> {
             var showLoadingHandler: () => void;
             var searchResponsePromise: Promise<SearchResponse>;
@@ -211,7 +206,6 @@ class SearchResults extends React.Component<Props, State> {
                 this.getSearchFailureHandler(search)
             );
 
-            props.onSearchQueryChange(search.query);
             setTimeout(showLoadingHandler, SHOW_LOADING_TIMEOUT);
             return {
                 requestedSearch: search,
@@ -321,10 +315,8 @@ class SearchResults extends React.Component<Props, State> {
                 }
 
                 document.title = getDocumentTitle(searchResultPage.search);
-                props.onSearchQueryChange(searchResultPage.search.query);
                 props.onLoadingNewSearchQueryChange(false);
                 return {
-                    requestedSearch: searchResultPage.search,
                     loadedSearch: searchResultPage.search,
                     searchResultPage: searchResultPage,
                     searchResources: searchResources,
@@ -334,22 +326,10 @@ class SearchResults extends React.Component<Props, State> {
                 };
             }
 
-            this.setState(updateState, this.handleSearchResponseLoaded);
+            this.setState(updateState, scrollToTop);
         }
 
         return handler.bind(this);
-    }
-
-    handleSearchResponseLoaded(): void {
-        const urlSearch = getSearchFromLocation(this.props.location);
-        if (
-            this.state.loadedSearch !== null
-            && !isSearchEqual(urlSearch, this.state.loadedSearch)
-        ) {
-            this.props.history.replace(getSearchUrl(this.state.loadedSearch));
-        }
-
-        scrollToTop();
     }
 
     getLoadingPageNum(): number | null {

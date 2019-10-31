@@ -20,18 +20,13 @@ import {
 } from 'react';
 
 
-function getHeaderRoute(
-    inputtedSearchQuery: string, loadingSearchQuery: boolean,
-    setInputtedSearchQuery: (newValue: string) => void
-): React.ReactElement {
+function getHeaderRoute(loadingSearchQuery: boolean): React.ReactElement {
     return (
         <Route
             path='/'
             render={(routeProps): React.ReactElement => (
                 <SearchHeader
-                    searchQuery={inputtedSearchQuery}
                     loadingSearch={loadingSearchQuery}
-                    onSearchQueryChange={setInputtedSearchQuery}
                     location={routeProps.location}
                     history={routeProps.history}
                 />
@@ -41,7 +36,6 @@ function getHeaderRoute(
 }
 
 function getSearchResultsRoute(
-    setInputtedSearchQuery: (newValue: string) => void,
     setLoadingSearchQuery: (loading: boolean) => void
 ): React.ReactElement {
     return (
@@ -49,7 +43,6 @@ function getSearchResultsRoute(
             path='/search'
             render={(routeProps): React.ReactElement => (
                 <SearchResults
-                    onSearchQueryChange={setInputtedSearchQuery}
                     onLoadingNewSearchQueryChange={
                         setLoadingSearchQuery
                     }
@@ -62,7 +55,6 @@ function getSearchResultsRoute(
 }
 
 const MyakuWebRouter: React.FC<{}> = function() {
-    const [inputtedSearchQuery, setInputtedSearchQuery] = useState('');
     const [loadingSearchQuery, setLoadingSearchQuery] = useState(false);
 
     useEffect(function(): () => void {
@@ -73,14 +65,10 @@ const MyakuWebRouter: React.FC<{}> = function() {
 
     return (
         <React.Fragment>
-            {getHeaderRoute(
-                inputtedSearchQuery, loadingSearchQuery, setInputtedSearchQuery
-            )}
+            {getHeaderRoute(loadingSearchQuery)}
             <MainContent>
                 <Switch>
-                    {getSearchResultsRoute(
-                        setInputtedSearchQuery, setLoadingSearchQuery
-                    )}
+                    {getSearchResultsRoute(setLoadingSearchQuery)}
                     <Route path='/'>
                         <StartContent />
                     </Route>

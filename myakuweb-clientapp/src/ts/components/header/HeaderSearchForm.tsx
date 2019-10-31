@@ -20,21 +20,25 @@ import {
 import {
     applyDefaultSearchOptions,
     getSearchOptionsFromLocation,
+    getSearchQueryFromLocation,
     getSearchUrl,
     loadUserSearchOptions,
     setUserSearchOption,
 } from 'ts/app/search';
+import {
+    toHiragana,
+    toKatakana,
+} from 'wanakana';
 
 interface HeaderSearchFormProps {
-    searchQuery: string;
     loadingSearch: boolean;
-    onSearchQueryChange: (newValue: string) => void;
     location: History.Location;
     history: History.History;
 }
 type Props = HeaderSearchFormProps;
 
 interface HeaderSearchFormState {
+    query: string;
     options: SearchOptions;
     errorValueSubmitted: boolean;
     optionsCollapsed: boolean;
@@ -64,6 +68,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
         this._historyUnlistenCallback = null;
 
         this.state = {
+            query: getSearchQueryFromLocation(props.location) || '',
             options: this.getInitSearchOptions(),
             errorValueSubmitted: false,
             optionsCollapsed: true,
@@ -113,9 +118,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     getInitSearchOptions(): SearchOptions {
-        const locationOptions = getSearchOptionsFromLocation(
-            this.props.location
-        );
+        const locationOptions = getSearchOptionsFromLocation();
         for (const optionKey of Object.keys(locationOptions)) {
             if (!isSearchOption(optionKey)) {
                 continue;
@@ -127,6 +130,16 @@ class HeaderSearchForm extends React.Component<Props, State> {
         }
 
         return applyDefaultSearchOptions(locationOptions);
+    }
+
+    getConvertedSearchQuery(): string {
+        if (this.state.options.kanaConvertType === 'hira') {
+            return toHiragana(this.state.query);
+        } else if (this.state.options.kanaConvertType === 'kata') {
+            return toKatakana(this.state.query);
+        } else {
+            return this.state.query;
+        }
     }
 
     handleHistoryChange(location: History.Location): void {
@@ -149,36 +162,30 @@ class HeaderSearchForm extends React.Component<Props, State> {
         event.preventDefault();
         blurActiveElement();
         if (
-            this.props.searchQuery.length === 0
-            || this.props.searchQuery.length > MAX_QUERY_LENGTH
+            this.state.query.length === 0
+            || this.state.query.length > MAX_QUERY_LENGTH
         ) {
             this.setState({
                 errorValueSubmitted: true,
             });
         } else {
+            const convertedQuery = this.getConvertedSearchQuery();
             var searchUrl = getSearchUrl({
-                query: this.props.searchQuery,
+                query: convertedQuery,
                 pageNum: 1,
-                options: this.state.options,
+            });
+            this.setState({
+                query: convertedQuery,
             });
             this.props.history.push(searchUrl);
         }
     }
 
     handleInputtedQueryChange(newValue: string): void {
-        function updateState(prevState: State): (
-            Pick<State, 'errorValueSubmitted'> | null
-        ) {
-            if (!prevState.errorValueSubmitted) {
-                return null;
-            }
-            return {
-                errorValueSubmitted: false,
-            };
-        }
-
-        this.setState(updateState);
-        this.props.onSearchQueryChange(newValue);
+        this.setState({
+            query: newValue,
+            errorValueSubmitted: false,
+        });
     }
 
     handleSearchOptionsChange<K extends keyof SearchOptions>(
@@ -236,7 +243,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
 
     handleSearchOptionsCollapseToggle(): void {
         function updateState(prevState: State): (
-            Omit<State, 'options' | 'errorValueSubmitted'> | null
+            Omit<State, 'query' | 'options' | 'errorValueSubmitted'> | null
         ) {
             if (prevState.optionsCollapseAnimating) {
                 return null;
@@ -263,7 +270,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
             <div className='search-container'>
                 <form className='search-form' onSubmit={this.handleSubmit}>
                     <SearchBarInput
-                        searchQuery={this.props.searchQuery}
+                        searchQuery={this.state.query}
                         loading={this.props.loadingSearch}
                         maxQueryLength={MAX_QUERY_LENGTH}
                         errorValueSubmitted={this.state.errorValueSubmitted}
