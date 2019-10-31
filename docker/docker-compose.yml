@@ -228,7 +228,7 @@ services:
       - web_net
       - crawler_net
   crawldb_backup:
-    image: friedrice2/mongobackup:2.0.6_4.2.0
+    image: friedrice2/mongobackup:2.0.6_4.2.1
     volumes:
       - type: volume
         source: crawldb_backup_log
