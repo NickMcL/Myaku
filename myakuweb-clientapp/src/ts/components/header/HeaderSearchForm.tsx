@@ -26,6 +26,7 @@ import {
     setUserSearchOption,
 } from 'ts/app/search';
 import {
+    isRomaji,
     toHiragana,
     toKatakana,
 } from 'wanakana';
@@ -132,6 +133,10 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     getConvertedSearchQuery(): string {
+        if (!isRomaji(this.state.query)) {
+            return this.state.query;
+        }
+
         if (this.state.options.kanaConvertType === 'hira') {
             return toHiragana(this.state.query);
         } else if (this.state.options.kanaConvertType === 'kata') {
