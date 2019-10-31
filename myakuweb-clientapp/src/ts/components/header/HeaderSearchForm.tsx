@@ -98,7 +98,6 @@ class HeaderSearchForm extends React.Component<Props, State> {
 
     bindEventHandlers(): void {
         this.handleHistoryChange = this.handleHistoryChange.bind(this);
-        this.handlePageNavigation = this.handlePageNavigation.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleInputtedQueryChange = (
             this.handleInputtedQueryChange.bind(this)
@@ -143,14 +142,8 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     handleHistoryChange(location: History.Location): void {
-        if (location.pathname === '/') {
-            this.handleInputtedQueryChange('');
-        }
-        this.handlePageNavigation();
-    }
-
-    handlePageNavigation(): void {
         this.setState({
+            query: getSearchQueryFromLocation(location) || '',
             errorValueSubmitted: false,
             optionsCollapsed: true,
             optionsCollapseAnimating: false,
