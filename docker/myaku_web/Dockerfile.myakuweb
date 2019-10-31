@@ -11,7 +11,7 @@ RUN apt-get update \
 # Break python packages install into two layers so that the first install layer
 # can be shared with images that only install those packages.
 RUN apt-get install -y python3.7 python3-pip
-RUN apt-get install -y python3.7-dev python3-gdbm
+RUN apt-get install -y python3.7-dev python3.7-gdbm
 
 # Set python binary that should be used in the container.
 ENV PYTHON_BIN python3.7
