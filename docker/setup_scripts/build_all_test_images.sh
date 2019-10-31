@@ -16,7 +16,7 @@ sudo docker pull friedrice2/myaku_redis.first-page-cache:latest
 sudo docker pull friedrice2/myaku_redis.next-page-cache:latest
 sudo docker pull friedrice2/myaku_run-tests:latest
 sudo docker pull friedrice2/mongobackup:latest
-sudo docker pull rabbitmq:3.7.17
+sudo docker pull "rabbitmq:3.8.0"
 
 sudo docker build \
     --cache-from friedrice2/myaku_crawler:latest \
