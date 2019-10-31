@@ -1,6 +1,6 @@
 # Adds conf for setting up Redis to the base redis image.
 
-FROM redis:5.0.5 AS base
+FROM redis:5.0.6 AS base
 
 # Volume for persisting redis dumps and logs.
 ENV REDIS_DATA_DIR /data
