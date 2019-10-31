@@ -22,7 +22,7 @@ function getResourceLinkLis(
             <li key={resourceLink.resourceName}>
                 <a href={resourceLink.link}>
                     {`Search ${resourceLink.resourceName} for `}
-                    <span className='japanese-text' lang='ja'>
+                    <span lang='ja'>
                         {query}
                     </span>
                 </a>

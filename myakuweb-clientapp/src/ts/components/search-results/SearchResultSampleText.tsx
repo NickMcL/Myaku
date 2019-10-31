@@ -26,7 +26,7 @@ const SearchResultSampleText: React.FC<Props> = function(props) {
 
     return (
         <blockquote className='article-sample-text'>
-            <p className='japanese-text' lang='ja'>
+            <p lang='ja'>
                 {sampleSegments}
             </p>
             <footer>

@@ -280,7 +280,7 @@ def assert_search_header(we: WebElement, window_width: int) -> None:
         nav_link_list, 'a', 'Github', attrs={'href': GITHUB_LINK}
     )
 
-    if window_width < MD_MIN_WIDTH:
+    if window_width < SM_MIN_WIDTH:
         placeholder = SHORT_SEARCH_PLACEHOLDER
     else:
         placeholder = FULL_SEARCH_PLACEHOLDER

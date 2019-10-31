@@ -11,7 +11,7 @@ type Props = SearchResultHeaderProps;
 
 const SearchResultHeader: React.FC<Props> = function(props) {
     return (
-        <h4 className='main-tile-header japanese-text' lang='ja'>
+        <h4 className='main-tile-header' lang='ja'>
             <a href={props.searchResult.sourceUrl}>
                 {props.searchResult.title}
             </a>

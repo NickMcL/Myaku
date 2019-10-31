@@ -37,9 +37,35 @@ RUN rm /etc/nginx/conf.d/default.conf
 ENTRYPOINT ["/bin/bash", "-c", "$NGINX_RUN_FILES_DIR/run_nginx.sh"]
 
 
+FROM base AS dev
+
+# Volume for sharing in development run files on host with container
+VOLUME ["$NGINX_RUN_FILES_DIR"]
+
+# Volumes for sharing in development static on host with container
+VOLUME ["$NGINX_MAIN_ROOT"]
+VOLUME ["$NGINX_META_ROOT"]
+
+
+FROM node:13.0.1 AS builder
+
+ENV BUILD_DIR /myakuweb/
+RUN mkdir -p $BUILD_DIR
+WORKDIR $BUILD_DIR
+
+COPY ./myakuweb-clientapp/package.json $BUILD_DIR/
+COPY ./myakuweb-clientapp/package-lock.json $BUILD_DIR/
+RUN npm install
+
+COPY ./myakuweb-clientapp/tsconfig.json $BUILD_DIR/
+COPY ./myakuweb-clientapp/webpack.config.js $BUILD_DIR/
+COPY ./myakuweb-clientapp/src $BUILD_DIR/src
+RUN npm run build:prod
+
+
 FROM base AS prod
 
-COPY ./myakuweb-clientapp/dist $NGINX_MAIN_ROOT
+COPY --from=builder /myakuweb/dist $NGINX_MAIN_ROOT
 COPY ./myakuweb-clientapp/public/meta $NGINX_META_ROOT
 COPY ./docker/myaku_nginx.reverseproxy/run_nginx.sh $NGINX_RUN_FILES_DIR/
 COPY ./docker/myaku_nginx.reverseproxy/nginx_template.conf $NGINX_RUN_FILES_DIR/
@@ -52,13 +78,3 @@ RUN find $NGINX_MAIN_ROOT -type f \
     -exec gzip -kf "{}" \;
 
 RUN chmod +x $NGINX_RUN_FILES_DIR/run_nginx.sh
-
-
-FROM base AS dev
-
-# Volume for sharing in development run files on host with container
-VOLUME ["$NGINX_RUN_FILES_DIR"]
-
-# Volumes for sharing in development static on host with container
-VOLUME ["$NGINX_MAIN_ROOT"]
-VOLUME ["$NGINX_META_ROOT"]

@@ -36,7 +36,7 @@ function getSampleSearchLis(): React.ReactElement[] {
         sampleSearchLis.push(
             <li key={sampleSearch.query}>
                 {`${sampleSearch.explanation} - `}
-                <span className='japanese-text' lang='ja'>
+                <span lang='ja'>
                     <Link to={getSearchUrl(sampleSearch.query)}>
                         {sampleSearch.query}
                     </Link>

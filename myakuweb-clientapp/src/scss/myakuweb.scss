@@ -1,12 +1,13 @@
+/*!
+ * MyakuWeb CSS - https://github.com/FriedRice/Myaku
+ * License - https://github.com/FriedRice/Myaku/blob/master/LICENSE (AGPL-3.0)
+ */
+
 // Use Bootstrap's reboot to normalize browser default CSS
 @import "bootstrap_reboot";
 
 @import "fonts";
 
-/*!
- * MyakuWeb CSS - https://github.com/FriedRice/Myaku
- * License - https://github.com/FriedRice/Myaku/blob/master/LICENSE (AGPL-3.0)
- */
 // Media query breakpoints (same as the ones used by Bootstrap)
 $sm-min-width: 576px;
 $md-min-width: 768px;
@@ -28,7 +29,8 @@ $error-text-color: #721c24;
 $error-border-color: #f8d7da;
 
 $eng-font-stack: "Noto Sans", "Noto Sans JP", sans-serif;
-$jpn-font-stack: "Noto Sans JP", "Noto Sans", sans-serif;
+$jpn-font-stack: "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN",
+"HiraKakuProN-W3", "游ゴシック", "游ゴシック体", "Noto Sans JP", "Noto Sans CJK JP", "メイリオ", "Meiryo", "ＭＳ ゴシック", "MS Gothic", sans-serif;
 
 
 // SCSS placeholder classes
@@ -64,7 +66,7 @@ h3,
 h4,
 h5,
 h6 {
-    font-family: $jpn-font-stack;
+    font-family: "Noto Sans JP", "Noto Sans", sans-serif;
 }
 
 a {
@@ -99,7 +101,7 @@ blockquote > footer::before {
     content: "\2014\00A0";  /* Mdash + non-breaking space */
 }
 
-.japanese-text {
+:lang(ja) {
     font-family: $jpn-font-stack;
 }
 
@@ -619,7 +621,7 @@ blockquote > footer::before {
 
 .article-sample-text {
     font-size: 1.1em;
-    letter-spacing: 0.5pt;
+    letter-spacing: 0.03em;
 }
 
 .article-sample-text > p {

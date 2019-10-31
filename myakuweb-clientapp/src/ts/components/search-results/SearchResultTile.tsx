@@ -122,7 +122,7 @@ class SearchResultTile extends React.Component<Props, State> {
                 onClick={this.handleMoreSampleTextCollapseToggle}
             >
                 {buttonStartText}
-                <span className='japanese-text' lang='ja'>
+                <span lang='ja'>
                     {searchQuery}
                 </span>
                 {' instances from this article'}
