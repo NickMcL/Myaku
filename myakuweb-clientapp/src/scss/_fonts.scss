@@ -5,47 +5,32 @@
 $font-path: "../webfonts";
 
 
-/* Noto Sans latin font-faces */
+/* Open Sans latin font-faces */
 @font-face {
-  font-family: "Noto Sans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: local("Noto Sans"), local("NotoSans"), url("#{$font-path}/noto-sans-latin-v9-400.woff2") format("woff2"), url("#{$font-path}/noto-sans-latin-v9-400.woff") format("woff");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-    font-family: "Noto Sans";
-    font-style: normal;
-    font-weight: 700;
-    font-display: swap;
-    src: local("Noto Sans Bold"), local("NotoSans-Bold"), url("#{$font-path}/noto-sans-latin-v9-700.woff2") format("woff2"), url("#{$font-path}/noto-sans-latin-v9-700.woff") format("woff");
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-/* The latin characters in Noto Sans JP are used in headers.
- *
- * A font family name that will not match with the normal Noto Sans JP is
- * intentionally used so that this partial font does not get mixed with the
- * system fonts when rendering normal JP text.
- */
-@font-face {
-    font-family: 'NotoSansJP-Latin';
+    font-family: "Open Sans";
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: local('Noto Sans Japanese Regular'), local('NotoSansJapanese-Regular'), url("#{$font-path}/noto-sans-jp-v24-400.latin.woff2") format('woff2'), url("#{$font-path}/noto-sans-jp-v24-400.latin.woff") format('woff');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    src: local("Open Sans Regular"), local("OpenSans-Regular"), url(#{$font-path}/open-sans-latin-v17-400.woff2) format("woff2"), url(#{$font-path}/open-sans-latin-v17-400.woff) format("woff");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
-    font-family: 'NotoSansJP-Latin';
+    font-family: "Open Sans";
     font-style: normal;
-    font-weight: 500;
+    font-weight: 600;
     font-display: swap;
-    src: local('Noto Sans Japanese Medium'), local('NotoSansJapanese-Medium'), url("#{$font-path}/noto-sans-jp-v24-500.latin.woff2") format('woff2'), url("#{$font-path}/noto-sans-jp-v24-500.latin.woff") format('woff');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    src: local("Open Sans SemiBold"), local("OpenSans-SemiBold"), url(#{$font-path}/open-sans-latin-v17-600.woff2) format("woff2"), url(#{$font-path}/open-sans-latin-v17-600.woff) format("woff");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Open Sans";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: local("Open Sans Bold"), local("OpenSans-Bold"), url(#{$font-path}/open-sans-latin-v17-700.woff2) format("woff2"), url(#{$font-path}/open-sans-latin-v17-700.woff) format("woff");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 
@@ -57,7 +42,7 @@ $font-path: "../webfonts";
  * License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
  */
 @font-face {
-    font-family: 'Font Awesome 5 Free';
+    font-family: "Font Awesome 5 Free";
     font-style: normal;
     font-weight: 900;
     font-display: block;
@@ -67,7 +52,7 @@ $font-path: "../webfonts";
 
 .fa {
     display: inline-block;
-    font-family: 'Font Awesome 5 Free';
+    font-family: "Font Awesome 5 Free";
     font-weight: 900;
     font-size: inherit;
     font-style: normal;

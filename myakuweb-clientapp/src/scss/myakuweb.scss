@@ -28,7 +28,7 @@ $warning-border-color: #ffeeba;
 $error-text-color: #721c24;
 $error-border-color: #f8d7da;
 
-$eng-font-stack: "Noto Sans", sans-serif;
+$eng-font-stack: "Open Sans", sans-serif;
 $jpn-font-stack: "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN", "HiraKakuProN-W3", "Noto Sans JP", "Noto Sans CJK JP", "メイリオ", "Meiryo", "TakaoExゴシック", "TakaoExGothic", "ＭＳ ゴシック", "MS Gothic", sans-serif;
 
 
@@ -49,6 +49,19 @@ body {
     background-color: $body-bg-color;
 }
 
+:lang(ja) {
+    font-family: $jpn-font-stack;
+}
+
+h1:lang(en),
+h2:lang(en),
+h3:lang(en),
+h4:lang(en),
+h5:lang(en),
+h6:lang(en) {
+    font-weight: 600;
+}
+
 main {
     display: flex;
 }
@@ -56,16 +69,6 @@ main {
 img {
     max-width: 100%;
     height: auto;
-}
-
-/* Use the slightly thicker Noto Sans JP latin characters for headers */
-h1:lang(en),
-h2:lang(en),
-h3:lang(en),
-h4:lang(en),
-h5:lang(en),
-h6:lang(en) {
-    font-family: "NotoSansJP-Latin", "Noto Sans", sans-serif;
 }
 
 a {
@@ -98,10 +101,6 @@ blockquote > footer {
 
 blockquote > footer::before {
     content: "\2014\00A0";  /* Mdash + non-breaking space */
-}
-
-:lang(ja) {
-    font-family: $jpn-font-stack;
 }
 
 .button-link {
