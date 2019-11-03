@@ -13,7 +13,7 @@ REVERSEPROXY_HOST_ENV_VAR = 'REVERSEPROXY_HOST'
 
 GITHUB_LINK = 'https://github.com/FriedRice/Myaku'
 
-MYAKUWEB_FONT_FAMILY = 'Noto Sans, sans-serif'
+MYAKUWEB_FONT_FAMILY = 'Open Sans, sans-serif'
 
 # Viewport width size breakpoints
 SM_MIN_WIDTH = 576
