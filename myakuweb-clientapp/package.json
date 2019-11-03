@@ -1,6 +1,6 @@
 {
   "name": "myakuweb-clientapp",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "description": "Client single-page application for myakuweb.",
   "main": "src/index.tsx",
   "scripts": {
