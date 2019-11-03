@@ -5,22 +5,17 @@
 
 import { Link } from 'react-router-dom';
 import React from 'react';
+import { Search } from 'ts/types/types';
 import Tile from 'ts/components/generic/Tile';
 import { ViewportSize } from 'ts/app/viewport';
 import { getSearchUrl } from 'ts/app/search';
 import { scrollToTop } from 'ts/app/utils';
 import useViewportReactiveValue from 'ts/hooks/useViewportReactiveValue';
 
-import {
-    PageDirection,
-    Search,
-} from 'ts/types/types';
-
 interface SearchResultPageNavProps {
     search: Search;
     hasNextPage: boolean;
     maxPageReached: boolean;
-    loadingPageDirection: PageDirection | null;
 }
 type Props = SearchResultPageNavProps;
 
@@ -53,20 +48,6 @@ const VIEWPORT_MAX_PAGE_TEXT = {
 };
 
 
-function getPageLoadingIcon(
-    loadingDirection: PageDirection | null, linkDirection: PageDirection
-): React.ReactElement | null {
-    if (loadingDirection === null) {
-        return null;
-    }
-
-    if (loadingDirection === linkDirection) {
-        return <div className='content-loading-page-spinner'></div>;
-    } else {
-        return null;
-    }
-}
-
 function usePreviousPageLink(props: Props): React.ReactElement | null {
     const prevPageLinkText = useViewportReactiveValue(
         DEFAULT_PREVIOUS_TEXT, VIEWPORT_PREVIOUS_TEXT
@@ -80,14 +61,10 @@ function usePreviousPageLink(props: Props): React.ReactElement | null {
         ...props.search,
         pageNum: prevPageNum,
     });
-    const loadingIcon = getPageLoadingIcon(
-        props.loadingPageDirection, PageDirection.Previous
-    );
     return (
         <Link key='previous' to={prevPageLink}>
             <i className='fa fa-arrow-left'></i>
-            {` ${prevPageLinkText} `}
-            {loadingIcon}
+            {` ${prevPageLinkText}`}
         </Link>
     );
 }
@@ -137,13 +114,9 @@ function useNextPageLink(props: Props): React.ReactElement {
         ...props.search,
         pageNum: nextPageNum,
     });
-    const loadingIcon = getPageLoadingIcon(
-        props.loadingPageDirection, PageDirection.Next
-    );
     return (
         <Link key='next' to={nextPageLink}>
-            {loadingIcon}
-            {` ${nextPageLinkText} `}
+            {`${nextPageLinkText} `}
             <i className='fa fa-arrow-right'></i>
         </Link>
     );

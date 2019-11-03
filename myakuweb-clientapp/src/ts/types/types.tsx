@@ -52,11 +52,6 @@ export function isSearchOption(value: unknown): value is keyof SearchOptions {
     return SEARCH_OPTIONS.includes(value as keyof SearchOptions);
 }
 
-export const enum PageDirection {
-    Next = 'next',
-    Previous = 'previous',
-}
-
 export interface Search {
     query: string;
     pageNum: number;

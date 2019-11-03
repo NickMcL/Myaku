@@ -9,7 +9,6 @@ import SearchResultTile from
     'ts/components/search-results/SearchResultTile';
 
 import {
-    PageDirection,
     Search,
     SearchResultPage,
 } from 'ts/types/types';
@@ -17,8 +16,8 @@ import {
 interface SearchResultPageTilesProps {
     requestedSearch: Search | null;
     loadedSearch: Search | null;
+    totalResults: number | null;
     resultPage: SearchResultPage | null;
-    loadingPageNum: number | null;
 }
 type Props = SearchResultPageTilesProps;
 
@@ -63,20 +62,6 @@ function getSearchResultTiles(props: Props): React.ReactElement[] {
     return tiles;
 }
 
-function getLoadingPageDirection(
-    currentPageNum: number, loadingPageNum: number | null
-): PageDirection | null {
-    if (loadingPageNum === null) {
-        return null;
-    } else if (loadingPageNum < currentPageNum) {
-        return PageDirection.Previous;
-    } else if (loadingPageNum > currentPageNum) {
-        return PageDirection.Next;
-    } else {
-        return null;
-    }
-}
-
 function getPageNav(props: Props): React.ReactNode {
     if (
         props.loadedSearch === null
@@ -86,29 +71,20 @@ function getPageNav(props: Props): React.ReactNode {
         return null;
     }
 
-    var pageNum = props.resultPage.search.pageNum;
     return (
         <SearchResultPageNav
             search={props.loadedSearch}
             hasNextPage={props.resultPage.hasNextPage}
             maxPageReached={props.resultPage.maxPageReached}
-            loadingPageDirection={
-                getLoadingPageDirection(pageNum, props.loadingPageNum)
-            }
         />
     );
 }
 
 const SearchResultPageTiles: React.FC<Props> = function(props) {
-    var totalResults = null;
-    if (props.resultPage !== null) {
-        totalResults = props.resultPage.totalResults;
-    }
-
     return (
         <div className='result-tile-container'>
             <SearchResultPageHeader
-                totalResults={totalResults}
+                totalResults={props.totalResults}
                 pageNum={getHeaderPageNum(props)}
             />
             {getSearchResultTiles(props)}

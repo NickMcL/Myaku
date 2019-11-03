@@ -13,6 +13,7 @@ import { scrollToTop } from 'ts/app/utils';
 import {
     Route,
     Switch,
+    useHistory,
 } from 'react-router-dom';
 import {
     useEffect,
@@ -56,12 +57,13 @@ function getSearchResultsRoute(
 
 const MyakuWebRouter: React.FC<{}> = function() {
     const [loadingSearchQuery, setLoadingSearchQuery] = useState(false);
+    const history = useHistory();
 
     useEffect(function(): () => void {
         window.history.scrollRestoration = 'manual';
-        window.addEventListener('popstate', scrollToTop);
-        return (): void => window.removeEventListener('popstate', scrollToTop);
-    }, []);
+        const unlistenCallback = history.listen(scrollToTop);
+        return (): void => unlistenCallback();
+    }, [history]);
 
     return (
         <React.Fragment>

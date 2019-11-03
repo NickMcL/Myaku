@@ -10,7 +10,6 @@ import SearchResourceTiles from
     'ts/components/search-results/SearchResourceTiles';
 import SearchResultPageTiles from
     'ts/components/search-results/SearchResultPageTiles';
-import { scrollToTop } from 'ts/app/utils';
 
 import {
     Search,
@@ -38,17 +37,18 @@ interface SearchResultsState {
     loadedSearch: Search | null;
     searchResultPage: SearchResultPage | null;
     searchResources: SearchResources | null;
-    showResultsLoadingTiles: boolean;
-    showResourcesLoadingTiles: boolean;
-    showPageNavLoadingIndicator: boolean;
+    showLoadingNewPage: boolean;
+    showLoadingNewQuery: boolean;
     searchFailed: boolean;
     searchFailErrorMessage: string | null;
 }
 type State = SearchResultsState;
 
 type LoadingTileState = (
-    Pick<State, 'showResultsLoadingTiles' | 'showResourcesLoadingTiles'>
+    Pick<State, 'showLoadingNewPage' | 'showLoadingNewQuery'>
 );
+
+type SearchErrorState = Pick<State, 'searchFailed' | 'searchFailErrorMessage'>;
 
 type SearchResponseState = (
     Omit<State, 'requestedSearch' | 'searchFailed' | 'searchFailErrorMessage'>
@@ -87,16 +87,15 @@ class SearchResults extends React.Component<Props, State> {
             loadedSearch: null,
             searchResultPage: null,
             searchResources: null,
-            showResultsLoadingTiles: false,
-            showResourcesLoadingTiles: false,
-            showPageNavLoadingIndicator: false,
+            showLoadingNewPage: false,
+            showLoadingNewQuery: false,
             searchFailed: false,
             searchFailErrorMessage: null,
         };
     }
 
     componentDidMount(): void {
-        this.handleLocationChange();
+        this.handleSearchDataLoad();
 
         this._historyUnlistenCallback = this.props.history.listen(
             this.handleHistoryChange
@@ -104,7 +103,7 @@ class SearchResults extends React.Component<Props, State> {
     }
 
     componentDidUpdate(): void {
-        this.handleLocationChange();
+        this.handleSearchDataLoad();
     }
 
     componentWillUnmount(): void {
@@ -118,24 +117,27 @@ class SearchResults extends React.Component<Props, State> {
     }
 
     disableLoadingIndicators(): void {
-        if (
-            this.state.showResultsLoadingTiles
-            || this.state.showResourcesLoadingTiles
-            || this.state.showPageNavLoadingIndicator
-        ) {
-            this.props.onLoadingNewSearchQueryChange(false);
-            this.setState({
-                showResultsLoadingTiles: false,
-                showResourcesLoadingTiles: false,
-                showPageNavLoadingIndicator: false,
-            });
+        function updateState(
+            prevState: State, props: Props
+        ): LoadingTileState | null {
+            if (
+                !prevState.showLoadingNewPage && !prevState.showLoadingNewQuery
+            ) {
+                return null;
+            }
+
+            props.onLoadingNewSearchQueryChange(false);
+            return {
+                showLoadingNewPage: false,
+                showLoadingNewQuery: false,
+            };
         }
+
+        this.setState(updateState);
     }
 
     clearSearchError(): void {
-        function updateState(prevState: State): (
-            Pick<State, 'searchFailed' | 'searchFailErrorMessage'> | null
-        ) {
+        function updateState(prevState: State): SearchErrorState | null {
             if (!prevState.searchFailed) {
                 return null;
             }
@@ -149,20 +151,11 @@ class SearchResults extends React.Component<Props, State> {
         this.setState(updateState);
     }
 
-    handleHistoryChange(
-        location: History.Location, action: History.Action
-    ): void {
+    handleHistoryChange(): void {
         this.clearSearchError();
-
-        if (action === 'POP') {
-            const search = getSearchFromLocation(location);
-            setTimeout(
-                this.getShowTilesLoadingHandler(search), SHOW_LOADING_TIMEOUT
-            );
-        }
     }
 
-    handleLocationChange(): void {
+    handleSearchDataLoad(): void {
         const search = getSearchFromLocation(this.props.location);
         if (search.query.length === 0) {
             // Redirect to start page because search is invalid (no query)
@@ -181,6 +174,7 @@ class SearchResults extends React.Component<Props, State> {
             !this.state.searchFailed
             && !isSearchEqual(search, this.state.requestedSearch)
         ) {
+            document.title = getDocumentTitle(search);
             this.handleSearchRequest(search);
         }
     }
@@ -189,16 +183,13 @@ class SearchResults extends React.Component<Props, State> {
         function updateState(
             this: SearchResults, prevState: State
         ): Pick<State, 'requestedSearch'> {
-            var showLoadingHandler: () => void;
             var searchResponsePromise: Promise<SearchResponse>;
             if (
                 prevState.loadedSearch !== null
                 && search.query === prevState.loadedSearch.query
             ) {
-                showLoadingHandler = this.getShowPageNavLoadingHandler(search);
                 searchResponsePromise = getSearchResultPage(search);
             } else {
-                showLoadingHandler = this.getShowTilesLoadingHandler(search);
                 searchResponsePromise = getSearchWithResources(search);
             }
             searchResponsePromise.then(
@@ -206,7 +197,9 @@ class SearchResults extends React.Component<Props, State> {
                 this.getSearchFailureHandler(search)
             );
 
-            setTimeout(showLoadingHandler, SHOW_LOADING_TIMEOUT);
+            setTimeout(
+                this.getShowTilesLoadingHandler(search), SHOW_LOADING_TIMEOUT
+            );
             return {
                 requestedSearch: search,
             };
@@ -232,9 +225,8 @@ class SearchResults extends React.Component<Props, State> {
                     loadedSearch: null,
                     searchResultPage: null,
                     searchResources: null,
-                    showResultsLoadingTiles: false,
-                    showResourcesLoadingTiles: false,
-                    showPageNavLoadingIndicator: false,
+                    showLoadingNewPage: false,
+                    showLoadingNewQuery: false,
                 };
             }
 
@@ -253,37 +245,17 @@ class SearchResults extends React.Component<Props, State> {
                     return null;
                 }
 
-                var showResourcesLoadingTiles = true;
+                var showLoadingNewQuery = true;
                 if (
                     prevState.loadedSearch !== null
                     && loadingSearch.query === prevState.loadedSearch.query
                 ) {
-                    showResourcesLoadingTiles = false;
+                    showLoadingNewQuery = false;
                 }
-                props.onLoadingNewSearchQueryChange(true);
+                props.onLoadingNewSearchQueryChange(showLoadingNewQuery);
                 return {
-                    showResultsLoadingTiles: true,
-                    showResourcesLoadingTiles: showResourcesLoadingTiles,
-                };
-            }
-
-            this.setState(updateState);
-        }
-
-        return handler.bind(this);
-    }
-
-    getShowPageNavLoadingHandler(loadingSearch: Search): () => void {
-        function handler(this: SearchResults): void {
-            function updateState(
-                prevState: State, props: Props
-            ): Pick<State, 'showPageNavLoadingIndicator'> | null {
-                if (!isSearchLoading(loadingSearch, prevState, props)) {
-                    return null;
-                }
-
-                return {
-                    showPageNavLoadingIndicator: true,
+                    showLoadingNewPage: true,
+                    showLoadingNewQuery: showLoadingNewQuery,
                 };
             }
 
@@ -314,46 +286,41 @@ class SearchResults extends React.Component<Props, State> {
                     searchResources = prevState.searchResources;
                 }
 
-                document.title = getDocumentTitle(searchResultPage.search);
                 props.onLoadingNewSearchQueryChange(false);
                 return {
                     loadedSearch: searchResultPage.search,
                     searchResultPage: searchResultPage,
                     searchResources: searchResources,
-                    showResultsLoadingTiles: false,
-                    showResourcesLoadingTiles: false,
-                    showPageNavLoadingIndicator: false,
+                    showLoadingNewPage: false,
+                    showLoadingNewQuery: false,
                 };
             }
 
-            this.setState(updateState, scrollToTop);
+            this.setState(updateState);
         }
 
         return handler.bind(this);
     }
 
-    getLoadingPageNum(): number | null {
+    getTotalSearchResultCount(): number | null {
         if (
-            this.state.requestedSearch !== null
-            && this.state.showPageNavLoadingIndicator
-            && !this.state.showResultsLoadingTiles
-            && !this.state.showResourcesLoadingTiles
+            this.state.searchResultPage === null
+            || this.state.showLoadingNewQuery
         ) {
-            return this.state.requestedSearch.pageNum;
-        } else {
             return null;
         }
+        return this.state.searchResultPage.totalResults;
     }
 
     getRenderSearchResultPage(): SearchResultPage | null {
-        if (this.state.showResultsLoadingTiles) {
+        if (this.state.showLoadingNewPage) {
             return null;
         }
         return this.state.searchResultPage;
     }
 
     getRenderSearchResources(): SearchResources | null {
-        if (this.state.showResourcesLoadingTiles) {
+        if (this.state.showLoadingNewQuery) {
             return null;
         }
         return this.state.searchResources;
@@ -369,8 +336,8 @@ class SearchResults extends React.Component<Props, State> {
                 <SearchResultPageTiles
                     requestedSearch={this.state.requestedSearch}
                     loadedSearch={this.state.loadedSearch}
+                    totalResults={this.getTotalSearchResultCount()}
                     resultPage={this.getRenderSearchResultPage()}
-                    loadingPageNum={this.getLoadingPageNum()}
                 />
                 <SearchResourceTiles
                     resources={this.getRenderSearchResources()}
