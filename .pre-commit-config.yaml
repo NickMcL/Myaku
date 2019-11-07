@@ -13,6 +13,7 @@ repos:
         # line will be included in the secret data.
         exclude: docker/dev_secrets|docker/dev_configs
       - id: trailing-whitespace
+        exclude: __snapshots__
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.7
@@ -20,7 +21,7 @@ repos:
       - id: forbid-tabs
 
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v6.5.1
+    rev: v6.6.0
     hooks:
       - id: eslint
         args:
@@ -44,13 +45,14 @@ repos:
         types:
           - file
         additional_dependencies:
-          - eslint@6.5.1
-          - typescript@3.6.3
-          - "@typescript-eslint/eslint-plugin@2.3.3"
-          - "@typescript-eslint/parser@2.3.3"
+          - eslint@6.6.0
+          - typescript@3.7.2
+          - "@typescript-eslint/eslint-plugin@2.6.1"
+          - "@typescript-eslint/parser@2.6.1"
           - eslint-plugin-jsx-a11y@6.2.3
           - eslint-plugin-react@7.16.0
           - eslint-plugin-react-hooks@2.2.0
+          - eslint-plugin-jest@23.0.2
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
     rev: v1.1.0

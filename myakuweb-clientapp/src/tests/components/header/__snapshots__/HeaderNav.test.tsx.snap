@@ -1,0 +1,30 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<HeaderNav /> renders correctly 1`] = `
+<nav
+  className="header-nav"
+>
+  <Link
+    className="nav-logo"
+    to="/"
+  >
+    <img
+      alt="Myaku logo"
+      className="myaku-logo"
+      src="test-file-stub"
+    />
+  </Link>
+  <ul
+    className="nav-link-list"
+  >
+    <li>
+      <a
+        aria-label="Myaku GitHub"
+        href="https://github.com/FriedRice/Myaku"
+      >
+        Github
+      </a>
+    </li>
+  </ul>
+</nav>
+`;

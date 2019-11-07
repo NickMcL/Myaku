@@ -116,3 +116,4 @@ myakuweb/static/admin/
 # JS build files
 node_modules/
 dist/
+coverage/

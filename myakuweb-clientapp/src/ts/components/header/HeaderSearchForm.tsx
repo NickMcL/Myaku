@@ -15,7 +15,7 @@ import { blurActiveElement } from 'ts/app/utils';
 import {
     AllNullable,
     SearchOptions,
-    isSearchOption,
+    assertIsSearchOption,
 } from 'ts/types/types';
 import {
     applyDefaultSearchOptions,
@@ -69,7 +69,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
         this._historyUnlistenCallback = null;
 
         this.state = {
-            query: getSearchQueryFromLocation(props.location) || '',
+            query: getSearchQueryFromLocation(props.location) ?? '',
             options: this.getInitSearchOptions(),
             errorValueSubmitted: false,
             optionsCollapsed: true,
@@ -92,9 +92,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
     }
 
     componentWillUnmount(): void {
-        if (this._historyUnlistenCallback !== null) {
-            this._historyUnlistenCallback();
-        }
+        this._historyUnlistenCallback?.();
     }
 
     bindEventHandlers(): void {
@@ -120,10 +118,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
     getInitSearchOptions(): SearchOptions {
         const locationOptions = getSearchOptionsFromLocation();
         for (const optionKey of Object.keys(locationOptions)) {
-            if (!isSearchOption(optionKey)) {
-                continue;
-            }
-
+            assertIsSearchOption(optionKey);
             if (locationOptions[optionKey] === null) {
                 this._defaultSearchOptionUsed.add(optionKey);
             }
@@ -148,7 +143,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
 
     handleHistoryChange(location: History.Location): void {
         this.setState({
-            query: getSearchQueryFromLocation(location) || '',
+            query: getSearchQueryFromLocation(location) ?? '',
             errorValueSubmitted: false,
             optionsCollapsed: true,
             optionsCollapseAnimating: false,
@@ -219,9 +214,7 @@ class HeaderSearchForm extends React.Component<Props, State> {
         ): Pick<State, 'options'> {
             var updatedOptions = {...prevState.options};
             for (const optionKey of Object.keys(updatedOptions)) {
-                if (!isSearchOption(optionKey)) {
-                    continue;
-                }
+                assertIsSearchOption(optionKey);
 
                 const loadedOptionValue = loadedOptions[optionKey];
                 if (

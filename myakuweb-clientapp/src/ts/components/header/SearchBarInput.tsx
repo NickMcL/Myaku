@@ -130,12 +130,10 @@ function getErrorMessageElement(
     inputtedQuery: string, maxQueryLength: number, errorState: ErrorState
 ): React.ReactElement | null {
     var className;
-    if (errorState == ErrorState.Warning) {
-        className = 'input-warning-text';
-    } else if (errorState === ErrorState.Error) {
+    if (errorState == ErrorState.Error) {
         className = 'input-error-text';
     } else {
-        return null;
+        className = 'input-warning-text';
     }
 
     if (inputtedQuery.length === 0) {
@@ -152,12 +150,14 @@ function getErrorMessageElement(
 function getErrorState(
     inputtedValue: string, maxValueLength: number, submittedErrorValue: boolean
 ): ErrorState {
+    if (inputtedValue.length > 0 && inputtedValue.length <= maxValueLength) {
+        return ErrorState.OK;
+    }
+
     if (submittedErrorValue) {
         return ErrorState.Error;
-    } else if (inputtedValue.length > maxValueLength) {
-        return ErrorState.Warning;
     } else {
-        return ErrorState.OK;
+        return ErrorState.Warning;
     }
 }
 

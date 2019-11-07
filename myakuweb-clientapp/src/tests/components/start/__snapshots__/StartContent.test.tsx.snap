@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<StartContent /> renders correctly 1`] = `
+<div
+  className="start-tile-container"
+>
+  <WhatIsMyakuTile />
+  <GettingStartedTile />
+</div>
+`;

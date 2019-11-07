@@ -1,0 +1,48 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<SearchBarInput /> renders correctly 1`] = `
+<SearchBarInput
+  errorValueSubmitted={false}
+  loading={false}
+  maxQueryLength={100}
+  onChange={[Function]}
+  searchQuery="test"
+>
+  <div
+    className="search-bar"
+  >
+    <input
+      aria-label="Search input"
+      className="search-input"
+      id="search-input"
+      name="q"
+      onChange={[Function]}
+      placeholder="Japanese word, set phrase, idiom, etc."
+      readOnly={false}
+      type="text"
+      value="test"
+    />
+    <button
+      aria-label="Search clear"
+      className="search-clear"
+      disabled={false}
+      onClick={[Function]}
+      type="button"
+    >
+      <i
+        className="fa fa-times"
+      />
+    </button>
+    <button
+      aria-label="Search submit button"
+      className="search-submit"
+      disabled={false}
+      type="submit"
+    >
+      <i
+        className="fa fa-search"
+      />
+    </button>
+  </div>
+</SearchBarInput>
+`;

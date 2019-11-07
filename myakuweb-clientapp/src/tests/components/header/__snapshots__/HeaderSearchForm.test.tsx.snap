@@ -1,0 +1,42 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<HeaderSearchForm /> mount/unmount/page change renders correctly 1`] = `
+<div
+  className="search-container"
+>
+  <form
+    className="search-form"
+    onSubmit={[Function]}
+  >
+    <SearchBarInput
+      errorValueSubmitted={false}
+      loading={false}
+      maxQueryLength={100}
+      onChange={[Function]}
+      searchQuery=""
+    />
+    <Collapsable
+      animate={false}
+      collapsed={true}
+      onAnimationEnd={[Function]}
+    >
+      <SearchOptionsInput
+        onChange={[Function]}
+        searchOptions={
+          Object {
+            "kanaConvertType": "hira",
+          }
+        }
+      />
+    </Collapsable>
+  </form>
+  <div
+    className="search-options-toggle-container"
+  >
+    <SearchOptionsCollapseToggle
+      collapsed={true}
+      onToggle={[Function]}
+    />
+  </div>
+</div>
+`;

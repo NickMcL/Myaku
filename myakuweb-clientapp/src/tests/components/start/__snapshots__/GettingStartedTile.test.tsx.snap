@@ -1,0 +1,78 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<GettingStartedTile /> renders correctly 1`] = `
+<Tile
+  tileClasses="start-tile"
+>
+  <h4
+    className="main-tile-header"
+  >
+    Getting Started
+  </h4>
+  <p
+    className="list-start-text"
+  >
+    Here are some sample searches to get started:
+  </p>
+  <ul
+    className="myaku-ul"
+  >
+    <li
+      key="力士"
+    >
+      A normal word - 
+      <span
+        lang="ja"
+      >
+        <Link
+          to="/search/?q=力士"
+        >
+          力士
+        </Link>
+      </span>
+    </li>
+    <li
+      key="非常に激しい雨"
+    >
+      A set phrase - 
+      <span
+        lang="ja"
+      >
+        <Link
+          to="/search/?q=非常に激しい雨"
+        >
+          非常に激しい雨
+        </Link>
+      </span>
+    </li>
+    <li
+      key="急がば回れ"
+    >
+      A proverb - 
+      <span
+        lang="ja"
+      >
+        <Link
+          to="/search/?q=急がば回れ"
+        >
+          急がば回れ
+        </Link>
+      </span>
+    </li>
+    <li
+      key="歯が立たない"
+    >
+      An idiom - 
+      <span
+        lang="ja"
+      >
+        <Link
+          to="/search/?q=歯が立たない"
+        >
+          歯が立たない
+        </Link>
+      </span>
+    </li>
+  </ul>
+</Tile>
+`;

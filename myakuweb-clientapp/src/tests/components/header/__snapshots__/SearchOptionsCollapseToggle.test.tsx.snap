@@ -1,0 +1,46 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<SearchOptionsCollapseToggle /> has text that matches collapsed state 1`] = `
+<SearchOptionsCollapseToggle
+  collapsed={true}
+  onToggle={[Function]}
+>
+  <button
+    className="button-link search-options-toggle"
+    onClick={[Function]}
+    type="button"
+  >
+    Show search options
+  </button>
+</SearchOptionsCollapseToggle>
+`;
+
+exports[`<SearchOptionsCollapseToggle /> has text that matches collapsed state 2`] = `
+<SearchOptionsCollapseToggle
+  collapsed={false}
+  onToggle={[Function]}
+>
+  <button
+    className="button-link search-options-toggle"
+    onClick={[Function]}
+    type="button"
+  >
+    Hide search options
+  </button>
+</SearchOptionsCollapseToggle>
+`;
+
+exports[`<SearchOptionsCollapseToggle /> has text that matches collapsed state 3`] = `
+<SearchOptionsCollapseToggle
+  collapsed={true}
+  onToggle={[Function]}
+>
+  <button
+    className="button-link search-options-toggle"
+    onClick={[Function]}
+    type="button"
+  >
+    Show search options
+  </button>
+</SearchOptionsCollapseToggle>
+`;

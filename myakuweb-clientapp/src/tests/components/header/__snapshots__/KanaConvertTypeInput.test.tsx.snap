@@ -1,0 +1,309 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<KanaConvertTypeInput /> renders correct checked input 1`] = `
+<KanaConvertTypeInput
+  kanaConvertType="hira"
+  onChange={[Function]}
+>
+  <fieldset
+    className="kana-conv-field"
+  >
+    <legend
+      className="search-options-legend"
+    >
+      Romaji Conversion
+    </legend>
+    <div
+      className="search-options-check"
+      key="kana-conv-hira-radio"
+    >
+      <input
+        checked={true}
+        className="search-options-check-input"
+        id="kana-conv-hira-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="hira"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-hira-radio"
+      >
+        Hiragana (a→あ)
+      </label>
+    </div>
+    <div
+      className="search-options-check"
+      key="kana-conv-kata-radio"
+    >
+      <input
+        checked={false}
+        className="search-options-check-input"
+        id="kana-conv-kata-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="kata"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-kata-radio"
+      >
+        Katakana (a→ア)
+      </label>
+    </div>
+    <div
+      className="search-options-check"
+      key="kana-conv-none-radio"
+    >
+      <input
+        checked={false}
+        className="search-options-check-input"
+        id="kana-conv-none-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="none"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-none-radio"
+      >
+        No conversion (a→a)
+      </label>
+    </div>
+  </fieldset>
+</KanaConvertTypeInput>
+`;
+
+exports[`<KanaConvertTypeInput /> renders correct checked input 2`] = `
+<KanaConvertTypeInput
+  kanaConvertType="kata"
+  onChange={[Function]}
+>
+  <fieldset
+    className="kana-conv-field"
+  >
+    <legend
+      className="search-options-legend"
+    >
+      Romaji Conversion
+    </legend>
+    <div
+      className="search-options-check"
+      key="kana-conv-hira-radio"
+    >
+      <input
+        checked={false}
+        className="search-options-check-input"
+        id="kana-conv-hira-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="hira"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-hira-radio"
+      >
+        Hiragana (a→あ)
+      </label>
+    </div>
+    <div
+      className="search-options-check"
+      key="kana-conv-kata-radio"
+    >
+      <input
+        checked={true}
+        className="search-options-check-input"
+        id="kana-conv-kata-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="kata"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-kata-radio"
+      >
+        Katakana (a→ア)
+      </label>
+    </div>
+    <div
+      className="search-options-check"
+      key="kana-conv-none-radio"
+    >
+      <input
+        checked={false}
+        className="search-options-check-input"
+        id="kana-conv-none-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="none"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-none-radio"
+      >
+        No conversion (a→a)
+      </label>
+    </div>
+  </fieldset>
+</KanaConvertTypeInput>
+`;
+
+exports[`<KanaConvertTypeInput /> renders correct checked input 3`] = `
+<KanaConvertTypeInput
+  kanaConvertType="none"
+  onChange={[Function]}
+>
+  <fieldset
+    className="kana-conv-field"
+  >
+    <legend
+      className="search-options-legend"
+    >
+      Romaji Conversion
+    </legend>
+    <div
+      className="search-options-check"
+      key="kana-conv-hira-radio"
+    >
+      <input
+        checked={false}
+        className="search-options-check-input"
+        id="kana-conv-hira-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="hira"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-hira-radio"
+      >
+        Hiragana (a→あ)
+      </label>
+    </div>
+    <div
+      className="search-options-check"
+      key="kana-conv-kata-radio"
+    >
+      <input
+        checked={false}
+        className="search-options-check-input"
+        id="kana-conv-kata-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="kata"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-kata-radio"
+      >
+        Katakana (a→ア)
+      </label>
+    </div>
+    <div
+      className="search-options-check"
+      key="kana-conv-none-radio"
+    >
+      <input
+        checked={true}
+        className="search-options-check-input"
+        id="kana-conv-none-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="none"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-none-radio"
+      >
+        No conversion (a→a)
+      </label>
+    </div>
+  </fieldset>
+</KanaConvertTypeInput>
+`;
+
+exports[`<KanaConvertTypeInput /> renders correct checked input 4`] = `
+<KanaConvertTypeInput
+  kanaConvertType="hira"
+  onChange={[Function]}
+>
+  <fieldset
+    className="kana-conv-field"
+  >
+    <legend
+      className="search-options-legend"
+    >
+      Romaji Conversion
+    </legend>
+    <div
+      className="search-options-check"
+      key="kana-conv-hira-radio"
+    >
+      <input
+        checked={true}
+        className="search-options-check-input"
+        id="kana-conv-hira-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="hira"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-hira-radio"
+      >
+        Hiragana (a→あ)
+      </label>
+    </div>
+    <div
+      className="search-options-check"
+      key="kana-conv-kata-radio"
+    >
+      <input
+        checked={false}
+        className="search-options-check-input"
+        id="kana-conv-kata-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="kata"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-kata-radio"
+      >
+        Katakana (a→ア)
+      </label>
+    </div>
+    <div
+      className="search-options-check"
+      key="kana-conv-none-radio"
+    >
+      <input
+        checked={false}
+        className="search-options-check-input"
+        id="kana-conv-none-radio"
+        name="kana-convert-type"
+        onChange={[Function]}
+        type="radio"
+        value="none"
+      />
+      <label
+        className="check-input-label"
+        htmlFor="kana-conv-none-radio"
+      >
+        No conversion (a→a)
+      </label>
+    </div>
+  </fieldset>
+</KanaConvertTypeInput>
+`;

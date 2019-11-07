@@ -3,11 +3,14 @@ module.exports = {
         'browser': true,
         'es2017': true,
         'commonjs': true,
+        'jest': true,
     },
     'extends': [
         'eslint:recommended',
         'plugin:react/recommended',
         'plugin:jsx-a11y/strict',
+        'plugin:jest/recommended',
+        'plugin:jest/style',
         'plugin:@typescript-eslint/eslint-recommended',
         'plugin:@typescript-eslint/recommended',
         'plugin:@typescript-eslint/recommended-requiring-type-checking',
@@ -28,6 +31,7 @@ module.exports = {
         'react',
         'react-hooks',
         'jsx-a11y',
+        'jest',
         '@typescript-eslint',
     ],
     'settings': {
@@ -110,10 +114,7 @@ module.exports = {
                 'ignoreUrls': true,
             },
         ],
-        'max-lines-per-function': [
-            'error',
-            50,
-        ],
+        'max-lines-per-function': 'off',
         'new-parens': 'error',
         'no-alert': 'error',
         'no-empty-function': 'off',  // Handled by TS rule
@@ -141,7 +142,10 @@ module.exports = {
         'no-tabs': 'error',
         'no-trailing-spaces': 'error',
         'no-unneeded-ternary': 'error',
-        'no-unused-expressions': 'error',
+        // TODO: Re-enabled no-unused-expressions once typescript eslint gets
+        // support for optional chaining.
+        'no-unused-expressions': 'off',
+        'no-unused-vars': 'off',
         'no-use-before-define': 'off',  // Handled by TS rule
         'no-useless-computed-key': 'error',
         'no-var': 'off',
@@ -300,6 +304,27 @@ module.exports = {
             },
         ],
 
+        // Jest rules
+        'jest/consistent-test-it': [
+            'error',
+            {
+                'fn': 'it',
+                'withinDescribe': 'it',
+            },
+        ],
+        'jest/expect-expect': 'off',
+        'jest/lowercase-name': 'error',
+        'jest/no-alias-methods': 'off',
+        'jest/no-duplicate-hooks': 'error',
+        'jest/no-expect-resolves': 'error',
+        'jest/no-test-return-statement': 'error',
+        'jest/no-truthy-falsy': 'error',
+        'jest/prefer-hooks-on-top': 'error',
+        'jest/prefer-strict-equal': 'error',
+        'jest/prefer-todo': 'error',
+        'jest/require-to-throw-message': 'error',
+        'jest/valid-title': 'error',
+
         // Typescript rules
         '@typescript-eslint/adjacent-overload-signatures': 'error',
         '@typescript-eslint/array-type': [
@@ -416,6 +441,7 @@ module.exports = {
                 ],
                 'no-empty-function': 'error',
                 'no-use-before-define': 'error',
+                'no-unused-vars': 'error',
                 'quotes': [
                     'error',
                     'single',

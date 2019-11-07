@@ -52,6 +52,14 @@ export function isSearchOption(value: unknown): value is keyof SearchOptions {
     return SEARCH_OPTIONS.includes(value as keyof SearchOptions);
 }
 
+export function assertIsSearchOption(
+    value: unknown
+): asserts value is keyof SearchOptions {
+    if (!isSearchOption(value)) {
+        throw new Error(`"${value}" is not a valid search option`);
+    }
+}
+
 export interface Search {
     query: string;
     pageNum: number;
