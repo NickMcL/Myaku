@@ -88,9 +88,11 @@ export function reflow(element: HTMLElement): number {
 export function getDaysBetween(d1: Date, d2: Date): number {
     var d1DayOnly = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
     var d2DayOnly = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    var milliSecsBetween = Math.abs(d1DayOnly - d2DayOnly);
 
-    var milliSecsBetween = Math.abs(d1DayOnly.getTime() - d2DayOnly.getTime());
-    return milliSecsBetween / (1000 * 60 * 60 * 24);
+    // Use Math round to account for millisecsBetween possibly being a little
+    // more or less than a full day of milliseconds due to DST.
+    return Math.round(milliSecsBetween / (1000 * 60 * 60 * 24));
 }
 
 /**
