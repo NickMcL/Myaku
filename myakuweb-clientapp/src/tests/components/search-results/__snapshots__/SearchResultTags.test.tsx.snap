@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<SearchResultTags /> renders correctly 1`] = `
+<ul
+  className="article-tags"
+>
+  <li
+    className="tag-badge"
+    key="Short length"
+  >
+    Short length
+  </li>
+  <li
+    className="tag-badge"
+    key="Cool"
+  >
+    Cool
+  </li>
+</ul>
+`;
+
+exports[`<SearchResultTags /> renders correctly 2`] = `
+<ul
+  className="article-tags"
+>
+  <li
+    className="tag-badge"
+    key="Medium length"
+  >
+    Medium length
+  </li>
+</ul>
+`;

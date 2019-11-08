@@ -1,0 +1,66 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<SearchResultArticleInfo /> render renders correctly with last updated time 1`] = `
+<ul
+  className="article-info"
+>
+  <li
+    key="source-name"
+  >
+    Source 1
+  </li>
+  <li
+    key="publication-datetime"
+  >
+    <time
+      dateTime="2012-05-28T16:10:16.000Z"
+    >
+      May 28th, 2012
+    </time>
+  </li>
+  <li
+    className="updated-datetime"
+    key="updated-datetime"
+  >
+    Updated 
+    <time
+      dateTime="2019-12-02T05:05:05.000Z"
+    >
+      Dec 2nd, 2019
+    </time>
+  </li>
+  <li
+    key="instance-count"
+  >
+    6
+     instances
+  </li>
+</ul>
+`;
+
+exports[`<SearchResultArticleInfo /> render renders correctly without last updated time 1`] = `
+<ul
+  className="article-info"
+>
+  <li
+    key="source-name"
+  >
+    Source 1
+  </li>
+  <li
+    key="publication-datetime"
+  >
+    <time
+      dateTime="2012-05-28T16:10:16.000Z"
+    >
+      May 28th, 2012
+    </time>
+  </li>
+  <li
+    key="instance-count"
+  >
+    6
+     instances
+  </li>
+</ul>
+`;

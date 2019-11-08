@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<SearchResultHeader /> renders correctly 1`] = `
+<h4
+  className="main-tile-header"
+  lang="ja"
+>
+  <a
+    href="https://source1.com"
+  >
+    Article 1
+  </a>
+</h4>
+`;
+
+exports[`<SearchResultHeader /> renders correctly 2`] = `
+<h4
+  className="main-tile-header"
+  lang="ja"
+>
+  <a
+    href="https://source2.com"
+  >
+    Article 2
+  </a>
+</h4>
+`;

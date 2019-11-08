@@ -1,0 +1,134 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<ResourceLinkSetTile /> renders correctly with no resources set 1`] = `
+<Tile
+  loadingHeight="6.625rem"
+  tileClasses="aside-tile resource-links-tile"
+/>
+`;
+
+exports[`<ResourceLinkSetTile /> renders correctly with no resources set 2`] = `
+<Tile
+  tileClasses="aside-tile resource-links-tile"
+>
+  <h5>
+    Jpn-Eng Dictionaries
+  </h5>
+  <ul
+    className="resource-links-list"
+  >
+    <li
+      key="Jisho.org"
+    >
+      <a
+        href="https://jisho.org/search/%E3%81%AE"
+      >
+        Search Jisho.org for 
+        <span
+          lang="ja"
+        >
+          の
+        </span>
+      </a>
+    </li>
+    <li
+      key="Weblio EJJE"
+    >
+      <a
+        href="https://ejje.weblio.jp/content/%E3%81%AE"
+      >
+        Search Weblio EJJE for 
+        <span
+          lang="ja"
+        >
+          の
+        </span>
+      </a>
+    </li>
+  </ul>
+</Tile>
+`;
+
+exports[`<ResourceLinkSetTile /> renders correctly with resources set 1`] = `
+<Tile
+  tileClasses="aside-tile resource-links-tile"
+>
+  <h5>
+    Jpn-Eng Dictionaries
+  </h5>
+  <ul
+    className="resource-links-list"
+  >
+    <li
+      key="Jisho.org"
+    >
+      <a
+        href="https://jisho.org/search/%E3%81%AE"
+      >
+        Search Jisho.org for 
+        <span
+          lang="ja"
+        >
+          の
+        </span>
+      </a>
+    </li>
+    <li
+      key="Weblio EJJE"
+    >
+      <a
+        href="https://ejje.weblio.jp/content/%E3%81%AE"
+      >
+        Search Weblio EJJE for 
+        <span
+          lang="ja"
+        >
+          の
+        </span>
+      </a>
+    </li>
+  </ul>
+</Tile>
+`;
+
+exports[`<ResourceLinkSetTile /> renders correctly with resources set 2`] = `
+<Tile
+  tileClasses="aside-tile resource-links-tile"
+>
+  <h5>
+    Jpn-Eng Dictionaries
+  </h5>
+  <ul
+    className="resource-links-list"
+  >
+    <li
+      key="Jisho.org"
+    >
+      <a
+        href="https://jisho.org/search/OB"
+      >
+        Search Jisho.org for 
+        <span
+          lang="ja"
+        >
+          OB
+        </span>
+      </a>
+    </li>
+    <li
+      key="Weblio EJJE"
+    >
+      <a
+        href="https://ejje.weblio.jp/content/OB"
+      >
+        Search Weblio EJJE for 
+        <span
+          lang="ja"
+        >
+          OB
+        </span>
+      </a>
+    </li>
+  </ul>
+</Tile>
+`;

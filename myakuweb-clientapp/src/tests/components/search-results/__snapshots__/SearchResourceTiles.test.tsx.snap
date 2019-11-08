@@ -1,0 +1,243 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<SearchResourceTiles /> renders correctly with no resources set 1`] = `
+<aside
+  className="resource-links-aside"
+>
+  <Tile
+    tileClasses="aside-tile resource-header-tile"
+  >
+    <h4>
+      More Resources
+    </h4>
+  </Tile>
+  <ResourceLinkSetTile
+    key="0"
+    linkSet={null}
+    query={null}
+  />
+  <ResourceLinkSetTile
+    key="1"
+    linkSet={null}
+    query={null}
+  />
+  <ResourceLinkSetTile
+    key="2"
+    linkSet={null}
+    query={null}
+  />
+</aside>
+`;
+
+exports[`<SearchResourceTiles /> renders correctly with no resources set 2`] = `
+<aside
+  className="resource-links-aside"
+>
+  <Tile
+    tileClasses="aside-tile resource-header-tile"
+  >
+    <h4>
+      More Resources
+    </h4>
+  </Tile>
+  <ResourceLinkSetTile
+    key="Jpn-Eng Dictionaries"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://jisho.org/search/%E3%81%AE",
+            "resourceName": "Jisho.org",
+          },
+          Object {
+            "link": "https://ejje.weblio.jp/content/%E3%81%AE",
+            "resourceName": "Weblio EJJE",
+          },
+        ],
+        "setName": "Jpn-Eng Dictionaries",
+      }
+    }
+    query="の"
+  />
+  <ResourceLinkSetTile
+    key="Jpn-Eng Sample Sentences"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://tatoeba.org/eng/sentences/search?query=%3D%E3%81%AE&from=jpn&to=eng",
+            "resourceName": "Tatoeba",
+          },
+          Object {
+            "link": "https://ejje.weblio.jp/sentence/content/%22%E3%81%AE%22",
+            "resourceName": "Weblio EJJE",
+          },
+        ],
+        "setName": "Jpn-Eng Sample Sentences",
+      }
+    }
+    query="の"
+  />
+  <ResourceLinkSetTile
+    key="Jpn Dictionaries"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://dictionary.goo.ne.jp/srch/all/%E3%81%AE/m1u/",
+            "resourceName": "Goo",
+          },
+          Object {
+            "link": "https://www.weblio.jp/content/%E3%81%AE",
+            "resourceName": "Weblio",
+          },
+        ],
+        "setName": "Jpn Dictionaries",
+      }
+    }
+    query="の"
+  />
+</aside>
+`;
+
+exports[`<SearchResourceTiles /> renders correctly with resources set 1`] = `
+<aside
+  className="resource-links-aside"
+>
+  <Tile
+    tileClasses="aside-tile resource-header-tile"
+  >
+    <h4>
+      More Resources
+    </h4>
+  </Tile>
+  <ResourceLinkSetTile
+    key="Jpn-Eng Dictionaries"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://jisho.org/search/%E3%81%AE",
+            "resourceName": "Jisho.org",
+          },
+          Object {
+            "link": "https://ejje.weblio.jp/content/%E3%81%AE",
+            "resourceName": "Weblio EJJE",
+          },
+        ],
+        "setName": "Jpn-Eng Dictionaries",
+      }
+    }
+    query="の"
+  />
+  <ResourceLinkSetTile
+    key="Jpn-Eng Sample Sentences"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://tatoeba.org/eng/sentences/search?query=%3D%E3%81%AE&from=jpn&to=eng",
+            "resourceName": "Tatoeba",
+          },
+          Object {
+            "link": "https://ejje.weblio.jp/sentence/content/%22%E3%81%AE%22",
+            "resourceName": "Weblio EJJE",
+          },
+        ],
+        "setName": "Jpn-Eng Sample Sentences",
+      }
+    }
+    query="の"
+  />
+  <ResourceLinkSetTile
+    key="Jpn Dictionaries"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://dictionary.goo.ne.jp/srch/all/%E3%81%AE/m1u/",
+            "resourceName": "Goo",
+          },
+          Object {
+            "link": "https://www.weblio.jp/content/%E3%81%AE",
+            "resourceName": "Weblio",
+          },
+        ],
+        "setName": "Jpn Dictionaries",
+      }
+    }
+    query="の"
+  />
+</aside>
+`;
+
+exports[`<SearchResourceTiles /> renders correctly with resources set 2`] = `
+<aside
+  className="resource-links-aside"
+>
+  <Tile
+    tileClasses="aside-tile resource-header-tile"
+  >
+    <h4>
+      More Resources
+    </h4>
+  </Tile>
+  <ResourceLinkSetTile
+    key="Jpn-Eng Dictionaries"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://jisho.org/search/OB",
+            "resourceName": "Jisho.org",
+          },
+          Object {
+            "link": "https://ejje.weblio.jp/content/OB",
+            "resourceName": "Weblio EJJE",
+          },
+        ],
+        "setName": "Jpn-Eng Dictionaries",
+      }
+    }
+    query="OB"
+  />
+  <ResourceLinkSetTile
+    key="Jpn-Eng Sample Sentences"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://tatoeba.org/eng/sentences/search?query=%3DOB&from=jpn&to=eng",
+            "resourceName": "Tatoeba",
+          },
+          Object {
+            "link": "https://ejje.weblio.jp/sentence/content/%22OB%22",
+            "resourceName": "Weblio EJJE",
+          },
+        ],
+        "setName": "Jpn-Eng Sample Sentences",
+      }
+    }
+    query="OB"
+  />
+  <ResourceLinkSetTile
+    key="Jpn Dictionaries"
+    linkSet={
+      Object {
+        "resourceLinks": Array [
+          Object {
+            "link": "https://dictionary.goo.ne.jp/srch/all/OB/m1u/",
+            "resourceName": "Goo",
+          },
+          Object {
+            "link": "https://www.weblio.jp/content/OB",
+            "resourceName": "Weblio",
+          },
+        ],
+        "setName": "Jpn Dictionaries",
+      }
+    }
+    query="OB"
+  />
+</aside>
+`;

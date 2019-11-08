@@ -40,7 +40,7 @@ describe('<SearchOptionsCollapseToggle />', function() {
     it('has text that matches collapsed state', function() {
         const wrapper = mount(
             <SearchOptionsCollapseToggle
-                collapsed
+                collapsed={true}
                 onToggle={(): void => {}}
             />
         );
@@ -60,7 +60,7 @@ describe('<SearchOptionsCollapseToggle />', function() {
         const mockOnToggle = jest.fn();
         const wrapper = mount(
             <SearchOptionsCollapseToggle
-                collapsed
+                collapsed={true}
                 onToggle={mockOnToggle}
             />
         );

@@ -229,7 +229,10 @@ module.exports = {
         'react-hooks/exhaustive-deps': 'error',
 
         // React JSX rules
-        'react/jsx-boolean-value': 'error',
+        'react/jsx-boolean-value': [
+            'error',
+            'always',
+        ],
         'react/jsx-closing-bracket-location': 'error',
         'react/jsx-closing-tag-location': 'error',
         'react/jsx-curly-newline': 'error',

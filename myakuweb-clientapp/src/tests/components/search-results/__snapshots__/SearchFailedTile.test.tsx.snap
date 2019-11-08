@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<SearchFailedTile /> renders correctly 1`] = `
+<div
+  className="start-tile-container"
+>
+  <Tile
+    tileClasses="start-tile"
+  >
+    <h4
+      className="error-text"
+    >
+      Search Failed
+    </h4>
+    <p>
+      There was an issue connecting to the server to make the search.
+    </p>
+    <p>
+      Please attempt the search again later.
+    </p>
+  </Tile>
+</div>
+`;

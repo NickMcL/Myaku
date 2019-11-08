@@ -335,7 +335,6 @@ class SearchResults extends React.Component<Props, State> {
             <React.Fragment>
                 <SearchResultPageTiles
                     requestedSearch={this.state.requestedSearch}
-                    loadedSearch={this.state.loadedSearch}
                     totalResults={this.getTotalSearchResultCount()}
                     resultPage={this.getRenderSearchResultPage()}
                 />

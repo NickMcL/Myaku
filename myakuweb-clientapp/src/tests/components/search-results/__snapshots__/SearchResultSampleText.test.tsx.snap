@@ -1,0 +1,52 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`<SearchResultSampleText /> renders correctly 1`] = `
+<blockquote
+  className="article-sample-text"
+>
+  <p
+    lang="ja"
+  >
+    アメリカ
+    <span
+      className="article-sample-instance"
+      key="segment-1"
+    >
+      の
+    </span>
+    一番
+    <span
+      className="article-sample-instance"
+      key="segment-3"
+    >
+      の
+    </span>
+    ネコ
+  </p>
+  <footer>
+    50% into article
+  </footer>
+</blockquote>
+`;
+
+exports[`<SearchResultSampleText /> renders correctly 2`] = `
+<blockquote
+  className="article-sample-text"
+>
+  <p
+    lang="ja"
+  >
+    アメリカ
+    <span
+      className="article-sample-instance"
+      key="segment-1"
+    >
+      の
+    </span>
+    心
+  </p>
+  <footer>
+    30% into article
+  </footer>
+</blockquote>
+`;

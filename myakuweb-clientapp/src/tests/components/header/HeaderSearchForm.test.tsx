@@ -158,9 +158,7 @@ function toggleSearchOptionsCollapse(wrapper: ShallowWrapper): void {
     act(() => collapseToggle.props().onToggle());
 }
 
-function uncollapseSearchOptions(
-    wrapper: ShallowWrapper
-): void {
+function uncollapseSearchOptions(wrapper: ShallowWrapper): void {
     expectSearchOptionsCollapsed(wrapper, true);
     toggleSearchOptionsCollapse(wrapper);
     expectSearchOptionsCollapsed(wrapper, false);
