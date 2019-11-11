@@ -27,7 +27,10 @@ _MYAKU_PROJECT_DIR_ENV_VAR = 'MYAKU_PROJECT_DIR'
 _REVERSEPROXY_HOST_ENV_VAR = 'REVERSEPROXY_HOST'
 
 # Relative to the Myaku project dir root
-_MYAKUWEB_SELENIUM_TESTS_REL_DIR = 'myakuweb-apiserver/selenium_tests'
+_REACT_APP_REL_DIR = 'myakuweb-clientapp'
+
+# Relative to the Myaku project dir root
+_MYAKUWEB_SELENIUM_TESTS_REL_DIR = 'selenium_tests'
 
 _TEST_STACK_NAME_PREFIX = 'myaku_test_'
 
@@ -121,6 +124,28 @@ def setup_logger() -> logging.Logger:
     logger.addHandler(stream_handler)
 
     return logger
+
+
+def install_node_app_deps(node_app_dir: str) -> None:
+    """Install all dependencies for a nodejs app using npm.
+
+    Args:
+        node_app_dir: Directory containing the node app.
+
+    Raises:
+        RuntimeError: npm install returned a non-zero exit code when attempting
+            to install the dependencies for the app.
+    """
+    preinstall_dir = os.getcwd()
+    try:
+        os.chdir(node_app_dir)
+        installCompleted = subprocess.run(['npm', 'install'], text=True)
+        if (installCompleted.returncode != 0):
+            raise RuntimeError(
+                f'npm install for node app "{os.getcwd()}" failed'
+            )
+    finally:
+        os.chdir(preinstall_dir)
 
 
 def run_docker_subprocess(cmd: List[str], **kwargs) -> CompletedProcess:
@@ -299,7 +324,7 @@ class TestMyakuStack(object):
     # If None, will build new tests images to use for the test stack.
     # If "prod", will use the images specified in the base docker compose file
     #   (./docker/docker-compose.yml).
-    # If "test" is specified, uses the images with the :test tag.
+    # If "test", will use the images with the :test tag.
     use_existing_images = None
 
     @staticmethod
@@ -561,15 +586,34 @@ class TestRunner(object):
 
         self._myaku_project_dir = os.environ[_MYAKU_PROJECT_DIR_ENV_VAR]
 
+    def run_react_app_tests(self) -> None:
+        """Run all of the unit tests for the MyakuWeb React app."""
+        app_dir = os.path.join(self._myaku_project_dir, _REACT_APP_REL_DIR)
+
+        log_blue('\nInstalling dependencies for MyakuWeb React app...')
+        install_node_app_deps(app_dir)
+
+        log_blue('\nRunning jest unit tests for MyakuWeb React app...')
+        pretest_dir = os.getcwd()
+        try:
+            os.chdir(app_dir)
+            testCompleted = subprocess.run(['npm', 'test'], text=True)
+            self._log_test_result('react app unit', testCompleted.returncode)
+        finally:
+            os.chdir(pretest_dir)
+
     def run_crawler_tests(self) -> None:
-        """Run all of the tests for the crawler service."""
+        """Run all of the tests for the Myaku crawler service."""
         with TestMyakuStack() as test_stack:
             crawler_container = test_stack.get_crawler_container()
             self._run_crawler_unit_tests(crawler_container)
             self._run_crawler_end_to_end_test(crawler_container)
 
     def run_web_tests(self) -> None:
-        """Run all of the tests for the Myaku web services."""
+        """Run all of the end-to-end tests for MyakuWeb.
+
+        Uses a selenium web driver to run the tests.
+        """
         with TestMyakuStack() as test_stack:
             reverseproxy_host = test_stack.link_to_reverseproxy()
             os.environ[_REVERSEPROXY_HOST_ENV_VAR] = reverseproxy_host
@@ -621,9 +665,7 @@ class TestRunner(object):
         stack reverseproxy to test the myaku web service in order to closely
         simulate real requests.
         """
-        log_blue(
-            '\nRunning selenium pytests for web from test runner container...'
-        )
+        log_blue('\nRunning selenium pytests for MyakuWeb...')
         test_dir = os.path.join(
             self._myaku_project_dir,
             _MYAKUWEB_SELENIUM_TESTS_REL_DIR
@@ -641,10 +683,14 @@ class TestRunner(object):
             non-0 means all tests did not pass.
         """
         if returncode == 0:
-            _log.info('Test result for %s: ' + green_text('PASSED'), test_name)
+            _log.info(
+                'Test result for %s: %s\n', test_name, green_text('PASSED')
+            )
             self._test_results[test_name] = 'PASSED'
         else:
-            _log.info('Test result for %s: ' + red_text('FAILED'), test_name)
+            _log.info(
+                'Test result for %s: %s\n', test_name, red_text('FAILED')
+            )
             self._test_results[test_name] = 'FAILED'
 
     def log_overall_results(self) -> int:
@@ -665,6 +711,7 @@ class TestRunner(object):
             return 0
         else:
             _log.info('\nOverall test results: ' + red_text('TEST FAILURE'))
+            _log.info('Failed test suites: %s', ', '.join(failed_tests))
             return 1
 
 
@@ -682,6 +729,7 @@ def main() -> None:
         sys.exit(0)
 
     test_runner = TestRunner(script_args.use_existing_images)
+    test_runner.run_react_app_tests()
     test_runner.run_crawler_tests()
     test_runner.run_web_tests()
 

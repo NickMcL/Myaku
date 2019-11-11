@@ -1,4 +1,4 @@
-"""Web driver tests for MyakuWeb."""
+"""Web driver tests for MyakuWeb index page."""
 
 import os
 from typing import Dict, List, Union

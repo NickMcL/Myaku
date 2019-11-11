@@ -11,11 +11,14 @@ RUN apt-get update \
 # Install needed python packages
 RUN apt-get install -y python3.7 python3-pip
 
-# Install latest docker CLI
-RUN apt-get remove -y docker docker-engine docker.io containerd runc \
-    && apt-get install -y apt-transport-https ca-certificates curl \
-        gnupg-agent
+# Install node. The version installed should match the version used to build
+# the production distribution in the nginx.reverseproxy image.
+RUN apt-get install -y apt-transport-https ca-certificates curl gnupg-agent
+RUN curl -sL https://deb.nodesource.com/setup_13.x | bash -
+RUN apt-get install -y nodejs=13.1.0-1nodesource1
 
+# Install latest docker CLI
+RUN apt-get remove -y docker docker-engine docker.io containerd runc
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - \
     && add-apt-repository \
         "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
@@ -23,7 +26,7 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - \
     && apt-get update \
     && apt-get -y install docker-ce-cli=5:19.03.3~3-0~ubuntu-bionic
 
-# Install firefox + geckodriver for web driver testing.
+# Install firefox + geckodriver for web driver testing
 RUN apt-get install -y wget firefox
 RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.26.0\
 /geckodriver-v0.26.0-linux64.tar.gz \
