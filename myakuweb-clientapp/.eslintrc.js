@@ -142,9 +142,7 @@ module.exports = {
         'no-tabs': 'error',
         'no-trailing-spaces': 'error',
         'no-unneeded-ternary': 'error',
-        // TODO: Re-enabled no-unused-expressions once typescript eslint gets
-        // support for optional chaining.
-        'no-unused-expressions': 'off',
+        'no-unused-expressions': 'off',  // Handled by TS rule
         'no-unused-vars': 'off',
         'no-use-before-define': 'off',  // Handled by TS rule
         'no-useless-computed-key': 'error',
@@ -390,6 +388,7 @@ module.exports = {
             },
         ],
         '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+        '@typescript-eslint/no-unused-expressions': 'error',
         '@typescript-eslint/no-unused-vars': 'error',
         '@typescript-eslint/no-use-before-define': 'error',
         '@typescript-eslint/no-var-requires': 'error',
@@ -444,6 +443,7 @@ module.exports = {
                 ],
                 'no-empty-function': 'error',
                 'no-use-before-define': 'error',
+                'no-unused-expressions': 'error',
                 'no-unused-vars': 'error',
                 'quotes': [
                     'error',
