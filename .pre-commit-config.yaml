@@ -49,6 +49,14 @@ repos:
           - typescript@3.7.2
           - "@typescript-eslint/eslint-plugin@2.7.0"
           - "@typescript-eslint/parser@2.7.0"
+          - "@types/react@16.9.5"
+          - "@types/react-dom@16.9.1"
+          - "@types/react-router-dom@5.1.0"
+          - "@types/wanakana@4.0.0"
+          - "@types/enzyme@3.10.3"
+          - "@types/enzyme-adapter-react-16@1.0.5"
+          - "@types/enzyme-to-json@1.5.3"
+          - "@types/jest@24.0.21"
           - eslint-plugin-jsx-a11y@6.2.3
           - eslint-plugin-react@7.16.0
           - eslint-plugin-react-hooks@2.2.0

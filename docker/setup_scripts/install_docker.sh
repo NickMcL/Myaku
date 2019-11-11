@@ -2,6 +2,8 @@
 # Bootstrap script to install the current docker version being used for the
 # project  on an Ubuntu instance.
 
+set -ev
+
 sudo apt-get remove -y docker docker-engine docker.io containerd runc
 
 sudo apt-get update
