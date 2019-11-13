@@ -121,6 +121,13 @@ describe('<SearchBarInput />', function() {
         expect(getInput(wrapper).hasClass('warning-border')).toBe(false);
     });
 
+    it('does not show warning on empty query inputted', function() {
+        wrapper.setProps({searchQuery: ''});
+
+        expect(wrapper.find('.input-warning-text')).toHaveLength(0);
+        expect(getInput(wrapper).hasClass('warning-border')).toBe(false);
+    });
+
     it('shows submitted query too long error', function() {
         wrapper.setProps({maxQueryLength: 15});
 

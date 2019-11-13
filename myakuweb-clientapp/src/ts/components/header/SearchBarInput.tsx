@@ -243,8 +243,10 @@ function getErrorMessageElement(
     var className;
     if (errorState == ErrorState.Error) {
         className = 'input-error-text';
-    } else {
+    } else if (errorState == ErrorState.Warning) {
         className = 'input-warning-text';
+    } else {
+        return null;
     }
 
     if (inputtedQuery.length === 0) {
@@ -266,9 +268,7 @@ function getErrorMessageElement(
  * @param submittedErrorValue - Whether an error value has been submitted for
  * the form containing the search bar or not.
  *
- * @returns If inputtedQuery is not empty and within the maxQueryLength,
- * returns OK. Otherwise, returns Error if submittedErrorValue is true, or
- * returns Warning if submittedErrorValue is false.
+ * @returns The current error state of the search bar.
  */
 function getErrorState(
     inputtedQuery: string, maxQueryLength: number, submittedErrorValue: boolean
@@ -279,9 +279,13 @@ function getErrorState(
 
     if (submittedErrorValue) {
         return ErrorState.Error;
-    } else {
+    }
+
+    if (inputtedQuery.length > maxQueryLength) {
         return ErrorState.Warning;
     }
+
+    return ErrorState.OK;
 }
 
 /**
