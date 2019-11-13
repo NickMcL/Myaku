@@ -174,7 +174,7 @@ services:
       - crawler_net
       - web_net
   reverseproxy:
-    image: friedrice2/myaku_nginx.reverseproxy:3.1.1
+    image: friedrice2/myaku_nginx.reverseproxy:3.1.2
     volumes:
       - type: volume
         source: reverseproxy_log
