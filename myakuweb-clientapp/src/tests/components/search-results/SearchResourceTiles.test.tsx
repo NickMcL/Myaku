@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchResourceTiles component.
- * @module tests/components/search-results/SearchResourceTiles.test
+ * Tests for the [[SearchResourceTiles]] component.
  */
 
 import React from 'react';

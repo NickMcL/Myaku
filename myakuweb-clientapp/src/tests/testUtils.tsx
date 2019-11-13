@@ -1,6 +1,5 @@
 /**
  * Utility functions for use in React component Jest tests.
- * @module tests/testUtils
  */
 
 import {
@@ -10,6 +9,17 @@ import {
 } from 'enzyme';
 
 
+/**
+ * Check for the presence of the given component in the given enzyme wrapper.
+ *
+ * Uses the expect function from Jest to make the checks, so this function can
+ * only be called in Jest tests.
+ *
+ * @param wrapper - Enzyme wrapper to check for the component.
+ * @param component - Component to check for.
+ * @param propKeyValues - The values that each prop key should have for the
+ * component in the wrapper.
+ */
 export function expectComponent<C, P>(
     wrapper: ReactWrapper<C> | ShallowWrapper<C>,
     component: ComponentType<P>, propKeyValues: object

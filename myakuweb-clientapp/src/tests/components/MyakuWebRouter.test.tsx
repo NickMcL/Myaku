@@ -1,6 +1,5 @@
 /**
- * Tests for the MyakuWebRouter component.
- * @module tests/components/MyakuWebRouter.test
+ * Tests for the [[MyakuWebRouter]] component.
  */
 
 import MainContent from 'ts/components/generic/MainContent';

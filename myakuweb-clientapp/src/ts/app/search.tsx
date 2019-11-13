@@ -1,6 +1,5 @@
 /**
  * Functions for working with search options and search queries.
- * @module ts/app/search-options
  */
 
 import History from 'history';
@@ -36,7 +35,7 @@ const SEARCH_OPTIONS_STORE_KEY = 'UserSearchOptions';
  *
  * @param search - If a Search object, a search URL using the object's
  * parameters. If a string, a search URL using that string as the search query
- * with default search options.
+ * with a page number of 1.
  *
  * @returns A URL for the search results page for the given search.
  */
@@ -52,6 +51,9 @@ export function getSearchUrl(search: Search | string): string {
     );
 }
 
+/**
+ * Returns true if the given two Search objects are equivalent.
+ */
 export function isSearchEqual(
     search: Search, cmpSearch: Search | null
 ): boolean {
@@ -68,6 +70,16 @@ export function isSearchEqual(
     return true;
 }
 
+/**
+ * Get the page number parameter value from the given URL search params.
+ *
+ * @param urlParams - URL search params to get the page number parameter value
+ * from.
+ *
+ * @returns The page number parameter value if the page number key is in the
+ * given URL search params and its value is a valid page number.
+ * Otherwise, null.
+ */
 function getPageNumUrlParam(urlParams: URLSearchParams): number | null {
     const pageNumParamValue = urlParams.get(SEARCH_URL_PARAMS.pageNum);
     if (pageNumParamValue === null) {
@@ -82,6 +94,15 @@ function getPageNumUrlParam(urlParams: URLSearchParams): number | null {
     }
 }
 
+/**
+ * Get the search query parameter value from the given location.
+ *
+ * @param location - Location to get the search query parameter value from.
+ *
+ * @returns The search query parameter value if the search query is specified
+ * in the given location.
+ * Otherwise, null.
+ */
 export function getSearchQueryFromLocation(
     location: History.Location
 ): string | null {
@@ -89,12 +110,30 @@ export function getSearchQueryFromLocation(
     return urlParams.get(SEARCH_URL_PARAMS.query);
 }
 
+/**
+ * Get the search options values for all locations.
+ *
+ * No search option is currently specified via locations, so this function
+ * currently just returns null for all search option values, but in the future,
+ * it may return different values based on a given location.
+ *
+ * @returns The search options values for all locations (i.e. all null values).
+ */
 export function getSearchOptionsFromLocation(): AllNullable<SearchOptions> {
     return {
         kanaConvertType: null,
     };
 }
 
+/**
+ * Replace any null values in the given search options with default values.
+ *
+ * @param options - A search options object with some keys possibly having null
+ * values.
+ *
+ * @returns A copy of the given search options object with all null values
+ * replaced with the default value for that search option key.
+ */
 export function applyDefaultSearchOptions(
     options: AllNullable<SearchOptions>
 ): SearchOptions {
@@ -112,6 +151,13 @@ export function applyDefaultSearchOptions(
     return defaultsAppliedOptions;
 }
 
+/**
+ * Get the search specified by a given location.
+ *
+ * If the query parameter is missing in the location, uses an empty string
+ * instead.
+ * If the page number is missing in the location, uses 1 instead.
+ */
 export function getSearchFromLocation(location: History.Location): Search {
     const urlParams = new URLSearchParams(location.search);
     return {
@@ -120,6 +166,13 @@ export function getSearchFromLocation(location: History.Location): Search {
     };
 }
 
+/**
+ * Get a connection to the MyakuWeb IndexedDB database.
+ *
+ * @returns A Promise that resolves to the database connection.
+ *
+ * Note that the Promise will reject if no IndexedDB was available.
+ */
 async function connectToMyakuWebIndexedDb(): Promise<IDBDatabase> {
     return new Promise(function(resolve, reject): void {
         var openRequest = window.indexedDB.open(
@@ -145,6 +198,16 @@ async function connectToMyakuWebIndexedDb(): Promise<IDBDatabase> {
     });
 }
 
+/**
+ * Get the search options store of the MyakuWeb IndexedDB database.
+ *
+ * @param mode - The read-write mode to set for the returned search options
+ * store.
+ *
+ * @returns A Promise that resolves to the search options store.
+ *
+ * Note that the Promise will reject if no IndexedDB was available.
+ */
 async function getSearchOptionsStore(
     mode: 'readonly' | 'readwrite'
 ): Promise<IDBObjectStore> {
@@ -157,6 +220,16 @@ async function getSearchOptionsStore(
     return transaction.objectStore(SEARCH_OPTIONS_STORE_NAME);
 }
 
+/**
+ * Load the search options stored for the user in the MyakuWeb IndexedDB
+ * database.
+ *
+ * @returns A Promise that resolves to the search options stored for the user
+ * with null values set for any option keys that did not have a value stored in
+ * the database.
+ *
+ * Note that the Promise will reject if no IndexedDB was available.
+ */
 export async function loadUserSearchOptions(
 ): Promise<AllNullable<SearchOptions>> {
     var store = await getSearchOptionsStore('readonly');
@@ -173,6 +246,19 @@ export async function loadUserSearchOptions(
     });
 }
 
+/**
+ * Set a search option value for the user in the MyakuWeb IndexedDB search
+ * options store.
+ *
+ * @param option - Search option key to set a value for.
+ * @param value - Value to set for the given search option key.
+ *
+ * @returns A Promise that resolves to the search options stored for the user
+ * after setting the given key-value pair in the store. Null values will be set
+ * for any option keys that did not have a value stored in the database.
+ *
+ * Note that the Promise will reject if no IndexedDB was available.
+ */
 export async function setUserSearchOption<T extends keyof SearchOptions>(
     option: T, value: SearchOptions[T]
 ): Promise<AllNullable<SearchOptions>> {

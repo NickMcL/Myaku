@@ -1,4 +1,6 @@
-/** @module Romaji->kana conversion setting input component */
+/**
+ * KanaConvertTypeInput component module. See [[KanaConvertTypeInput]].
+ */
 
 import React from 'react';
 import useInputChangeHandler from 'ts/hooks/useInputChangeHandler';
@@ -8,12 +10,24 @@ import {
     KanaConvertType,
 } from 'ts/types/types';
 
+/** Props for the [[KanaConvertTypeInput]] component. */
 interface KanaConvertTypeInputProps {
+    /**
+     * Current inputted kana convert type for the form containing this
+     * component.
+     * This will be the option displayed as set in the component.
+     */
     kanaConvertType: KanaConvertType;
+
+    /**
+     * Callback to call with the new kana convert type value whenever it
+     * changes.
+     */
     onChange: (kanaConvertType: KanaConvertType) => void;
 }
 type Props = KanaConvertTypeInputProps;
 
+/** Labels to use for each of the possible kana convert type values. */
 const CONVERT_TYPE_LABELS: Record<KanaConvertType, string> = {
     'hira': 'Hiragana (a→あ)',
     'kata': 'Katakana (a→ア)',
@@ -21,6 +35,16 @@ const CONVERT_TYPE_LABELS: Record<KanaConvertType, string> = {
 };
 
 
+/**
+ * Create the kana convert type radio input elements to use for the component.
+ *
+ * @param selected - The kana convert type value that should have its radio
+ * input checked.
+ * @param handleChangeFunc - The callback to set as the onChange handler for
+ * each of the kana convert type radio inputs.
+ *
+ * @returns The radio input elements.
+ */
 function createRadioInputs(
     selected: KanaConvertType,
     handleChangeFunc: (event: React.FormEvent<HTMLInputElement>) => void
@@ -52,6 +76,11 @@ function createRadioInputs(
     return radioInputs;
 }
 
+/**
+ * Romaji-to-kana conversion search option radio input component.
+ *
+ * @param props - See [[KanaConvertTypeInputProps]].
+ */
 const KanaConvertTypeInput: React.FC<Props> = function(props) {
     const handleChange = useInputChangeHandler(props.onChange);
 

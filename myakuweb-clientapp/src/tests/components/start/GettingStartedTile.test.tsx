@@ -1,6 +1,5 @@
 /**
- * Tests for the GettingStartedTile component.
- * @module tests/components/start/GettingStartedTile.test
+ * Tests for the [[GettingStartedTile]] component.
  */
 
 import GettingStartedTile from 'ts/components/start/GettingStartedTile';

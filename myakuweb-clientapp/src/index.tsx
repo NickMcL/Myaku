@@ -1,6 +1,8 @@
 /**
  * Entrypoint for the MyakuWeb React app.
- * @module index
+ *
+ * @remarks
+ * Renders the app within the element with ID "root" in the document.
  */
 
 import 'scss/myakuweb.scss';

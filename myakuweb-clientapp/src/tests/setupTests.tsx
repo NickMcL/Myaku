@@ -1,5 +1,5 @@
 /**
- * Enzyme setup for react component testing.
+ * Enzyme setup for React component testing.
  */
 
 import ReactSixteenAdapter from 'enzyme-adapter-react-16';

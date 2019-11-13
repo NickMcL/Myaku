@@ -1,6 +1,5 @@
 /**
- * Utility functions for the MyakuWeb project.
- * @module utils
+ * Utility functions for the MyakuWeb app.
  */
 
 import {
@@ -31,12 +30,13 @@ const MONTH_SHORT_NAME_MAP: MonthMap = {
 /**
  * Recursively transform all primative values of obj using transformFunc.
  *
- * Performs the transformation in-place in the given object.
+ * Performs the transformation in-place in the given object. Does NOT return
+ * the transformed object.
  *
  * @param obj - Object to transform all values of.
  * @param transformFunc - Function to use to transform the primative values of
  * obj.
- * @param condFunc? - If given, only the key-value pairs of obj that return
+ * @param condFunc - If given, only the key-value pairs of obj that return
  * true when given to this function will have their values transformed.
  */
 export function recursivelyTransform(
@@ -59,10 +59,16 @@ export function recursivelyTransform(
     }
 }
 
+/**
+ * Scroll to the top of the window.
+ */
 export function scrollToTop(): void {
     window.scrollTo(0, 0);
 }
 
+/**
+ * Blur the currently focused element in the document.
+ */
 export function blurActiveElement(): void {
     if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
@@ -76,7 +82,7 @@ export function blurActiveElement(): void {
  *
  * @returns The offsetHeight of the element, but this can be ignored. It's only
  * returned to prevent the access of offsetHeight property from being removed
- * by the compiler.
+ * by a compiler.
  */
 export function reflow(element: HTMLElement): number {
     return element.offsetHeight;
@@ -96,7 +102,7 @@ export function getDaysBetween(d1: Date, d2: Date): number {
 }
 
 /**
- * Get the ordinal suffix for a number (e.g. 1 -> st, 2 -> nd, ...).
+ * Get the ordinal suffix for a number (e.g. 1 \> st, 2 \> nd, ...).
  *
  * @param num - Number to get the ordinal suffix for.
  *

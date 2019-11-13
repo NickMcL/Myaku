@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchFailedTile component.
- * @module tests/components/search-results/SearchFailedTile.test
+ * Tests for the [[SearchFailedTile]] component.
  */
 
 import React from 'react';

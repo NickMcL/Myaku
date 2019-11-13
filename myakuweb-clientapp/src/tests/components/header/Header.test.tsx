@@ -1,6 +1,5 @@
 /**
- * Tests for the Header component.
- * @module tests/components/header/Header.test
+ * Tests for the [[Header]] component.
  */
 
 import Header from 'ts/components/header/Header';

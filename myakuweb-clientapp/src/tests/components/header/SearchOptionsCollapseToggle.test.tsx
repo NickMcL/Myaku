@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchOptionsCollapseToggle component.
- * @module tests/components/header/SearchOptionsCollapseToggle.test
+ * Tests for the [[SearchOptionsCollapseToggle]] component.
  */
 
 import React from 'react';

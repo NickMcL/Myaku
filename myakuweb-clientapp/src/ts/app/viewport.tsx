@@ -1,8 +1,14 @@
 /**
  * Constants and functions for browser viewport breakpoints.
- * @module viewport
  */
 
+/**
+ * Each viewport size constant has its value set as the minimum size in pixels
+ * of that viewport size.
+ *
+ * This allows one to do comparisons like Large \> Small to compare viewport
+ * sizes.
+ */
 export const enum ViewportSize {
     XSmall = 0,
     Small = 576,
@@ -11,6 +17,9 @@ export const enum ViewportSize {
     XLarge = 1200,
 }
 
+/**
+ * Get the current viewport size of the window.
+ */
 export function getViewportSize(): ViewportSize {
     if (window.innerWidth >= ViewportSize.XLarge) {
         return ViewportSize.XLarge;

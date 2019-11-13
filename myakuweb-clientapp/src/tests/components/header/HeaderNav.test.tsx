@@ -1,6 +1,5 @@
 /**
- * Tests for the HeaderNav component.
- * @module tests/components/header/HeaderNav.test
+ * Tests for the [[HeaderNav]] component.
  */
 
 import HeaderNav from 'ts/components/header/HeaderNav';

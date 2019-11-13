@@ -61,6 +61,7 @@ repos:
           - eslint-plugin-react@7.16.0
           - eslint-plugin-react-hooks@2.2.0
           - eslint-plugin-jest@23.0.2
+          - eslint-plugin-tsdoc@0.1.2
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
     rev: v1.1.0

@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchResultTile component.
- * @module tests/components/search-results/SearchResultTile.test
+ * Tests for the [[SearchResultTile]] component.
  */
 
 import Collapsable from 'ts/components/generic/Collapsable';

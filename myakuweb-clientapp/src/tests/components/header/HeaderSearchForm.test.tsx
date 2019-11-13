@@ -1,6 +1,5 @@
 /**
- * Tests for the HeaderSearchForm component.
- * @module tests/components/header/HeaderSearchForm.test
+ * Tests for the [[HeaderSearchForm]] component.
  */
 
 import Collapsable from 'ts/components/generic/Collapsable';
@@ -33,7 +32,7 @@ const mockPromise = {
     catch: (): void => {},
 };
 
-/*
+/**
  * Mock only the async functions from the search module to avoid getting errors
  * when these functions get called in HeaderSearchForm during synchronous
  * tests.

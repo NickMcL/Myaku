@@ -1,6 +1,5 @@
 /**
- * Tests for the ResourceLinkSetTile component.
- * @module tests/components/search-results/ResourceLinkSetTile.test
+ * Tests for the [[ResourceLinkSetTile]] component.
  */
 
 import React from 'react';

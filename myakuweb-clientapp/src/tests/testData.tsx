@@ -1,6 +1,5 @@
 /**
  * Mock MyakuWeb API response data for use in tests.
- * @module tests/testData
  */
 
 import {
@@ -222,6 +221,12 @@ export const SEARCH_RESOURCES_OB: SearchResources = {
     ],
 };
 
+/**
+ * Get a clone of the test search result page data.
+ *
+ * This is useful to get multiple copies of the data that can be freely
+ * modified without impacting the other copies.
+ */
 export function getSearchResultPageDataClone(): SearchResultPage {
     var clone = JSON.parse(
         JSON.stringify(BASELINE_SEARCH_RESULT_PAGE)

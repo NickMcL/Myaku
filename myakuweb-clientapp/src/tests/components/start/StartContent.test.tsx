@@ -1,6 +1,5 @@
 /**
- * Tests for the StartContent component.
- * @module tests/components/start/StartContent.test
+ * Tests for the [[StartContent]] component.
  */
 
 import { MemoryRouter } from 'react-router-dom';

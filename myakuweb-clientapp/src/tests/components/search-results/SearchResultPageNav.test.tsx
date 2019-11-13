@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchResultPageNav component.
- * @module tests/components/search-results/SearchResultPageNav.test
+ * Tests for the [[SearchResultPageNav]] component.
  */
 
 import { LinkProps } from 'react-router-dom';

@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchResultPageHeader component.
- * @module tests/components/search-results/SearchResultPageHeader.test
+ * Tests for the [[SearchResultPageHeader]] component.
  */
 
 import React from 'react';

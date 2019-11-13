@@ -1,6 +1,5 @@
 /**
- * Tests for the WhatIsMyakuTile component.
- * @module tests/components/start/WhatIsMyakuTile.test
+ * Tests for the [[WhatIsMyakuTile]] component.
  */
 
 import React from 'react';

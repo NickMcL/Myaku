@@ -1,14 +1,23 @@
-/** @module Search result article sample text component */
+/**
+ * SearchResultSampleText component module. See [[SearchResultSampleText]].
+ */
 
 import { ArticleSampleText } from 'ts/types/types';
 import React from 'react';
 
+/** Props for the [[SearchResultSampleText]] component. */
 interface SearchResultSampleTextProps {
+    /** Sample text content to display in the component */
     sampleText: ArticleSampleText;
 }
 type Props = SearchResultSampleTextProps;
 
 
+/**
+ * Article search result sample text blockquote component.
+ *
+ * @param props - See [[SearchResultSampleTextProps]].
+ */
 const SearchResultSampleText: React.FC<Props> = function(props) {
     var sampleSegments: React.ReactNode[] = [];
     var segments = props.sampleText.segments;

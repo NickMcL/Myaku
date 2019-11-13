@@ -1,4 +1,6 @@
-/** @module Search result article info list component */
+/**
+ * SearchResultArticleInfo component module. See [[SearchResultArticleInfo]].
+ */
 
 import { ArticleSearchResult } from 'ts/types/types';
 import React from 'react';
@@ -8,12 +10,20 @@ import {
     humanizeDate,
 } from 'ts/app/utils';
 
+/** Props for the [[SearchResultArticleInfo]] component. */
 interface SearchResultArticleInfoProps {
     searchResult: ArticleSearchResult;
 }
 type Props = SearchResultArticleInfoProps;
 
 
+/**
+ * Make a time element for the given date.
+ *
+ * @param date - Date to make a time element for.
+ *
+ * @returns The time element made for the date.
+ */
 function makeTimeElement(date: Date): React.ReactElement {
     return (
         <time dateTime={date.toISOString()}>
@@ -36,7 +46,7 @@ function makeTimeElement(date: Date): React.ReactElement {
  * @param searchResult - Search result to determine if its last updated
  * datetime should be displayed.
  *
- * @returns True if the last updated datetime should be displayed, or False if
+ * @returns True if the last updated datetime should be displayed, or false if
  * it shouldn't be displayed.
  */
 function shouldDisplayLastUpdatedDate(
@@ -77,6 +87,11 @@ function shouldDisplayLastUpdatedDate(
     return false;
 }
 
+/**
+ * Search result article info list component.
+ *
+ * @param props - See [[SearchResultArticleInfoProps]].
+ */
 const SearchResultArticleInfo: React.FC<Props> = function(props) {
     var lastUpdatedDatetimeLi: React.ReactElement | null = null;
     if (shouldDisplayLastUpdatedDate(props.searchResult)) {

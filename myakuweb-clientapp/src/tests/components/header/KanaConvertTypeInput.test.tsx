@@ -1,6 +1,5 @@
 /**
- * Tests for the KanaConvertTypeInput component.
- * @module tests/components/header/KanaConvertTypeInput.test
+ * Tests for the [[KanaConvertTypeInput]] component.
  */
 
 import KanaConvertTypeInput from 'ts/components/header/KanaConvertTypeInput';

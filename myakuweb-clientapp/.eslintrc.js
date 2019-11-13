@@ -24,6 +24,7 @@ module.exports = {
         'ecmaFeatures': {
             'jsx': true,
         },
+        'emcaVersion': 2018,
         'sourceType': 'module',
         'project': './tsconfig.json',
     },
@@ -33,6 +34,7 @@ module.exports = {
         'jsx-a11y',
         'jest',
         '@typescript-eslint',
+        'eslint-plugin-tsdoc',
     ],
     'settings': {
         'react': {
@@ -412,6 +414,9 @@ module.exports = {
         '@typescript-eslint/type-annotation-spacing': 'error',
         '@typescript-eslint/unbound-method': 'off',
         '@typescript-eslint/unified-signatures': 'error',
+
+        // TSDoc rules
+        'tsdoc/syntax': 'error',
     },
     'overrides': [
         {
@@ -504,6 +509,9 @@ module.exports = {
                 '@typescript-eslint/type-annotation-spacing': 'off',
                 '@typescript-eslint/unbound-method': 'off',
                 '@typescript-eslint/unified-signatures': 'off',
+
+                // Turn off all TSDoc rules
+                'tsdoc/syntax': 'off',
             },
         },
     ],

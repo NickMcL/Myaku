@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchBarInput component.
- * @module tests/components/header/SearchBarInputInput.test
+ * Tests for the [[SearchBarInput]] component.
  */
 
 import React from 'react';

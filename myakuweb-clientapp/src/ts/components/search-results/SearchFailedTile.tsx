@@ -1,6 +1,5 @@
 /**
- * Search failure notice tile component.
- * @module ts/components/search-results/SearchFailedTile
+ * SearchFailedTile component module. See [[SearchFailedTile]].
  */
 
 import React from 'react';
@@ -8,6 +7,14 @@ import Tile from 'ts/components/generic/Tile';
 import { useEffect } from 'react';
 
 
+/**
+ * Search failure notice tile component.
+ *
+ * Sets the document title to indicate search failure as well.
+ *
+ * @remarks
+ * This component has no props.
+ */
 const SearchFailedTile: React.FC<{}> = function() {
     useEffect(function() {
         document.title = 'Search Failed';

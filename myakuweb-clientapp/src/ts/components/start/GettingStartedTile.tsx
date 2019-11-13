@@ -1,4 +1,6 @@
-/** @module Tile with sample searches component */
+/**
+ * GettingStartedTile component module. See [[GettingStartedTile]].
+ */
 
 import { Link } from 'react-router-dom';
 import React from 'react';
@@ -10,6 +12,7 @@ interface SampleSearch {
     explanation: string;
 }
 
+/** Sample searches to display in the component. */
 const SAMPLE_SEARCHES: SampleSearch[] = [
     {
         query: '力士',
@@ -29,7 +32,11 @@ const SAMPLE_SEARCHES: SampleSearch[] = [
     },
 ];
 
-
+/**
+ * Get the sample search li elements for the component.
+ *
+ * The li elements contain Link elements for each search.
+ */
 function getSampleSearchLis(): React.ReactElement[] {
     var sampleSearchLis: React.ReactElement[] = [];
     for (const sampleSearch of SAMPLE_SEARCHES) {
@@ -47,6 +54,12 @@ function getSampleSearchLis(): React.ReactElement[] {
     return sampleSearchLis;
 }
 
+/**
+ * Tile component with sample searches for MyakuWeb.
+ *
+ * @remarks
+ * This component has no props.
+ */
 const GettingStartedTile: React.FC<{}> = function() {
     return (
         <Tile tileClasses='start-tile'>

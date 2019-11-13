@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchResultArticleInfo component.
- * @module tests/components/search-results/SearchResultArticleInfo.test
+ * Tests for the [[SearchResultArticleInfo]] component.
  */
 
 import React from 'react';

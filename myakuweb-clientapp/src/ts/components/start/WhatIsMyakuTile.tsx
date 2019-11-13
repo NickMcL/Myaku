@@ -1,8 +1,16 @@
-/** @module Tile with an explation of the MyakuWeb site */
+/**
+ * WhatIsMyakuTile component module. See [[WhatIsMyakuTile]].
+ */
 
 import React from 'react';
 import Tile from 'ts/components/generic/Tile';
 
+/**
+ * Tile component with an explanation of the MyakuWeb app.
+ *
+ * @remarks
+ * This component has no props.
+ */
 const WhatIsMyakuTile: React.FC<{}> = function() {
     return (
         <Tile tileClasses='start-tile'>

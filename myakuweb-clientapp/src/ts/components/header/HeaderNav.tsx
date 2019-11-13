@@ -1,4 +1,6 @@
-/** @module Nav component for the main MyakuWeb header */
+/**
+ * HeaderNav component module. See [[HeaderNav]].
+ */
 
 import { Link } from 'react-router-dom';
 import React from 'react';
@@ -7,6 +9,12 @@ import myakuLogoUrl from 'images/myaku-logo.svg';
 const MYAKU_GITHUB_LINK = 'https://github.com/FriedRice/Myaku';
 
 
+/**
+ * Nav section of the MyakuWeb site header component.
+ *
+ * @remarks
+ * Component has no props.
+ */
 const HeaderNav: React.FC<{}> = function() {
     return (
         <nav className='header-nav'>

@@ -1,7 +1,5 @@
-
 /**
- * Tests for the SearchResultArticleInfo component.
- * @module tests/components/search-results/SearchResultArticleInfo.test
+ * Tests for the [[SearchResultPageTiles]] component.
  */
 
 import React from 'react';
@@ -243,6 +241,7 @@ describe('<SearchResultPageTiles /> page nav', function() {
         resultPage.results = [];
         resultPage.hasNextPage = false;
         resultPage.totalResults = 0;
+        totalResults = 0;
 
         const wrapper = shallow(
             <SearchResultPageTiles

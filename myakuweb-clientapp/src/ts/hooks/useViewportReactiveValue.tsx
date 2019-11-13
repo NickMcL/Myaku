@@ -1,7 +1,5 @@
 /**
- * Hook for a value that changes based on the current viewport size.
- *
- * @module ts/hooks/useViewportReactiveValue
+ * useViewportReactiveValue hook module. See [[useViewportReactiveValue]].
  */
 
 import useOnViewpotSizeChange from 'ts/hooks/useOnViewportSizeChange';
@@ -17,6 +15,25 @@ import {
 } from 'react';
 
 
+/**
+ * Based on the given viewport size value map, get which value should be used
+ * for the given viewport size.
+ *
+ * @typeparam T - The type of value to be returned.
+ *
+ * @param viewportSize - Viewport size to get the value for
+ * @param defaultValue - The value to return by default if none of the values
+ * in viewportSizeValues are applicable to the given viewport size.
+ * @param viewportSizeValues - A map from viewport sizes to values.
+ *
+ * @returns
+ * If a viewport size less than or equal to the given viewport size is in
+ * viewportSizeValues, returns the value for the largest viewport size less
+ * than or equal to the given viewport size.
+ *
+ * If no viewport size less than or equal to the given viewport size is in
+ * viewportSizeValues, returns defaultValue.
+ */
 function getValueForViewport<T>(
     viewportSize: ViewportSize, defaultValue: T,
     viewportSizeValues: Partial<Record<ViewportSize, T>>
@@ -49,6 +66,26 @@ function getValueForViewport<T>(
     return defaultValue;
 }
 
+/**
+ * Hook for a value that changes based on the current viewport size.
+ *
+ * @typeparam T - The type of value to be returned by the hook.
+ *
+ * @param defaultValue - The value that will be returned by the hook by default
+ * if none of the values in viewportSizeValues are applicable to the current
+ * viewport size.
+ * @param viewportSizeValues - A map from viewport sizes to values.
+ *
+ * @returns
+ * Based on the current viewport size.
+ *
+ * If a viewport size less than or equal to the current viewport size is in
+ * viewportSizeValues, returns the value for the largest viewport size less
+ * than or equal to the current viewport size.
+ *
+ * If no viewport size less than or equal to the current viewport size is in
+ * viewportSizeValues, returns defaultValue.
+ */
 export default function useViewportReactiveValue<T>(
     defaultValue: T,
     viewportSizeValues: Partial<Record<ViewportSize, T>>

@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchHeader component.
- * @module tests/components/header/SearchHeader.test
+ * Tests for the [[SearchHeader]] component.
  */
 
 import HeaderNav from 'ts/components/header/HeaderNav';

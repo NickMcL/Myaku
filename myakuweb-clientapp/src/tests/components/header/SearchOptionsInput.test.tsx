@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchOptionsInput component.
- * @module tests/components/header/SearchOptionsInput.test
+ * Tests for the [[SearchOptionsInput]] component.
  */
 
 import { KanaConvertType } from 'ts/types/types';

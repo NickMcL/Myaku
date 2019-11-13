@@ -1,6 +1,5 @@
 /**
- * Tests for the SearchResultTags component.
- * @module tests/components/search-results/SearchResultTags.test
+ * Tests for the [[SearchResultTags]] component.
  */
 
 import { BASELINE_SEARCH_RESULT_PAGE } from 'tests/testData';

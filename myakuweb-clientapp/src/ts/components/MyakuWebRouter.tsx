@@ -1,6 +1,5 @@
 /**
- * Top-level router component for the MyakuWeb app.
- * @module ts/components/MyakuWebRouter
+ * MyakuWebRouter component module. See [[MyakuWebRouter]].
  */
 
 import MainContent from 'ts/components/generic/MainContent';
@@ -21,6 +20,16 @@ import {
 } from 'react';
 
 
+/**
+ * Get a Route element for the search header component used on all pages.
+ *
+ * @param loadingSearchQuery - If true, the search header will be set to show a
+ * search loading indicator. If false, it will be set to not show a loading
+ * indiciator.
+ *
+ * @returns A Route element that matches all pages and renders a SearchHeader
+ * element.
+ */
 function getHeaderRoute(loadingSearchQuery: boolean): React.ReactElement {
     return (
         <Route
@@ -36,6 +45,15 @@ function getHeaderRoute(loadingSearchQuery: boolean): React.ReactElement {
     );
 }
 
+/**
+ * Get a Route element for a search results component.
+ *
+ * @param setLoadingSearchQuery - A callback function for indicating when a new
+ * search query starts and stops loading.
+ *
+ * @returns A Route element that matches /search pages and renders a
+ * SearchResults element.
+ */
 function getSearchResultsRoute(
     setLoadingSearchQuery: (loading: boolean) => void
 ): React.ReactElement {
@@ -55,6 +73,12 @@ function getSearchResultsRoute(
     );
 }
 
+/**
+ * Top-level router component for all pages of the MyakuWeb app.
+ *
+ * @remarks
+ * Sets an effect to scroll to the top of the page on every page change.
+ */
 const MyakuWebRouter: React.FC<{}> = function() {
     const [loadingSearchQuery, setLoadingSearchQuery] = useState(false);
     const history = useHistory();
