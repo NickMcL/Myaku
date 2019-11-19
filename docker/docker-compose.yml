@@ -196,6 +196,11 @@ services:
       - web_net
   crawldb:
     image: friedrice2/myaku_mongo.crawldb:1.1.6
+    command: "--wiredTigerCacheSizeGB '0.38'"
+    deploy:
+      resources:
+        limits:
+          memory: "768mb"
     volumes:
       - type: volume
         source: crawldb_datadb
