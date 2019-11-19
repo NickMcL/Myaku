@@ -17,6 +17,10 @@ envsubst < $NGINX_RUN_FILES_DIR/nginx_template.conf > \
 
 cert_dir="/etc/letsencrypt/live/$MYAKUWEB_DOMAIN"
 mkdir -p $cert_dir
+
+# Start nginx as a daemon so that certbot can reach it
+nginx
+
 if [ ! -f "$cert_dir/privkey.pem" ]; then
     # No cert is available, so we must create a new one
 
@@ -29,9 +33,6 @@ if [ ! -f "$cert_dir/privkey.pem" ]; then
             -keyout "$cert_dir/privkey.pem" \
             -out "$cert_dir/fullchain.pem" \
             -subj "/CN=localhost"
-
-        # Start nginx as a daemon so that certbot can reach it
-        nginx
 
         # Delete dummy certificate and any other certificate remnants
         rm -Rf /etc/letsencrypt/live
@@ -47,9 +48,6 @@ if [ ! -f "$cert_dir/privkey.pem" ]; then
             exit 1
         fi
         echo "Certbot successfully acquired a cert"
-
-        # Stop nginx so that we can start it in the foreground
-        nginx -s stop
 
     else
         # Create dummy cert to use for dev
@@ -68,6 +66,9 @@ else
         certbot renew
     fi
 fi
+
+# Stop nginx so that we can start it in the foreground
+nginx -s stop
 
 # Errors can happen if nginx starts at the same time uwsgi is starting in the
 # Myaku web container, so wait for uwsgi to be ready
