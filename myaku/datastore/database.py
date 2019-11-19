@@ -622,7 +622,6 @@ class CrawlDb(object):
             f'base forms currently in db'
         )
 
-        self._first_page_cache.flush_all()
         cursor = self._found_lexical_item_collection.aggregate([
             {'$match': {'base_form': {'$gt': ''}}},
             {'$group': {'_id': '$base_form'}}
