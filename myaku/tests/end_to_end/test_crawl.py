@@ -28,9 +28,9 @@ from bson.objectid import ObjectId
 
 from myaku import utils
 from myaku.crawlers import kakuyomu
-from myaku.datastore import Query, SearchResult
+from myaku.datastore import SEARCH_RESULTS_PAGE_SIZE, Query, SearchResult
 from myaku.datastore.cache import FirstPageCache
-from myaku.datastore.database import CrawlDb, _Document
+from myaku.datastore.database import ArticleIndexDb, Document
 from myaku.datatypes import ArticleTextPosition
 from myaku.runners import run_crawl
 
@@ -2056,7 +2056,7 @@ class MockDatetime(datetime):
 
 
 def assert_doc_field_value(
-    field: str, value: Any, expected_doc: _Document,
+    field: str, value: Any, expected_doc: Document,
     oid_map: Dict[str, ObjectId]
 ) -> None:
     """Assert a given field value pair for a doc matches an expected doc.
@@ -2094,13 +2094,13 @@ def assert_doc_field_value(
 
 
 def assert_blog_db_data(
-    db: CrawlDb, blog_expected_docs: List[_Document],
+    db: ArticleIndexDb, blog_expected_docs: List[Document],
     oid_map: Dict[str, ObjectId]
 ) -> None:
     """Assert blog data in db matches the given documents.
 
     Args:
-        db: CrawlDb client to use to access the db data.
+        db: ArticleIndexDb client to use to access the db data.
         blog_expected:docs: The expected blog document data to be in the db.
             Should be sorted in the order of the expected insertion order of
             the blog documents into the db.
@@ -2110,7 +2110,7 @@ def assert_blog_db_data(
             The mappings for all blogs in the db will be added to the map in
             this function.
     """
-    blog_db_docs = db._blog_collection.find({}).sort(
+    blog_db_docs = db.blog_collection.find({}).sort(
         '_id', pymongo.ASCENDING
     )
     blog_doc_zip = zip(blog_db_docs, blog_expected_docs)
@@ -2125,13 +2125,13 @@ def assert_blog_db_data(
 
 
 def assert_article_db_data(
-    db: CrawlDb, article_expected_docs: List[_Document],
+    db: ArticleIndexDb, article_expected_docs: List[Document],
     oid_map: Dict[str, ObjectId]
 ) -> None:
     """Assert article data in db matches the given documents.
 
     Args:
-        db: CrawlDb client to use to access the db data.
+        db: ArticleIndexDb client to use to access the db data.
         article_expected_docs: The expected article document data to be in the
             db. Should be sorted in the order of the expected insertion order
             of the article documents into the db.
@@ -2142,7 +2142,7 @@ def assert_article_db_data(
             The mappings for all articles in the db will be added to the map in
             this function.
     """
-    article_db_docs = db._article_collection.find({}).sort(
+    article_db_docs = db.article_collection.find({}).sort(
         '_id', pymongo.ASCENDING
     )
     article_doc_zip = zip(article_db_docs, article_expected_docs)
@@ -2157,13 +2157,13 @@ def assert_article_db_data(
 
 
 def assert_found_lexical_item_db_data(
-    db: CrawlDb, fli_query_expected_docs: Dict[str, List[_Document]],
+    db: ArticleIndexDb, fli_query_expected_docs: Dict[str, List[Document]],
     oid_map: Dict[str, ObjectId]
 ) -> None:
     """Assert found lexical item data in db matches the given documents.
 
     Args:
-        db: CrawlDb client to use to access the db data.
+        db: ArticleIndexDb client to use to access the db data.
         fli_query_expected_docs: A dictionary mapping base_form queries to the
             expected found lexical item document data to be in the db for that
             query.
@@ -2175,7 +2175,7 @@ def assert_found_lexical_item_db_data(
             added to the map before giving it to this function.
     """
     for base_form, expected_fli_docs in fli_query_expected_docs.items():
-        cursor = db._found_lexical_item_collection.find(
+        cursor = db.found_lexical_item_collection.find(
             {'base_form': base_form}
         )
         fli_db_docs = cursor.sort('_id', pymongo.ASCENDING)
@@ -2188,17 +2188,17 @@ def assert_found_lexical_item_db_data(
 
 
 def assert_crawl_skip_db_data(
-    db: CrawlDb, crawl_skip_expected_docs: List[_Document]
+    db: ArticleIndexDb, crawl_skip_expected_docs: List[Document]
 ) -> None:
     """Assert crawl skip data in db matches the given documents.
 
     Args:
-        db: CrawlDb client to use to access the db data.
+        db: ArticleIndexDb client to use to access the db data.
         crawl_skip_expected_docs: The expected crawl skip document data to be
             in the db. Should be sorted in the order of the expected insertion
             order of the crawl skip documents into the db.
     """
-    crawl_skip_db_docs = db._crawl_skip_collection.find({}).sort(
+    crawl_skip_db_docs = db.crawl_skip_collection.find({}).sort(
         '_id', pymongo.ASCENDING
     )
     crawl_skip_doc_zip = zip(crawl_skip_db_docs, crawl_skip_expected_docs)
@@ -2212,7 +2212,7 @@ def assert_crawl_skip_db_data(
 def assert_initial_crawl_db_data() -> None:
     """Assert the db data matches the expected initial crawl data."""
     oid_map: Dict[str, ObjectId] = {}
-    with CrawlDb() as db:
+    with ArticleIndexDb() as db:
         assert_blog_db_data(db, INITIAL_CRAWL_EXPECTED_BLOG_DOCS, oid_map)
         assert_article_db_data(
             db, INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS, oid_map
@@ -2226,7 +2226,7 @@ def assert_initial_crawl_db_data() -> None:
 def assert_update_crawl_db_data() -> None:
     """Assert the db data matches the expected update crawl data."""
     oid_map: Dict[str, ObjectId] = {}
-    with CrawlDb() as db:
+    with ArticleIndexDb() as db:
         assert_blog_db_data(db, UPDATE_CRAWL_EXPECTED_BLOG_DOCS, oid_map)
         assert_article_db_data(
             db, UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS, oid_map
@@ -2238,7 +2238,7 @@ def assert_update_crawl_db_data() -> None:
 
 
 def assert_search_results(
-    search_results: List[SearchResult], fli_docs: List[_Document]
+    search_results: List[SearchResult], fli_docs: List[Document]
 ) -> None:
     """Assert search results match a list of found lexical item documents."""
     assert len(search_results) == len(fli_docs)
@@ -2258,7 +2258,7 @@ def assert_search_results(
 
 
 def assert_first_page_cache_query_keys(
-    cache: FirstPageCache, db: CrawlDb
+    cache: FirstPageCache, db: ArticleIndexDb
 ) -> Set[ObjectId]:
     """Assert first page cache query keys are consistent with db data.
 
@@ -2273,19 +2273,19 @@ def assert_first_page_cache_query_keys(
     """
     article_oids: Set[ObjectId] = set()
 
-    base_form_cursor = db._found_lexical_item_collection.aggregate([
+    base_form_cursor = db.found_lexical_item_collection.aggregate([
         {'$group': {'_id': '$base_form'}}
     ])
     for doc in base_form_cursor:
         first_page_results = cache.get(Query(doc['_id'], 1))
         assert first_page_results is not None
 
-        fli_cursor = db._found_lexical_item_collection.find(
+        fli_cursor = db.found_lexical_item_collection.find(
             {'base_form': doc['_id']}
         )
         ranked_fli_docs = sorted(
             fli_cursor, key=itemgetter('quality_score_exact'), reverse=True
-        )[:CrawlDb.SEARCH_RESULTS_PAGE_SIZE]
+        )[:SEARCH_RESULTS_PAGE_SIZE]
         article_oids |= {d['article_oid'] for d in ranked_fli_docs}
 
         search_results = first_page_results.search_results
@@ -2293,7 +2293,7 @@ def assert_first_page_cache_query_keys(
 
     # Make sure every query key maps to something in the crawl db
     for query_key in cache._redis_client.keys('query:*'):
-        assert db._found_lexical_item_collection.find_one(
+        assert db.found_lexical_item_collection.find_one(
             {'base_form': query_key[6:].decode()}
         ) is not None
 
@@ -2301,7 +2301,8 @@ def assert_first_page_cache_query_keys(
 
 
 def assert_first_page_cache_article_keys(
-    cache: FirstPageCache, db: CrawlDb, expected_article_oids: Set[ObjectId]
+    cache: FirstPageCache, db: ArticleIndexDb,
+    expected_article_oids: Set[ObjectId]
 ) -> None:
     """Assert first page cache article keys are consistent with db data.
 
@@ -2312,7 +2313,7 @@ def assert_first_page_cache_article_keys(
         expected_article_oids: Set of the article object IDs expected to have
             keys with article data in the first page cache.
     """
-    for doc in db._article_collection.find({}):
+    for doc in db.article_collection.find({}):
         cached_article = cache.get_article(doc['_id'])
         if doc['_id'] not in expected_article_oids:
             assert cached_article is None
@@ -2325,7 +2326,7 @@ def assert_first_page_cache_article_keys(
 
     # Make sure every article key maps to something in the crawl db
     for article_key in cache._redis_client.keys('article:*'):
-        assert db._article_collection.find_one(
+        assert db.article_collection.find_one(
             {'_id': ObjectId(article_key[8:].decode())}
         ) is not None
 
@@ -2333,7 +2334,7 @@ def assert_first_page_cache_article_keys(
 def assert_first_page_cache_data() -> None:
     """Assert first page cache data is consistent with crawl db data."""
     cache = FirstPageCache()
-    with CrawlDb() as db:
+    with ArticleIndexDb() as db:
         expected_article_oids = assert_first_page_cache_query_keys(cache, db)
         assert_first_page_cache_article_keys(cache, db, expected_article_oids)
 
@@ -2360,7 +2361,7 @@ def test_crawl_end_to_end(mocker, monkeypatch) -> None:
     # Use small search result page size to ensure not all data crawled gets
     # stored in the first page cache
     mocker.patch(
-        'myaku.datastore.database.CrawlDb.SEARCH_RESULTS_PAGE_SIZE', 2
+        'myaku.datastore.database.ArticleIndexDb.SEARCH_RESULTS_PAGE_SIZE', 2
     )
 
     MockRequestsSession.start_request_tracking(SourceUpdateState.INITIAL)

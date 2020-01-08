@@ -7,13 +7,19 @@ import enum
 import functools
 import logging
 from dataclasses import dataclass
-from typing import Callable, List
+from typing import Any, Callable, Dict, List
 
 from myaku import utils
-from myaku.datatypes import ArticleTextPosition, JpnArticle
+from myaku.datatypes import ArticleRankKey, ArticleTextPosition, JpnArticle
 from myaku.errors import DataAccessPermissionError
 
 _log = logging.getLogger(__name__)
+
+# MongoDB document type
+Document = Dict[str, Any]
+
+# Number of article search results included in a page of results.
+SEARCH_RESULTS_PAGE_SIZE = 10
 
 
 @enum.unique
@@ -106,6 +112,14 @@ class SearchResult(object):
     found_positions: List[ArticleTextPosition]
     matched_base_forms: List[str] = None
     quality_score: int = None
+
+    def get_rank_key(self) -> ArticleRankKey:
+        """Return the search result rank key for this search result."""
+        return ArticleRankKey(
+            self.quality_score,
+            self.article.last_updated_datetime,
+            self.article.database_id,
+        )
 
 
 @dataclass

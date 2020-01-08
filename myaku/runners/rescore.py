@@ -4,9 +4,7 @@ import logging
 import time
 
 from myaku import utils
-from myaku.datastore import DataAccessMode
-from myaku.datastore.database import CrawlDb
-from myaku.scorer import MyakuArticleScorer
+from myaku.datastore.index_rescore import rescore_article_index
 
 _log = logging.getLogger(__name__)
 
@@ -33,44 +31,11 @@ class Timer(object):
         )
 
 
-def rescore_articles(db: CrawlDb, scorer: MyakuArticleScorer) -> None:
-    """Rescore all articles in the Myaku db.
-
-    Args:
-        db: Database client to use to update the articles.
-        scorer: Scorer to use the rescore the articles.
-
-    Returns:
-        A list of the database IDs for all of the articles whose article
-        quality score in the database was changed by the update.
-    """
-    timer = Timer('article rescore')
-
-    article_count = db.get_article_count()
-    article_gen = db.read_all_articles()
-    updated_count = 0
-    for i, article in enumerate(article_gen):
-        if i % 100 == 0:
-            _log.info('Rescored %s / %s articles', i, article_count)
-
-        scorer.score_article(article)
-        updated = db.update_article_score(article)
-        if updated:
-            updated_count += 1
-
-    _log.info('%s articles had their quality score updated', updated_count)
-    timer.stop()
-
-
 def main() -> None:
     """Update the scores of the articles in the crawl db."""
     utils.toggle_myaku_package_log(filename_base=LOG_NAME)
     timer = Timer('rescore')
-
-    scorer = MyakuArticleScorer()
-    with CrawlDb(DataAccessMode.READ_UPDATE, True) as db:
-        rescore_articles(db, scorer)
-
+    rescore_article_index()
     timer.stop()
 
 

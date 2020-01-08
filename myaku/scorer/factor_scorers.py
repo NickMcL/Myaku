@@ -92,6 +92,13 @@ class ValueRangeMultipliers(Generic[C]):
         """Alternative way to call get_value_multiplier(value)."""
         return self.get_value_multiplier(value)
 
+    def get_range_boundary_values(self) -> List[C]:
+        """Get the range boundary values set for the object.
+
+        The returned list of values will be sorted in ascending order.
+        """
+        return [t[0] for t in self._value_range_tuples if t[0] is not None]
+
 
 class ArticleFactorScorer(ABC):
     """ABC for an article scorer for a single factor."""
@@ -171,7 +178,7 @@ class ArticleLengthScorer(ArticleFactorScorer):
 class PublicationRecencyScorer(ArticleFactorScorer):
     """Scorer based on how recently the article was published."""
 
-    _RECENCY_RANGE_MULTIPLIERS = ValueRangeMultipliers([
+    RECENCY_RANGE_MULTIPLIERS = ValueRangeMultipliers([
         (7, 1),
         (30, 0.9),
         (90, 0.6),
@@ -193,7 +200,7 @@ class PublicationRecencyScorer(ArticleFactorScorer):
         Returns:
             The score for the recency of the publication of the article.
         """
-        multiplier = self._RECENCY_RANGE_MULTIPLIERS[
+        multiplier = self.RECENCY_RANGE_MULTIPLIERS[
             (datetime.utcnow() - article.last_updated_datetime).days
         ]
         return math.floor(_MAX_FACTOR_SCORE * multiplier)

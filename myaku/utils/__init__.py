@@ -6,6 +6,7 @@ import inspect
 import logging
 import os
 import posixpath
+import reprlib
 import sys
 import time
 import traceback
@@ -123,11 +124,6 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
     debug_log_max_size = int(os.environ.get(_DEBUG_LOG_MAX_SIZE_ENV_VAR, 0))
     info_log_max_size = int(os.environ.get(_INFO_LOG_MAX_SIZE_ENV_VAR, 0))
 
-    # Truncate previous log file if not rotating
-    if debug_log_max_size == 0:
-        f = open(filepath_base + '.debug.log', 'w')
-        f.close()
-
     debug_file_handler = RotatingFileHandler(
         filepath_base + '.debug.log',
         maxBytes=debug_log_max_size // (_LOG_ROTATING_BACKUP_COUNT + 1),
@@ -136,10 +132,6 @@ def _add_logging_handlers(logger: logging.Logger, filepath_base: str) -> None:
     debug_file_handler.setLevel(logging.DEBUG)
     debug_file_handler.setFormatter(log_formatter)
     logger.addHandler(debug_file_handler)
-
-    if info_log_max_size == 0:
-        f = open(filepath_base + '.info.log', 'w')
-        f.close()
 
     info_file_handler = RotatingFileHandler(
         filepath_base + '.info.log',
@@ -337,6 +329,20 @@ def tuple_or_none(item: Any) -> Tuple:
     return tuple(item)
 
 
+def int_or_none(item: Any) -> int:
+    """Convert item to int, or return None if item is None."""
+    if item is None:
+        return None
+    return int(item)
+
+
+def float_or_none(item: Any) -> float:
+    """Convert item to float, or return None if item is None."""
+    if item is None:
+        return None
+    return float(item)
+
+
 def join_suffix_to_url_base(url_base: str, url_suffix: str) -> str:
     """Join a url suffix to a url base.
 
@@ -423,36 +429,6 @@ def get_full_name(obj: Any) -> str:
     if obj.__module__:
         return f'{obj.__module__}.{obj.__qualname__}'
     return obj.__qualname__
-
-
-def shorten_repr(obj: Any, max_chars: int = 100) -> str:
-    """Shorten object repr string to a max length + a shortened indicator.
-
-    Args:
-        obj: Object whose repr to shorten.
-        max_chars: Max number of characters to shorten the object's repr to.
-
-    Returns:
-        The repr string for obj shortened to less than max_chars. Adds an
-        indicator to the end of the repr string if some of it was removed to
-        shorten it.
-
-        If the repr for obj is so large that it causes a memory error when
-        generated, instead returns a string indicating that the repr was too
-        large to generate.
-    """
-    try:
-        obj_repr = repr(obj)
-    except MemoryError:
-        _log.debug(
-            'MemoryError occurred generating repr for %s type object',
-            type(obj)
-        )
-        return f"<Type {type(obj)} object's repr is too large to generate>"
-
-    if len(obj_repr) <= max_chars:
-        return obj_repr
-    return obj_repr[:max_chars] + '...'
 
 
 def rate_limit(min_wait: float, max_wait: float) -> Callable:
@@ -567,12 +543,17 @@ def add_debug_logging(func: Callable) -> Callable:
 
     Also logs any exception if raised from func.
     """
+    debugRepr = reprlib.Repr()
+    debugRepr.maxlong = 500
+    debugRepr.maxstring = 500
+    debugRepr.maxother = 500
+
     @functools.wraps(func)
     def wrapper_add_debug_logging(*args, **kwargs):
         func_name = get_full_name(func)
 
-        args_repr = [shorten_repr(arg) for arg in args]
-        kwargs_repr = [f'{k}={shorten_repr(v)}' for k, v in kwargs.items()]
+        args_repr = [debugRepr.repr(arg) for arg in args]
+        kwargs_repr = [f'{k}={debugRepr.repr(v)}' for k, v in kwargs.items()]
         func_args = ', '.join(args_repr + kwargs_repr)
         _log.debug('Calling %s(%s)', func_name, func_args)
         try:
@@ -581,8 +562,7 @@ def add_debug_logging(func: Callable) -> Callable:
             _log.exception('%s raised an exception', func_name)
             raise
 
-        short_value = shorten_repr(value)
-        _log.debug('%s returned %s', func_name, short_value)
+        _log.debug('%s returned %s', func_name, debugRepr.repr(value))
         return value
     return wrapper_add_debug_logging
 

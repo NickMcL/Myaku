@@ -17,8 +17,7 @@ from typing import Dict, List, Tuple
 import myaku.crawlers
 from myaku import utils
 from myaku.crawlers.base import Crawl
-from myaku.datastore import DataAccessMode
-from myaku.datastore.database import CrawlDb
+from myaku.datastore.index_build import ArticleIndexBuilder
 from myaku.datatypes import FoundJpnLexicalItem, JpnArticle
 from myaku.errors import ScriptArgsError
 from myaku.japanese_analysis import JapaneseTextAnalyzer
@@ -177,8 +176,7 @@ def crawl_most_recent(
     scorer: MyakuArticleScorer, stats: CrawlStats
 ) -> None:
     """Run the most recent articles crawl for the given crawler type."""
-    read_write_access = DataAccessMode.READ_WRITE
-    with CrawlDb(read_write_access, True) as db, crawler_type() as crawler:
+    with ArticleIndexBuilder() as index_builder, crawler_type() as crawler:
         stats.add_crawl_source(crawler.SOURCE_NAME)
         crawls = crawler.get_crawls_for_most_recent()
         for crawl in crawls:
@@ -187,7 +185,7 @@ def crawl_most_recent(
             for article in crawl.crawl_gen:
                 # Don't waste time running Japanese analysis on articles that
                 # can't be stored in the crawl db anyway.
-                if not db.can_store_article(article):
+                if not index_builder.can_store_article(article):
                     continue
 
                 flis = jta.find_article_lexical_items(article)
@@ -195,7 +193,7 @@ def crawl_most_recent(
                 for fli in flis:
                     scorer.score_fli_modifier(fli)
 
-                db.write_found_lexical_items(flis)
+                index_builder.write_found_lexical_items(flis)
                 stats.update_crawl(crawl, article, flis)
 
             stats.finish_crawl(crawl)

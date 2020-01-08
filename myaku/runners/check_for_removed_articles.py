@@ -21,7 +21,7 @@ from bson.objectid import ObjectId
 
 from myaku import utils
 from myaku.datastore import DataAccessMode
-from myaku.datastore.database import CrawlDb
+from myaku.datastore.database import ArticleIndexDb
 from myaku.errors import ScriptArgsError
 
 
@@ -74,11 +74,11 @@ def parse_script_args() -> Tuple[str, Optional[ObjectId]]:
 def main() -> None:
     """Check if any articles in the crawl db are no longer reachable."""
     source_name, last_checked_id = parse_script_args()
-    with CrawlDb(DataAccessMode.READ_UPDATE) as db:
+    with ArticleIndexDb(DataAccessMode.READ_UPDATE) as db:
         query: Dict[str, Any] = {'source_name': source_name}
         if last_checked_id:
             query['_id'] = {'$gt': ObjectId(last_checked_id)}
-        cursor = db._article_collection.find(query, {'source_url': 1})
+        cursor = db.article_collection.find(query, {'source_url': 1})
         cursor.sort('_id', pymongo.ASCENDING)
 
         removed_count = 0
@@ -89,7 +89,7 @@ def main() -> None:
 
             if checker.check_if_404(doc['source_url']):
                 removed_count += 1
-                result = db._article_collection.update_one(
+                result = db.article_collection.update_one(
                     {'_id': doc['_id']},
                     {'$set': {'page_removed': True}}
                 )

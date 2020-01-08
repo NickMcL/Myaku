@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import reprlib
 import shelve
 import subprocess
 import sys
@@ -201,7 +202,7 @@ class JapaneseTextAnalyzer(object):
 
             _log.debug(
                 'Found %s lexical items in block "%s"',
-                len(found_lexical_items), utils.shorten_repr(text_block, 15)
+                len(found_lexical_items), reprlib.repr(text_block)
             )
             article_lexical_items.extend(found_lexical_items)
 

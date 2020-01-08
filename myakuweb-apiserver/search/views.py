@@ -12,8 +12,8 @@ from django.http import JsonResponse
 from django.http.request import HttpRequest
 
 from myaku import utils
-from myaku.datastore import DataAccessMode, Query, SearchResult
-from myaku.datastore.database import CrawlDb
+from myaku.datastore import SEARCH_RESULTS_PAGE_SIZE, Query, SearchResult
+from myaku.datastore.index_search import ArticleIndexSearcher
 from myaku.datatypes import JpnArticle
 from search import tasks
 from search.article_preview import (
@@ -196,14 +196,14 @@ class SearchQueryResult(object):
 
     def __init__(self, query: Query) -> None:
         """Query the Crawl db to get the article results for query."""
-        with CrawlDb(DataAccessMode.READ) as db:
-            result_page = db.search_articles(query)
+        with ArticleIndexSearcher() as searcher:
+            result_page = searcher.search_articles(query)
 
         self.query = query
         self.total_results = result_page.total_results
 
         total_pages = math.ceil(
-            result_page.total_results / CrawlDb.SEARCH_RESULTS_PAGE_SIZE
+            result_page.total_results / SEARCH_RESULTS_PAGE_SIZE
         )
         self.max_page_reached = (
             query.page_num >= settings.MAX_SEARCH_RESULT_PAGE

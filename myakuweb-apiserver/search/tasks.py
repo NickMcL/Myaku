@@ -4,9 +4,9 @@ from celery import shared_task
 from django.conf import settings
 
 from myaku import utils
-from myaku.datastore import DataAccessMode, Query
+from myaku.datastore import Query
 from myaku.datastore.cache import NextPageCache, NextPageDirection
-from myaku.datastore.database import CrawlDb
+from myaku.datastore.index_search import ArticleIndexSearcher
 
 
 @shared_task
@@ -26,8 +26,8 @@ def cache_surrounding_pages(query: Query) -> None:
     current_page_num = query.page_num
     if current_page_num < settings.MAX_SEARCH_RESULT_PAGE:
         query.page_num = current_page_num + 1
-        with CrawlDb(DataAccessMode.READ) as db:
-            forward_page = db.search_articles(query)
+        with ArticleIndexSearcher() as searcher:
+            forward_page = searcher.search_articles(query)
         cache_client.set(
             query.user_id, forward_page, NextPageDirection.FORWARD
         )
@@ -36,8 +36,8 @@ def cache_surrounding_pages(query: Query) -> None:
     # always in the first page cache.
     if current_page_num > 2:
         query.page_num = current_page_num - 1
-        with CrawlDb(DataAccessMode.READ) as db:
-            backward_page = db.search_articles(query)
+        with ArticleIndexSearcher() as searcher:
+            backward_page = searcher.search_articles(query)
         cache_client.set(
             query.user_id, backward_page, NextPageDirection.BACKWARD
         )

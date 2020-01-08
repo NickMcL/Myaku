@@ -131,6 +131,23 @@ class ArticleTextPosition(NamedTuple):
         return slice(self.start, self.start + self.len)
 
 
+class ArticleRankKey(NamedTuple):
+    """Tuple of article data used to rank articles in search results.
+
+    The ArticleRankKeys for two articles can be compared with normal greater
+    than or less than comparisons to determine which article would be ranked
+    higher in search results.
+
+    Attributes:
+        quality_score: The quality score of the article.
+        last_updated_datetime: UTC datetime of the last update to the article.
+        database_id: The ID for this article in the search index database.
+    """
+    quality_score: int
+    last_updated_datetime: datetime
+    database_id: str
+
+
 @dataclass
 @utils.make_properties_work_in_dataclass
 class JpnArticle(Crawlable):
@@ -213,6 +230,19 @@ class JpnArticle(Crawlable):
             str(self.publication_datetime),
             str(self.quality_score)
         ])
+
+    def get_rank_key(self, fli_score_mod: int) -> ArticleRankKey:
+        """Return the search result rank key for this article.
+
+        Args:
+            fli_score_mod: The found lexical item quality score mod to apply to
+                the article quality score in the rank key.
+        """
+        return ArticleRankKey(
+            self.quality_score + fli_score_mod,
+            self.last_updated_datetime,
+            self.database_id
+        )
 
     def get_containing_sentence(
         self, item_pos: ArticleTextPosition

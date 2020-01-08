@@ -1,4 +1,4 @@
-"""Functions for efficient serializing of Myaku search result data."""
+"""Functions for serializing of Myaku search result data."""
 
 import logging
 import zlib
@@ -82,11 +82,12 @@ def serialize_query(page: SearchResultPage) -> bytes:
 def serialize_search_results(page: SearchResultPage) -> bytes:
     """Serialize search results for a page of article search results.
 
-    Only serializes the total results, article IDs, and found positions data
-    for the search results page.
+    Only serializes the total results, article rank key data, and found
+    positions data for the search results page.
 
     Does not serialize any of the data for the articles for the search results
-    expect their IDs, so the article data should be serialized separately using
+    expect their rank key data (i.e. quality score, last updated time, and
+    database ID), so the article data should be serialized separately using
     serialize_article.
 
     Args:
@@ -101,6 +102,13 @@ def serialize_search_results(page: SearchResultPage) -> bytes:
     bytes_list.append(len(page.search_results).to_bytes(1, 'little'))
     for result in page.search_results:
         bytes_list.append(ObjectId(result.article.database_id).binary)
+        bytes_list.append(
+            result.quality_score.to_bytes(2, 'little', signed=True)
+        )
+
+        up_dt_timestamp = int(result.article.last_updated_datetime.timestamp())
+        bytes_list.append(up_dt_timestamp.to_bytes(4, 'little'))
+
         bytes_list.append(len(result.found_positions).to_bytes(2, 'little'))
         for pos in result.found_positions:
             bytes_list.append(pos.start.to_bytes(2, 'little'))
@@ -260,10 +268,18 @@ def deserialize_search_results(
     out_page.search_results = []
     for _ in range(result_count):
         search_result = SearchResult(JpnArticle(), [])
-
         article_oid = ObjectId(buffer[offset:offset + 12])
         search_result.article.database_id = str(article_oid)
         offset += 12
+
+        search_result.quality_score = int.from_bytes(
+            buffer[offset:offset + 2], 'little', signed=True
+        )
+        offset += 2
+        search_result.article.last_updated_datetime = datetime.fromtimestamp(
+            int.from_bytes(buffer[offset:offset + 4], 'little')
+        )
+        offset += 4
 
         found_pos_count = int.from_bytes(buffer[offset:offset + 2], 'little')
         offset += 2

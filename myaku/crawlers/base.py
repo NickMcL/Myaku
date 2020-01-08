@@ -14,8 +14,7 @@ from selenium.webdriver import firefox
 
 import myaku
 from myaku import utils
-from myaku.datastore import DataAccessMode
-from myaku.datastore.database import CrawlDb
+from myaku.crawlers.crawl_track import CrawlTracker
 from myaku.datatypes import Crawlable_co, JpnArticle, JpnArticleBlog
 
 _log = logging.getLogger(__name__)
@@ -257,8 +256,10 @@ class CrawlerABC(ABC):
                 self._SOURCE_BASE_URL, item.source_url
             )
 
-        with CrawlDb(DataAccessMode.READ) as db:
-            uncrawled_items = db.filter_crawlable_to_updated(crawlable_items)
+        with CrawlTracker() as tracker:
+            uncrawled_items = tracker.filter_crawlable_to_updated(
+                crawlable_items
+            )
         _log.debug(
             '%s found crawlable items of type %s have not been crawled',
             len(uncrawled_items), type(crawlable_items[0])
@@ -285,7 +286,7 @@ class CrawlerABC(ABC):
         if len(uncrawled_metas) == 0:
             return
 
-        with CrawlDb(DataAccessMode.READ_WRITE) as db:
+        with CrawlTracker() as tracker:
             for i, meta in enumerate(uncrawled_metas):
                 _log.debug(
                     'Crawling uncrawled artcile %s / %s',
@@ -297,7 +298,7 @@ class CrawlerABC(ABC):
                     yield article
 
                 meta.last_crawled_datetime = last_crawled_datetime
-                db.update_last_crawled(meta)
+                tracker.update_last_crawled_datetime(meta)
 
     @utils.add_debug_logging
     def _crawl_updated_blogs(
@@ -317,11 +318,11 @@ class CrawlerABC(ABC):
         if len(updated_blogs) == 0:
             return
 
-        with CrawlDb(DataAccessMode.READ_WRITE) as db:
+        with CrawlTracker() as tracker:
             for i, blog in enumerate(updated_blogs):
                 _log.debug(
                     'Crawling updated blog %s / %s', i + 1, len(updated_blogs)
                 )
                 blog.last_crawled_datetime = datetime.utcnow()
                 yield from self.crawl_blog(blog.source_url)
-                db.update_last_crawled(blog)
+                tracker.update_last_crawled_datetime(blog)

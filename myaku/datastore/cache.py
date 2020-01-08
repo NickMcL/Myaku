@@ -2,15 +2,19 @@
 
 import enum
 import logging
-from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import redis
 from bson.objectid import ObjectId
 
 from myaku import utils
-from myaku.datastore import Query, SearchResultPage, serialize
-from myaku.datatypes import JpnArticle
+from myaku.datastore import (
+    SEARCH_RESULTS_PAGE_SIZE,
+    Query,
+    SearchResultPage,
+    serialize,
+)
+from myaku.datatypes import ArticleRankKey, JpnArticle
 from myaku.errors import DataAccessError
 
 _log = logging.getLogger(__name__)
@@ -60,6 +64,23 @@ class NextPageDirection(enum.Enum):
     BACKWARD = -1
 
 
+@enum.unique
+class CacheUpdateResult(enum.Enum):
+    """Result of an attempted cache update.
+
+    Attributes:
+        SUCCESSFUL: A cache update was necessary, and it was completed
+            successfully.
+        UNNECESSARY: A cache update is not necessary, so no update was done.
+        RECACHE_REQUIRED: A cache update is necessary, but new data from
+            outside the cache is neeeded to make the update, so the update
+            could not be completed.
+    """
+    SUCCESSFUL = 1
+    UNNECESSARY = 2
+    RECACHE_REQUIRED = 3
+
+
 @utils.add_method_debug_logging
 class FirstPageCache(object):
     """Cache for the first page for queries of Myaku articles.
@@ -67,8 +88,6 @@ class FirstPageCache(object):
     Result pages cached in the first page cache are not associated with users
     and are never removed once set.
     """
-
-    _CACHE_LAST_BUILT_DATETIME_KEY = 'cache_last_built_time'
 
     def __init__(self) -> None:
         """Init client connection to the cache."""
@@ -79,19 +98,6 @@ class FirstPageCache(object):
             _FIRST_PAGE_CACHE_PASSWORD_FILE_ENV_VAR
         )
         self._redis_client = _init_redis_client(hostname, password)
-
-    def set_built_marker(self) -> None:
-        """Set the marker indicating the cache has been fully built."""
-        self._redis_client.set(
-            self._CACHE_LAST_BUILT_DATETIME_KEY, datetime.utcnow().isoformat()
-        )
-
-    def is_built(self) -> bool:
-        """Return True if the cache has been fully built previously."""
-        last_built_time = self._redis_client.get(
-            self._CACHE_LAST_BUILT_DATETIME_KEY
-        )
-        return last_built_time is not None
 
     def flush_all(self) -> None:
         """Remove everything stored in the cache."""
@@ -155,6 +161,94 @@ class FirstPageCache(object):
             serialize.deserialize_article(cached_article, result.article)
 
         return page
+
+    def update(
+        self, query: Query, updated_article_keys: List[ArticleRankKey]
+    ) -> CacheUpdateResult:
+        """Update the cached first page of search results for the given query.
+
+        First, checks to see if any of the articles referenced by the given
+        updated article rank keys are in the first page of search results
+        currently cached for the query. Then, does one of the following:
+            - If none of the referenced articles are in the cached page,
+              returns UNNECESSARY and takes no other action.
+            - If some or all of the referenced articles are in the cached page
+              and all of the referenced articles will still be in the cached
+              page after the update, rearranges the article order of the page
+              in the cache and returns SUCCESSFUL.
+            - If some or all of the referenced articles are in the cached page,
+              but not all of the referenced articles will still be in the
+              cached page after the update, returns RECACHE_REQUIRED and takes
+              no other action.
+
+        Args:
+            query: Query to update the cached first page of search results for.
+            updated_article_keys: The updated article rank keys for the
+                articles for the query that should be updated in the cache.
+
+        Returns:
+            The result of the cache update.
+        """
+        cached_results = self._redis_client.get(f'query:{query.query_str}')
+        if cached_results is None:
+            return CacheUpdateResult.RECACHE_REQUIRED
+
+        updated_article_found = False
+        page = SearchResultPage(query=query)
+        serialize.deserialize_search_results(cached_results, page)
+        updated_article_id_map = {
+            k.database_id: k for k in updated_article_keys
+        }
+        for result in page.search_results:
+            if result.article.database_id not in updated_article_id_map:
+                continue
+
+            # Check if article is still on first page after update
+            rank_key = updated_article_id_map[result.article.database_id]
+            lowest_rank_key = page.search_results[-1].get_rank_key()
+            if (page.total_results > SEARCH_RESULTS_PAGE_SIZE
+                    and rank_key < lowest_rank_key):
+                return CacheUpdateResult.RECACHE_REQUIRED
+
+            result.quality_score = rank_key.quality_score
+            updated_article_found = True
+
+        if not updated_article_found:
+            return CacheUpdateResult.UNNECESSARY
+
+        # Reorder search results using the updated article scores
+        page.search_results.sort(key=lambda r: r.get_rank_key(), reverse=True)
+        serialized_results = serialize.serialize_search_results(page)
+        self._redis_client.set(f'query:{query.query_str}', serialized_results)
+        return CacheUpdateResult.SUCCESSFUL
+
+    def is_recache_required(
+        self, query: Query, new_article_key: ArticleRankKey
+    ) -> bool:
+        """Check if a recache is required to add a new article for the query.
+
+        Args:
+            query: Query whose cache entry to check to see if a recache is
+                required to add the article referenced by the given article
+                key.
+            new_article_key: The article rank key for a new article to check if
+                should be included in the cache entry for the given query.
+
+        Returns:
+            True if a recache is required to add the article referened by the
+            given article rank key to the entry for the given query, and False
+            if a recache is not required.
+        """
+        cached_results = self._redis_client.get(f'query:{query.query_str}')
+        if cached_results is None:
+            return True
+
+        page = SearchResultPage(query=query)
+        serialize.deserialize_search_results(cached_results, page)
+        if page.total_results < SEARCH_RESULTS_PAGE_SIZE:
+            return True
+
+        return new_article_key > page.search_results[-1].get_rank_key()
 
 
 @utils.add_method_debug_logging
