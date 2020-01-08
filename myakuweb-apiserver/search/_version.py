@@ -1,2 +1,2 @@
 """Verison of the Myaku Web search app."""
-__version__ = '1.1.0'
+__version__ = '1.1.1'
