@@ -163,7 +163,7 @@ def test_toggle_myaku_package_log_on_custom(custom_log_environment, capsys):
 
 
 def test_toggle_myaku_package_log_off_default(
-        default_log_environment, capsys
+    default_log_environment, capsys
 ):
     """Test disabling the package log with default settings."""
     assert_toggle_myaku_package_log_off(default_log_environment, capsys)
@@ -175,90 +175,84 @@ def test_toggle_myaku_package_log_off_custom(custom_log_environment, capsys):
 
 
 def test_toggle_myaku_package_log_on_on_default(
-        default_log_environment, capsys
+    default_log_environment, capsys
 ):
     """Test enabling the package log twice in a row with default settings."""
     assert_toggle_myaku_package_log_on_on(default_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_on_on_custom(
-        custom_log_environment, capsys
+    custom_log_environment, capsys
 ):
     """Test enabling the package log twice in a row with custom settings."""
-    assert_toggle_myaku_package_log_on_on(
-        custom_log_environment, capsys, True
-    )
+    assert_toggle_myaku_package_log_on_on(custom_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_off_off_default(
-        default_log_environment, capsys
+    default_log_environment, capsys
 ):
     """Test disabling the package log twice in a row with default settings."""
     assert_toggle_myaku_package_log_off_off(default_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_off_off_custom(
-        custom_log_environment, capsys
+    custom_log_environment, capsys
 ):
     """Test disabling the package log twice in a row with custom settings."""
     assert_toggle_myaku_package_log_off_off(custom_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_on_off_default(
-        default_log_environment, capsys
+    default_log_environment, capsys
 ):
     """Test enabling then disabling the package log with default settings."""
     assert_toggle_myaku_package_log_on_off(default_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_on_off_custom(
-        custom_log_environment, capsys
+    custom_log_environment, capsys
 ):
     """Test enabling then disabling the package log with custom settings."""
     assert_toggle_myaku_package_log_on_off(custom_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_off_on_default(
-        default_log_environment, capsys
+    default_log_environment, capsys
 ):
     """Test disabling then enabling the package log with default settings."""
     assert_toggle_myaku_package_log_off_on(default_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_off_on_custom(
-        custom_log_environment, capsys
+    custom_log_environment, capsys
 ):
     """Test disabling then enabling the package log with custom settings."""
     assert_toggle_myaku_package_log_off_on(custom_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_on_off_on_default(
-        default_log_environment, capsys
+    default_log_environment, capsys
 ):
     """Test enabling, disabling, then re-enabling log - default settings."""
     assert_toggle_myaku_package_log_on_off_on(default_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_on_off_on_custom(
-        custom_log_environment, capsys
+    custom_log_environment, capsys
 ):
     """Test enabling, disabling, then re-enabling log - custom settings."""
-    assert_toggle_myaku_package_log_on_off_on(
-        custom_log_environment, capsys, True
-    )
+    assert_toggle_myaku_package_log_on_off_on(custom_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_off_on_off_default(
-        default_log_environment, capsys
+    default_log_environment, capsys
 ):
     """Test disabling, enabling, then re-disabling log - default settings."""
-    assert_toggle_myaku_package_log_off_on_off(
-        default_log_environment, capsys
-    )
+    assert_toggle_myaku_package_log_off_on_off(default_log_environment, capsys)
 
 
 def test_toggle_myaku_package_log_off_on_off_custom(
-        custom_log_environment, capsys
+    custom_log_environment, capsys
 ):
     """Test disabling, enabling, then re-disabling log - custom settings."""
     assert_toggle_myaku_package_log_off_on_off(custom_log_environment, capsys)
@@ -284,33 +278,20 @@ def assert_toggle_myaku_package_log_off(log_environment, capsys):
     assert_no_logs(log_environment, capsys)
 
 
-def assert_toggle_myaku_package_log_on_on(
-        log_environment, capsys, enable_no_truncate=False
-):
-    """Test enabling the Myaku package log twice in a row.
-
-    If enable_no_truncate is True, it is asserted that each enabling of the
-    package log does not truncate the log files.
-    """
+def assert_toggle_myaku_package_log_on_on(log_environment, capsys):
+    """Test enabling the Myaku package log twice in a row."""
     log = logging.getLogger('myaku')
     log_environment.toggle_func(True)
     log_all_levels_once(log)
-
     assert_log_existence(
         ['d', 'i', 'w', 'e', 'c'], log_environment, capsys
     )
 
     log_environment.toggle_func(True)
     log_all_levels_once(log)
-
-    if enable_no_truncate:
-        assert_log_existence(
-            ['d', 'i', 'w', 'e', 'c'] * 2, log_environment, capsys, True
-        )
-    else:
-        assert_log_existence(
-            ['d', 'i', 'w', 'e', 'c'], log_environment, capsys
-        )
+    assert_log_existence(
+        ['d', 'i', 'w', 'e', 'c'] * 2, log_environment, capsys, True
+    )
 
 
 def assert_toggle_myaku_package_log_off_off(log_environment, capsys):
@@ -350,18 +331,11 @@ def assert_toggle_myaku_package_log_off_on(log_environment, capsys):
     )
 
 
-def assert_toggle_myaku_package_log_on_off_on(
-    log_environment, capsys, enable_no_truncate=False
-):
-    """Test enabling, disabling, then re-enabling the Myaku package log.
-
-    If enable_no_truncate is True, it is asserted that each enabling of the
-    package log does not truncate the log files.
-    """
+def assert_toggle_myaku_package_log_on_off_on(log_environment, capsys):
+    """Test enabling, disabling, then re-enabling the Myaku package log."""
     log = logging.getLogger('myaku')
     log_environment.toggle_func(True)
     log_all_levels_once(log)
-
     assert_log_existence(
         ['d', 'i', 'w', 'e', 'c'], log_environment, capsys
     )
@@ -370,15 +344,9 @@ def assert_toggle_myaku_package_log_on_off_on(
     log_all_levels_once(log)
     log_environment.toggle_func(True)
     log_all_levels_once(log)
-
-    if enable_no_truncate:
-        assert_log_existence(
-            ['d', 'i', 'w', 'e', 'c'] * 2, log_environment, capsys, True
-        )
-    else:
-        assert_log_existence(
-            ['d', 'i', 'w', 'e', 'c'], log_environment, capsys
-        )
+    assert_log_existence(
+        ['d', 'i', 'w', 'e', 'c'] * 2, log_environment, capsys, True
+    )
 
 
 def assert_toggle_myaku_package_log_off_on_off(log_environment, capsys):

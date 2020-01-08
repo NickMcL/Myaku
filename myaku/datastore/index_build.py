@@ -275,7 +275,7 @@ class ArticleIndexBuilder(object):
         found_lexical_item_docs = convert_found_lexical_items_to_docs(
             safe_article_flis, safe_article_oid_map
         )
-        self._db._write_with_log(
+        self._db.write_with_log(
             found_lexical_item_docs, self._db.found_lexical_item_collection
         )
         self._update_fli_best_rank_key(safe_article_flis)

@@ -2360,9 +2360,7 @@ def test_crawl_end_to_end(mocker, monkeypatch) -> None:
 
     # Use small search result page size to ensure not all data crawled gets
     # stored in the first page cache
-    mocker.patch(
-        'myaku.datastore.database.ArticleIndexDb.SEARCH_RESULTS_PAGE_SIZE', 2
-    )
+    mocker.patch('myaku.datastore.SEARCH_RESULTS_PAGE_SIZE', 2)
 
     MockRequestsSession.start_request_tracking(SourceUpdateState.INITIAL)
     patch_utcnow(mocker, INITIAL_DATETIME)
