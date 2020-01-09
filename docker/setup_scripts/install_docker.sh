@@ -17,6 +17,6 @@ sudo add-apt-repository \
 
 sudo apt-get update
 sudo apt-get -y install \
-    "docker-ce=5:19.03.3~3-0~ubuntu-$(lsb_release -cs)" \
-    "docker-ce-cli=5:19.03.3~3-0~ubuntu-$(lsb_release -cs)" \
-    "containerd.io=1.2.6-3"
+    "docker-ce=5:19.03.5~3-0~ubuntu-$(lsb_release -cs)" \
+    "docker-ce-cli=5:19.03.5~3-0~ubuntu-$(lsb_release -cs)" \
+    "containerd.io=1.2.10-3"

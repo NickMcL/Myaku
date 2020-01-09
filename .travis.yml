@@ -3,7 +3,7 @@ python: "3.7"
 dist: bionic
 
 install:
-  - pip install pre-commit==1.18.3
+  - pip install pre-commit==1.21.0
   - ./docker/setup_scripts/install_react_app_deps.sh
   - ./docker/setup_scripts/install_docker.sh
 script:
