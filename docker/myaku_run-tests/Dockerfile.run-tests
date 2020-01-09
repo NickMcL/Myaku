@@ -15,7 +15,7 @@ RUN apt-get install -y python3.7 python3-pip
 # the production distribution in the nginx.reverseproxy image.
 RUN apt-get install -y apt-transport-https ca-certificates curl gnupg-agent
 RUN curl -sL https://deb.nodesource.com/setup_13.x | bash -
-RUN apt-get install -y nodejs=13.1.0-1nodesource1
+RUN apt-get install -y nodejs
 
 # Install latest docker CLI
 RUN apt-get remove -y docker docker-engine docker.io containerd runc
