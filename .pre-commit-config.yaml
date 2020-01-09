@@ -84,16 +84,6 @@ repos:
     rev: v0.730
     hooks:
       - id: mypy
-        # These dependencies are needed so that the django-stubs plugin can
-        # load settings.py for the myakuweb project without getting import
-        # errors.
-        additional_dependencies:
-          - django-stubs
-          - mecab-python3
-          - jaconv
-          - pytz
-          - requests
-          - celery
 
   - repo: https://github.com/asottile/seed-isort-config
     rev: v1.9.2
