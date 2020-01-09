@@ -5,7 +5,7 @@
 # secrets to be set in order to connect to the MongoDB instance and to AWS.
 # See the mongo_backup_to_s3.py script for details on these needed paramaters.
 
-FROM friedrice2/ubuntu.cron:1.0.6_18.04 AS base
+FROM friedrice2/ubuntu.cron:1.0.7_18.04 AS base
 
 # Set up deadsnakes ppa for installing newer Python versions
 RUN apt-get update \
@@ -27,7 +27,7 @@ RUN wget -qO - https://www.mongodb.org/static/pgp/server-4.2.asc | \
     apt-key add -
 RUN echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/\
 mongodb-org/4.2 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.2.list
-RUN apt-get update && apt-get install -y mongodb-org-tools=4.2.1
+RUN apt-get update && apt-get install -y mongodb-org-tools=4.2.2
 
 ENV BACKUPS_BASE_DIR /mongobackup
 ENV SCRIPTS_DIR $BACKUPS_BASE_DIR/scripts

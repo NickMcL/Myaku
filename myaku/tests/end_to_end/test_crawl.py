@@ -2050,7 +2050,7 @@ class MockDatetime(datetime):
     utcnow_datetime: datetime = None
 
     @classmethod
-    def utcnow(cls) -> datetime:
+    def utcnow(cls) -> datetime:  # type: ignore
         """Return a statically definied datetime instead of actual utcnow."""
         return cls.utcnow_datetime
 
