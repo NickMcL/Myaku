@@ -1,13 +1,15 @@
 """Driver for accessing the Myaku search index database."""
 
+import functools
 import logging
 from contextlib import closing
-from typing import Any, Dict, List, Union
+from typing import Any, Callable, Dict, List, Type, Union
 
 import pymongo
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from pymongo.collection import Collection, ReturnDocument
+from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 from pymongo.results import InsertManyResult
 
@@ -18,7 +20,7 @@ from myaku.datastore import (
     QueryType,
     require_write_permission,
 )
-from myaku.datatypes import JpnArticle, JpnArticleBlog
+from myaku.datatypes import Crawlable, JpnArticle, JpnArticleBlog
 
 _log = logging.getLogger(__name__)
 
@@ -126,6 +128,21 @@ def _copy_db_collection_data(
     return new_id_map
 
 
+def _require_db_connection(func: Callable) -> Callable:
+    """Enforce that the database connection is initialized before running func.
+
+    For use inside the ArticleIndexDb class only. Used to put off initializing
+    the database connection until right before it is actually needed for an
+    operation.
+    """
+    @functools.wraps(func)
+    def wrapper_require_db_connection(*args, **kwargs):
+        args[0]._connect_to_db()
+        value = func(*args, **kwargs)
+        return value
+    return wrapper_require_db_connection
+
+
 @utils.add_method_debug_logging
 class ArticleIndexDb(object):
     """Interface object for accessing the Myaku article index database.
@@ -156,10 +173,50 @@ class ArticleIndexDb(object):
         QueryType.POSSIBLE_ALT_FORMS: 'quality_score_possible',
     }
 
+    @property
+    def article_collection(self) -> Collection:
+        """Article collection from the aritcle index database."""
+        self._connect_to_db()
+        return self._article_collection
+
+    @property
+    def blog_collection(self) -> Collection:
+        """Blog collection from the aritcle index database."""
+        self._connect_to_db()
+        return self._blog_collection
+
+    @property
+    def crawl_skip_collection(self) -> Collection:
+        """Crawl skip collection from the aritcle index database."""
+        self._connect_to_db()
+        return self._crawl_skip_collection
+
+    @property
+    def found_lexical_item_collection(self) -> Collection:
+        """Found lexical item collection from the aritcle index database."""
+        self._connect_to_db()
+        return self._found_lexical_item_collection
+
+    @property
+    def rescore_tracking_collection(self) -> Collection:
+        """Rescore tracking collection from the aritcle index database."""
+        self._connect_to_db()
+        return self._rescore_tracking_collection
+
+    @property
+    def crawlable_coll_map(self) -> Dict[Type[Crawlable], Collection]:
+        """Map from Crawlable types to their corresponding collection."""
+        self._connect_to_db()
+        return self._crawlable_coll_map
+
     def __init__(
         self, access_mode: DataAccessMode = DataAccessMode.READ
     ) -> None:
-        """Initialize the connection to the database.
+        """Set the access mode to be used for this database session.
+
+        The database connection is initialized lazily by the object right
+        before an operation is attempted that needs it, so no work to
+        initialize the database connection is done in this function.
 
         Args:
             access_mode: Data access mode to use for this db session. If an
@@ -167,30 +224,52 @@ class ArticleIndexDb(object):
                 the set access mode, a DataAccessPermissionError will be
                 raised.
         """
+        self.access_mode = access_mode
+
+        self._mongo_client: MongoClient = None
+        self._db: Database = None
+        self._article_collection: Collection = None
+        self._blog_collectio: Collection = None
+        self._crawl_skip_collectio: Collection = None
+        self._found_lexical_item_collectio: Collection = None
+        self._rescore_tracking_collectio: Collection = None
+        self._crawlable_coll_map: Dict[Type[Crawlable], Collection] = None
+
+    def _connect_to_db(self) -> None:
+        """Init the connection to the article index database if necessary.
+
+        Initializes all collection properties for accessing the database
+        collections.
+
+        Does nothing if the connection to the database has already been
+        initialized.
+        """
+        if self._mongo_client is not None:
+            return
+
         self._mongo_client = self._init_mongo_client()
 
         self._db = self._mongo_client[self._DB_NAME]
-        self.article_collection = self._db[self._ARTICLE_COLL_NAME]
-        self.blog_collection = self._db[self._BLOG_COLL_NAME]
-        self.crawl_skip_collection = self._db[self._CRAWL_SKIP_COLL_NAME]
-        self.found_lexical_item_collection = (
+        self._article_collection = self._db[self._ARTICLE_COLL_NAME]
+        self._blog_collection = self._db[self._BLOG_COLL_NAME]
+        self._crawl_skip_collection = self._db[self._CRAWL_SKIP_COLL_NAME]
+        self._found_lexical_item_collection = (
             self._db[self._FOUND_LEXICAL_ITEM_COLL_NAME]
         )
-        self.rescore_tracking_collection = (
+        self._rescore_tracking_collection = (
             self._db[self._RESCORE_TRACKING_COLL_NAME]
         )
 
-        self.crawlable_coll_map = {
+        self._crawlable_coll_map = {
             JpnArticle: self.article_collection,
             JpnArticleBlog: self.blog_collection,
         }
 
-        self.access_mode = access_mode
-        if access_mode.has_write_permission():
+        if self.access_mode.has_write_permission():
             self._create_indexes()
 
     def _init_mongo_client(self) -> MongoClient:
-        """Initialize and return the client for connecting to the database.
+        """Initialize and return the mongo client for connecting to database.
 
         Returns:
             A client object connected and authenticated with the database.
@@ -215,6 +294,7 @@ class ArticleIndexDb(object):
         return mongo_client
 
     @require_write_permission
+    @_require_db_connection
     def _create_indexes(self) -> None:
         """Create the necessary indexes for the db if they don't exist."""
         self.article_collection.create_index('text_hash')
@@ -244,7 +324,8 @@ class ArticleIndexDb(object):
 
     def close(self) -> None:
         """Close the connection to the database."""
-        self._mongo_client.close()
+        if self._mongo_client is not None:
+            self._mongo_client.close()
 
     def __enter__(self) -> 'ArticleIndexDb':
         """Initialize the connection to the database."""
@@ -254,6 +335,7 @@ class ArticleIndexDb(object):
         """Close the connection to the database."""
         self.close()
 
+    @_require_db_connection
     def read_with_log(
         self, lookup_field_name: str, lookup_values: Union[Any, List[Any]],
         collection: Collection, projection: Document = None
@@ -294,6 +376,7 @@ class ArticleIndexDb(object):
         return docs
 
     @require_write_permission
+    @_require_db_connection
     def write_with_log(
         self, docs: List[Document], collection: Collection
     ) -> InsertManyResult:
@@ -311,6 +394,7 @@ class ArticleIndexDb(object):
         return result
 
     @require_write_permission
+    @_require_db_connection
     def replace_write_with_log(
         self, docs: List[Document], collection: Collection, id_field: str
     ) -> List[ObjectId]:

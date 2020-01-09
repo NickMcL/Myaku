@@ -1,8 +1,9 @@
 """Implementations for the Mayku search result caches using Redis."""
 
 import enum
+import functools
 import logging
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import redis
 from bson.objectid import ObjectId
@@ -52,6 +53,21 @@ def _init_redis_client(hostname: str, password: str) -> redis.Redis:
     return redis_client
 
 
+def _require_cache_connection(func: Callable) -> Callable:
+    """Enforce that the cache connection is initialized before running func.
+
+    For use inside the Cache classes in this module only. Used to put off
+    initializing the cache connection until right before it is actually needed
+    for an operation.
+    """
+    @functools.wraps(func)
+    def wrapper_require_cache_connection(*args, **kwargs):
+        args[0]._connect_to_cache()
+        value = func(*args, **kwargs)
+        return value
+    return wrapper_require_cache_connection
+
+
 @enum.unique
 class NextPageDirection(enum.Enum):
     """Direction of the next page of search results.
@@ -90,7 +106,23 @@ class FirstPageCache(object):
     """
 
     def __init__(self) -> None:
-        """Init client connection to the cache."""
+        """Init with a lazily loaded cache connection.
+
+        The cache connection is initialized lazily by the object right before
+        an operation is attempted that needs it, so no work to initialize the
+        cache connection is done in this function.
+        """
+        self._redis_client: redis.Redis = None
+
+    def _connect_to_cache(self) -> None:
+        """Init connection to the cache if necessary.
+
+        Does nothing if the connection to the cache has already been
+        initialized.
+        """
+        if self._redis_client is not None:
+            return
+
         hostname = utils.get_value_from_env_variable(
             _FIRST_PAGE_CACHE_HOST_ENV_VAR
         )
@@ -99,10 +131,12 @@ class FirstPageCache(object):
         )
         self._redis_client = _init_redis_client(hostname, password)
 
+    @_require_cache_connection
     def flush_all(self) -> None:
         """Remove everything stored in the cache."""
         self._redis_client.flushall()
 
+    @_require_cache_connection
     def set(self, page: SearchResultPage) -> None:
         """Cache the first page of search results for the given query."""
         serialized_page = serialize.serialize_search_result_page(page)
@@ -113,6 +147,7 @@ class FirstPageCache(object):
         for article_id, article_bytes in serialized_page.article_map.items():
             self._redis_client.set(f'article:{article_id}', article_bytes)
 
+    @_require_cache_connection
     def get_article(self, article_oid: ObjectId) -> JpnArticle:
         """Get an article cached in the first page cache.
 
@@ -133,6 +168,7 @@ class FirstPageCache(object):
         serialize.deserialize_article(cached_article, article)
         return article
 
+    @_require_cache_connection
     def get(self, query: Query) -> Optional[SearchResultPage]:
         """Get the cached first page of search results for the given query.
 
@@ -162,6 +198,7 @@ class FirstPageCache(object):
 
         return page
 
+    @_require_cache_connection
     def update(
         self, query: Query, updated_article_keys: List[ArticleRankKey]
     ) -> CacheUpdateResult:
@@ -222,6 +259,7 @@ class FirstPageCache(object):
         self._redis_client.set(f'query:{query.query_str}', serialized_results)
         return CacheUpdateResult.SUCCESSFUL
 
+    @_require_cache_connection
     def is_recache_required(
         self, query: Query, new_article_key: ArticleRankKey
     ) -> bool:
@@ -266,7 +304,23 @@ class NextPageCache(object):
     _KEY_EXPIRE_SECONDS = 60 * 60 * 24 * 7  # 1 week
 
     def __init__(self) -> None:
-        """Init client connection to the cache."""
+        """Init with a lazily loaded cache connection.
+
+        The cache connection is initialized lazily by the object right before
+        an operation is attempted that needs it, so no work to initialize the
+        cache connection is done in this function.
+        """
+        self._redis_client: redis.Redis = None
+
+    def _connect_to_cache(self) -> None:
+        """Init connection to the cache if necessary.
+
+        Does nothing if the connection to the cache has already been
+        initialized.
+        """
+        if self._redis_client is not None:
+            return
+
         hostname = utils.get_value_from_env_variable(
             _NEXT_PAGE_CACHE_HOST_ENV_VAR
         )
@@ -275,6 +329,7 @@ class NextPageCache(object):
         )
         self._redis_client = _init_redis_client(hostname, password)
 
+    @_require_cache_connection
     def set(
         self, user_id: str, page: SearchResultPage,
         direction: NextPageDirection
@@ -320,6 +375,7 @@ class NextPageCache(object):
         )
         return True
 
+    @_require_cache_connection
     def _get_query_page_cache_key(self, query: Query) -> Optional[str]:
         """Get the key in the cache for the search results page for the query.
 
@@ -348,6 +404,7 @@ class NextPageCache(object):
 
         return None
 
+    @_require_cache_connection
     def get(self, query: Query) -> Optional[SearchResultPage]:
         """Get a cached page of search results for the query.
 
