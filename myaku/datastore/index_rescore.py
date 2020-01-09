@@ -151,24 +151,27 @@ def _get_articles_needing_rescoring(
         rescore_time_delta = current_rescore_datetime - last_rescore_datetime
 
         query['$or'] = []
-        recency_range_day_boundaries = (
+        recency_range_boundary_day_counts = (
             PublicationRecencyScorer.RECENCY_RANGE_MULTIPLIERS
             .get_range_boundary_values()
         )
-        for day_count in recency_range_day_boundaries:
+        for boundary_day_count in recency_range_boundary_day_counts:
+            # 1 must be added to the receny range boundary to get the number of
+            # days needed to surpass that boundary into the next recency range.
+            next_range_day_count = boundary_day_count + 1
             query['$or'].append(
                 {'$and': [
                     {'last_updated_datetime': {
                         '$gte': (
                             current_rescore_datetime
-                            - timedelta(days=day_count)
+                            - timedelta(days=next_range_day_count)
                             - rescore_time_delta
                         )
                     }},
                     {'last_updated_datetime': {
                         '$lte': (
                             current_rescore_datetime
-                            - timedelta(days=day_count)
+                            - timedelta(days=next_range_day_count)
                         )
                     }},
                 ]}

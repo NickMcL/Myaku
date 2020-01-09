@@ -158,9 +158,9 @@ class ArticleLengthScorer(ArticleFactorScorer):
     def score_article(self, article: JpnArticle) -> int:
         """Score an article based on its alnum length.
 
-        An alnum length around 500-800 characters is considered the best
-        because it is long enough to have plenty of context around lexical item
-        usage while being short enough to be quickly readable.
+        An alnum length around 1000 characters is considered the best because
+        it is long enough to have plenty of context around lexical item usage
+        while being short enough to be quickly readable.
 
         As article length gets shorter or longer than that, the article's
         length score decreases.
