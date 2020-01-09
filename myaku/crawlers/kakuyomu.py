@@ -71,7 +71,6 @@ class KakuyomuCrawler(CrawlerABC):
 
     _EPISODE_SIDEBAR_URL_SUFFIX = 'episode_sidebar'
 
-    _TIME_TAG_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
     _SEARCH_RESULT_DATETIME_FORMAT = '%Y年%m月%d日 %H:%M 更新'
 
     _EMPTY_SEARCH_RESULTS_CLASS = 'widget-emptyMessage'
@@ -357,14 +356,14 @@ class KakuyomuCrawler(CrawlerABC):
             meta_info_list, self._PUBLICATION_DATETIME_TERM
         )
         series_blog.publication_datetime = html.parse_time_descendant(
-            publication_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
+            publication_datetime_dd
         )
 
         last_updated_datetime_dd = html.select_desc_list_data(
             meta_info_list, self._LAST_UPDATED_DATETIME_TERM
         )
         series_blog.last_updated_datetime = html.parse_time_descendant(
-            last_updated_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
+            last_updated_datetime_dd
         )
 
         article_count_str = html.parse_desc_list_data_text(
@@ -515,9 +514,7 @@ class KakuyomuCrawler(CrawlerABC):
             blog_section_name=section_name,
             blog_section_order_num=section_order_num,
             blog_section_article_order_num=section_ep_order_num,
-            publication_datetime=html.parse_time_descendant(
-                episode_li_tag, self._TIME_TAG_DATETIME_FORMAT
-            ),
+            publication_datetime=html.parse_time_descendant(episode_li_tag),
         )
 
     def _parse_series_episode_metadatas(
@@ -706,9 +703,7 @@ class KakuyomuCrawler(CrawlerABC):
         last_updated_datetime_dd = html.select_desc_list_data(
             episode_info_list, self._LAST_UPDATED_DATETIME_TERM
         )
-        return html.parse_time_descendant(
-            last_updated_datetime_dd, self._TIME_TAG_DATETIME_FORMAT
-        )
+        return html.parse_time_descendant(last_updated_datetime_dd)
 
     def crawl_article(
         self, article_url: str, article_meta: JpnArticle

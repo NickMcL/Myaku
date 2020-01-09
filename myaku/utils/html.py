@@ -7,6 +7,7 @@ from typing import List, Optional, Union
 
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString, Tag
+from dateutil.parser import isoparse
 
 from myaku import utils
 from myaku.errors import HtmlParsingError
@@ -216,18 +217,13 @@ def parse_text_from_descendant_by_tag(
 
 
 def parse_time_descendant(
-    parent: Tag, datetime_format: str, convert_from_jst: bool = False,
-    tag_index: int = 0, expected_tag_count: int = 1
+    parent: Tag, convert_from_jst: bool = False, tag_index: int = 0,
+    expected_tag_count: int = 1
 ) -> datetime:
     """Parse the datetime from a time tag descendant.
 
-    If no timezone is specified in the datetime attr of the time element,
-    assumes the time JST (Japan Standard Time) and coverts to UTC.
-
     Args:
         parent: Tag whose descendants to search for a time tag.
-        datetime_format: Format to use with strptime to parse the datetime attr
-            of the time tag.
         convert_from_jst: If True, will convert the parsed datetime from JST
             (Japan Standard Time) to UTC. If False, assumes the parsed time is
             in UTC and requires no conversion.
@@ -245,14 +241,13 @@ def parse_time_descendant(
             descendants is >= tag_index.
 
     Returns:
-        UTC datetime parsed from the time tag descendant.
+        Datetime parsed from the time tag descendant with any tzinfo removed.
 
     Raises:
         HtmlParsingError: There was an issue parsing the datetime from the time
             descendant from the given parent.
     """
     time_tags = parent.select('time')
-
     if expected_tag_count is not None and len(time_tags) != expected_tag_count:
         _raise_parsing_error(
             'Found {} time tags instead of {} in "{}"'.format(
@@ -268,21 +263,17 @@ def parse_time_descendant(
         )
 
     try:
-        parsed_datetime = datetime.strptime(
-            time_tags[tag_index]['datetime'], datetime_format
-        )
+        parsed_datetime = isoparse(time_tags[tag_index]['datetime'])
     except ValueError:
         _raise_parsing_error(
-            'Failed to parse datetime "{}" of "{}" using format "{}" in: '
-            '"{}"'.format(
-                time_tags[tag_index]['datetime'], time_tags[tag_index],
-                datetime_format, parent
+            'Failed to parse datetime "{}" of "{}" in: "{}"'.format(
+                time_tags[tag_index]['datetime'], time_tags[tag_index], parent
             )
         )
 
     if convert_from_jst:
         return utils.convert_jst_to_utc(parsed_datetime)
-    return parsed_datetime
+    return parsed_datetime.replace(tzinfo=None)
 
 
 def parse_link_descendant(

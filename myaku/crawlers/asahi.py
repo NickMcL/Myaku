@@ -43,8 +43,6 @@ class AsahiCrawler(CrawlerABC):
     _PAYWALL_LIST_CLASS_REGEX = re.compile('^Key(Gold|Silver)$')
     _PAYWALL_TITLE_CLASS_REGEX = re.compile('^TagMember(Gold|Silver)$')
 
-    _ARTICLE_DATETIME_FORMAT = '%Y-%m-%dT%H:%M'
-
     _ARTICLE_TITLE_DIV_CLASS = 'ArticleTitle'
     _ARTICLE_TAG_LIST_CLASS = 'Tag'
     _ARTICLE_BODY_TEXT_DIV_CLASS = 'ArticleText'
@@ -312,7 +310,7 @@ class AsahiCrawler(CrawlerABC):
         article.title = article.title.strip()
 
         article.publication_datetime = html.parse_time_descendant(
-            title_div, self._ARTICLE_DATETIME_FORMAT, True
+            title_div, True
         )
         article.last_updated_datetime = article.publication_datetime
 
