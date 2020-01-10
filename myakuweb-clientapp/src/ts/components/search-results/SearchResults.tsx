@@ -137,9 +137,9 @@ type SearchResponse = SearchResultPage | [SearchResultPage, SearchResources];
  *
  * This timeout is in place so that API requests that are served very quickly
  * don't cause the loading indicators to flash for a split second before
- * showing the loaded content. This results in a snappier feeling to the app.
+ * showing the loaded content.
  */
-const SHOW_LOADING_TIMEOUT = 100;
+const SHOW_LOADING_TIMEOUT = 50;
 
 
 /**
