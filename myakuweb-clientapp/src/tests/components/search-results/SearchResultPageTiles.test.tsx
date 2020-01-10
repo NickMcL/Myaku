@@ -2,6 +2,8 @@
  * Tests for the [[SearchResultPageTiles]] component.
  */
 
+import { LOADING_TILE_COUNT } from
+    'ts/components/search-results/SearchResultPageTiles';
 import React from 'react';
 import SearchResultPageHeader from
     'ts/components/search-results/SearchResultPageHeader';
@@ -14,10 +16,6 @@ import SearchResultTile from
 import { expectComponent } from 'tests/testUtils';
 import { getSearchResultPageDataClone } from 'tests/testData';
 
-import {
-    LOADING_TILE_COUNT,
-    MAX_DISPLAY_PAGE_NUM,
-} from 'ts/components/search-results/SearchResultPageTiles';
 import {
     ShallowWrapper,
     shallow,
@@ -67,8 +65,8 @@ describe('<SearchResultPageTiles /> header', function() {
             />
         );
         expectComponent(wrapper, SearchResultPageHeader, {
+            search: null,
             totalResults: null,
-            pageNum: null,
         });
     });
 
@@ -81,8 +79,8 @@ describe('<SearchResultPageTiles /> header', function() {
             />
         );
         expectComponent(wrapper, SearchResultPageHeader, {
+            search: requestedSearch,
             totalResults: null,
-            pageNum: requestedSearch.pageNum,
         });
     });
 
@@ -95,8 +93,8 @@ describe('<SearchResultPageTiles /> header', function() {
             />
         );
         expectComponent(wrapper, SearchResultPageHeader, {
+            search: requestedSearch,
             totalResults: totalResults,
-            pageNum: requestedSearch.pageNum,
         });
     });
 
@@ -109,66 +107,10 @@ describe('<SearchResultPageTiles /> header', function() {
             />
         );
         expectComponent(wrapper, SearchResultPageHeader, {
+            search: resultPage.search,
             totalResults: totalResults,
-            pageNum: resultPage.search.pageNum,
         });
     });
-
-    it('renders max page num if less than requested page num', function() {
-        requestedSearch.pageNum = MAX_DISPLAY_PAGE_NUM + 1;
-
-        const wrapper = shallow(
-            <SearchResultPageTiles
-                requestedSearch={requestedSearch}
-                totalResults={totalResults}
-                resultPage={null}
-            />
-        );
-        expectComponent(wrapper, SearchResultPageHeader, {
-            totalResults: totalResults,
-            pageNum: MAX_DISPLAY_PAGE_NUM,
-        });
-    });
-
-    it(
-        'renders loaded page num instead of within max requested page num',
-        function() {
-            requestedSearch.pageNum = MAX_DISPLAY_PAGE_NUM;
-            resultPage.search.pageNum = 30;
-
-            const wrapper = shallow(
-                <SearchResultPageTiles
-                    requestedSearch={requestedSearch}
-                    totalResults={totalResults}
-                    resultPage={resultPage}
-                />
-            );
-            expectComponent(wrapper, SearchResultPageHeader, {
-                totalResults: totalResults,
-                pageNum: resultPage.search.pageNum,
-            });
-        }
-    );
-
-    it(
-        'renders loaded page num instead of over max requested page num',
-        function() {
-            requestedSearch.pageNum = MAX_DISPLAY_PAGE_NUM + 1;
-            resultPage.search.pageNum = 30;
-
-            const wrapper = shallow(
-                <SearchResultPageTiles
-                    requestedSearch={requestedSearch}
-                    totalResults={totalResults}
-                    resultPage={resultPage}
-                />
-            );
-            expectComponent(wrapper, SearchResultPageHeader, {
-                totalResults: totalResults,
-                pageNum: resultPage.search.pageNum,
-            });
-        }
-    );
 });
 
 describe('<SearchResultPageTiles /> result tiles', function() {

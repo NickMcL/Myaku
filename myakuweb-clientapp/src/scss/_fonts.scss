@@ -52,7 +52,7 @@ $font-path: "../webfonts";
 
 .fa {
     display: inline-block;
-    font-family: "Font Awesome 5 Free";
+    font-family: "Font Awesome 5 Free" !important;
     font-weight: 900;
     font-size: inherit;
     font-style: normal;

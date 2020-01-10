@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`<SearchResultPageHeader /> does not show page num if 0 total results 1`] = `
+exports[`<SearchResultPageHeader /> renders correctly with non-null total results/non-null search 1`] = `
 <Tile
   tileClasses="results-header-tile"
 >
@@ -8,24 +8,7 @@ exports[`<SearchResultPageHeader /> does not show page num if 0 total results 1`
     <span>
       Articles 
       <small>
-        — 
-        0 found
-      </small>
-    </span>
-  </h3>
-</Tile>
-`;
-
-exports[`<SearchResultPageHeader /> renders correctly with non-null total results/non-null page num 1`] = `
-<Tile
-  tileClasses="results-header-tile"
->
-  <h3>
-    <span>
-      Articles 
-      <small>
-        — 
-        155 found
+        — 155 found
       </small>
     </span>
     <small
@@ -37,72 +20,67 @@ exports[`<SearchResultPageHeader /> renders correctly with non-null total result
 </Tile>
 `;
 
-exports[`<SearchResultPageHeader /> renders correctly with non-null total results/null page num 1`] = `
+exports[`<SearchResultPageHeader /> renders correctly with non-null total results/null search 1`] = `
 <Tile
   tileClasses="results-header-tile"
 >
   <h3>
     <span>
       Articles 
-      <small>
-        — 
-        155 found
-      </small>
+      <div
+        className="loading"
+        style={
+          Object {
+            "display": "inline-block",
+            "height": "1em",
+            "width": "5em",
+          }
+        }
+      />
     </span>
   </h3>
 </Tile>
 `;
 
-exports[`<SearchResultPageHeader /> renders correctly with null total results/non-null page num 1`] = `
+exports[`<SearchResultPageHeader /> renders correctly with null total results/non-null search 1`] = `
 <Tile
   tileClasses="results-header-tile"
 >
   <h3>
     <span>
       Articles 
-      <small>
-        — 
-        <div
-          className="loading"
-          style={
-            Object {
-              "display": "inline-block",
-              "height": "1em",
-              "width": "5em",
-            }
+      <div
+        className="loading"
+        style={
+          Object {
+            "display": "inline-block",
+            "height": "1em",
+            "width": "5em",
           }
-        />
-      </small>
+        }
+      />
     </span>
-    <small
-      className="result-header-page-number"
-    >
-      Page 1
-    </small>
   </h3>
 </Tile>
 `;
 
-exports[`<SearchResultPageHeader /> renders correctly with null total results/null page num 1`] = `
+exports[`<SearchResultPageHeader /> renders correctly with null total results/null search 1`] = `
 <Tile
   tileClasses="results-header-tile"
 >
   <h3>
     <span>
       Articles 
-      <small>
-        — 
-        <div
-          className="loading"
-          style={
-            Object {
-              "display": "inline-block",
-              "height": "1em",
-              "width": "5em",
-            }
+      <div
+        className="loading"
+        style={
+          Object {
+            "display": "inline-block",
+            "height": "1em",
+            "width": "5em",
           }
-        />
-      </small>
+        }
+      />
     </span>
   </h3>
 </Tile>

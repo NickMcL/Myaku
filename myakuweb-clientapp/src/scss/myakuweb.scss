@@ -54,6 +54,10 @@ body {
     font-family: $jpn-font-stack;
 }
 
+:lang(en) {
+    font-family: $eng-font-stack;
+}
+
 h1:lang(en),
 h2:lang(en),
 h3:lang(en),
@@ -540,6 +544,9 @@ blockquote > footer::before {
 
 .result-header-page-number {
     display: none;
+
+    margin-left: 0.5rem;
+    white-space: nowrap;
 }
 
 .page-nav-tile {

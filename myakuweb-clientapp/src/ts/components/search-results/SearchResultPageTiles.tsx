@@ -48,40 +48,6 @@ type Props = SearchResultPageTilesProps;
 /** Number of loading tiles to display if the resultPage prop is null */
 export const LOADING_TILE_COUNT = 10;
 
-/**
- * Max page number to display in the header tile.
- *
- * If the page number for the requestedSearch prop is greater than this number,
- * this number will be displayed in the header instead.
- */
-export const MAX_DISPLAY_PAGE_NUM = 99;
-
-
-/**
- * Get the page number to display in the header tile.
- *
- * If the resultPage prop is not null, uses the page number from the search
- * specified in that object.
- * Otherwise, uses the page number specified in the requestedSearch prop if it
- * is not null and is within the [[MAX_DISPLAY_PAGE_NUM]].
- *
- * @param props - The props given to the SearchResultPageTiles component.
- *
- * @returns The page number to display in the header tile. If null, it means no
- * page number should be displayed.
- */
-function getHeaderPageNum(props: Props): number | null {
-    if (props.resultPage !== null) {
-        return props.resultPage.search.pageNum;
-    }
-    if (props.requestedSearch === null) {
-        return null;
-    }
-    if (props.requestedSearch.pageNum > MAX_DISPLAY_PAGE_NUM) {
-        return MAX_DISPLAY_PAGE_NUM;
-    }
-    return props.requestedSearch.pageNum;
-}
 
 /**
  * Get the search result tiles to display.
@@ -148,11 +114,16 @@ function getPageNav(props: Props): React.ReactNode {
  * @param props - See [[SearchResultPageTilesProps]].
  */
 const SearchResultPageTiles: React.FC<Props> = function(props) {
+    var displaySearch = props.requestedSearch;
+    if (props.resultPage !== null) {
+        displaySearch = props.resultPage.search;
+    }
+
     return (
         <div className='result-tile-container'>
             <SearchResultPageHeader
+                search={displaySearch}
                 totalResults={props.totalResults}
-                pageNum={getHeaderPageNum(props)}
             />
             {getSearchResultTiles(props)}
             {getPageNav(props)}

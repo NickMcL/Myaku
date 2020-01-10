@@ -3,32 +3,52 @@
  */
 
 import React from 'react';
+import { Search } from 'ts/types/types';
 import Tile from 'ts/components/generic/Tile';
 
 /** Props for the [[SearchResultPageHeader]] component. */
 interface SearchResultPageHeaderProps {
-    /** Total result count for the search */
-    totalResults: number | null;
+    /** Search whose data to dispaly in the header. */
+    search: Search | null;
 
-    /** Page number of the search results currently displaying */
-    pageNum: number | null;
+    /** Total result count for the search. */
+    totalResults: number | null;
 }
 type Props = SearchResultPageHeaderProps;
 
+/**
+ * Max page number to display in the header tile.
+ *
+ * If the page number for the search prop is greater than this number, this
+ * number will be displayed in the header instead.
+ */
+export const MAX_DISPLAY_PAGE_NUM = 99;
+
+
+/**
+ * Get the query portion of the header.
+ *
+ * @param search - Search whose results are currently displaying.
+ *
+ * @returns If the given search is non-null, returns a text element containing
+ * its query.
+ * If the given search is null, returns a loading inline-block element.
+ */
 
 /**
  * Get the total results element portion of the header.
  *
+ * @param search - Search whose results are currently displaying.
  * @param totalResults - Total result count for the search.
  *
- * @returns If the given total results is non-null, returns a text element
+ * @returns If the given total results is non-null, returns an element
  * containing the given total results number.
  * If the given total results is null, returns a loading inline-block element.
  */
 function getTotalResultsElement(
-    totalResults: number | null
+    search: Search | null, totalResults: number | null
 ): React.ReactNode {
-    if (totalResults === null) {
+    if (search === null || totalResults === null) {
         var style: React.CSSProperties = {
             width: '5em',
             height: '1em',
@@ -37,24 +57,40 @@ function getTotalResultsElement(
         return <div className='loading' style={style}></div>;
     }
 
-    return `${totalResults.toLocaleString('en-US')} found`;
+    var queryElements: React.ReactNode[] = [];
+    if (totalResults === 0) {
+        queryElements.push(' for ');
+        queryElements.push(<span key='query' lang='ja'>{search.query}</span>);
+    }
+
+    return (
+        <small>
+            {`— ${totalResults.toLocaleString('en-US')} found`}
+            {queryElements}
+        </small>
+    );
 }
 
 /**
  * Get the page number element portion of the header.
  *
- * @param pageNum - Page number of the search results currently displaying.
+ * @param search - Search whose results are currently displaying.
  * @param totalResults - Total result count for the search.
  *
- * @returns If pageNum is non-null and totalResult is greater than 0, returns a
+ * @returns If search is non-null and totalResult is greater than 0, returns a
  * text element containing the given page number.
- * If pageNum is null or totalResults is not greater than 0, returns null.
+ * If search is null or totalResults is not greater than 0, returns null.
  */
 function getPageNumElement(
-    pageNum: number | null, totalResults: number | null
+    search: Search | null, totalResults: number | null
 ): React.ReactNode {
-    if (pageNum === null || totalResults === 0) {
+    if (search === null || totalResults === null || totalResults === 0) {
         return null;
+    }
+
+    var pageNum = search.pageNum;
+    if (pageNum > MAX_DISPLAY_PAGE_NUM) {
+        pageNum = MAX_DISPLAY_PAGE_NUM;
     }
 
     var classList = ['result-header-page-number'];
@@ -76,12 +112,9 @@ const SearchResultPageHeader: React.FC<Props> = function(props) {
             <h3>
                 <span>
                     {'Articles '}
-                    <small>
-                        {'— '}
-                        {getTotalResultsElement(props.totalResults)}
-                    </small>
+                    {getTotalResultsElement(props.search, props.totalResults)}
                 </span>
-                {getPageNumElement(props.pageNum, props.totalResults)}
+                {getPageNumElement(props.search, props.totalResults)}
             </h3>
         </Tile>
     );
