@@ -47,6 +47,7 @@ $jpn-font-stack: "ヒラギノ角ゴ ProN", "Hiragino Kaku Gothic ProN", "HiraKa
 body {
     font-family: $eng-font-stack;
     background-color: $body-bg-color;
+    overflow-y: scroll;
 }
 
 :lang(ja) {
