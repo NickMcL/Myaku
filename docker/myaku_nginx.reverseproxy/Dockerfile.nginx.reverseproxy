@@ -47,7 +47,7 @@ VOLUME ["$NGINX_MAIN_ROOT"]
 VOLUME ["$NGINX_META_ROOT"]
 
 
-FROM node:13.0.1 AS builder
+FROM node:13.6.0 AS builder
 
 ENV BUILD_DIR /myakuweb/
 RUN mkdir -p $BUILD_DIR
