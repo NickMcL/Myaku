@@ -51,9 +51,9 @@ handles the Japanese analysis and quality scoring of crawled articles.
 
 Implemented in the myaku Python module (see the [myaku][3] module directory).
 Uses MongoDB for storage of the search index as well as Redis for caching
-search result pages.
+search results.
 
-#### Search Index MongoDB Database
+### Search Index MongoDB Database
 
 MongoDB database for storing the search index and associated data created by
 the Crawler service.
@@ -70,7 +70,7 @@ Served using uWSGI.
 
 Redis caches used by the MyakuWeb Search API and Crawler services to cache
 search results for faster retrieval than querying the full search index stored
-with MongoDB.
+in a MongoDB database.
 
 The project uses two Redis caches. One is used to perpetually cache the first
 page of search results for every search query so that the first page can always
