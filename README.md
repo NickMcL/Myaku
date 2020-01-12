@@ -15,70 +15,73 @@ news and blog articles that demonstrate _when_ and _where_ Japanese people use
 that term.
 
 These articles can then be read to build a deeper and more natural
-understanding for how the searched term is used in Japanese than can be
-gained from looking at definitions or sample sentences alone.
+understanding for how the searched term is used in Japanese than can be gained
+from looking at definitions or sample sentences alone.
 
 To make finding high quality articles for learning easier, the article links
 returned for a search are ranked using a scoring system with a variety of
-different factors such as publication recency, blog/news article rating, article
-length, and more so that the highest qualiy articles are at the top of the
-search results.
+different factors such as publication recency, blog/news article rating,
+article length, and more so that the highest quality articles are at the top of
+the search results.
 
-Additionally, beyond just individual words, Myaku can also be used to search for
-articles demonstrating usage of more complex bits of language such as set
+Additionally, beyond just individual words, Myaku can also be used to search
+for articles demonstrating usage of more complex bits of language such as set
 phrases, sayings, idioms, and more!
 
-For an explanation of the benefits of using Myaku to search for Japanese
-articles for learning instead of a normal searche engine such as Google, check
-out [this page][1] in the Myaku project wiki.
+For more info on the benefits of using Myaku to search for Japanese articles
+for learning instead of a normal search engine such as Google, check out
+[this page][1] in the Myaku project wiki.
 
 
 ## Myaku Project Architecture
 
-All components of the Myaku project are containerized and run as Docker services,
-and a single Docker Swarm stack is used to deploy all of those services (except
-the test runner). See the Docker compose files and other configuration files in
-the [docker][2] directory for full details on this configuration.
+All components of the Myaku project are containerized and run as Docker
+services, and a single Docker Swarm stack is used to deploy all of those
+services (except the test runner). See the Docker compose files and other
+configuration files in the [docker][2] directory for full details on this
+configuration.
 
 Here are brief overviews of the most important services in the project:
 
 ### Crawler
 
-Web crawler that routinely crawls articles from a small set of Japanese news and
-blog websites to build the search index for Myaku. Also handles the Japanese
-analysis and quality scoring of crawled articles.
+Web crawler that routinely crawls articles from a small set of high quality
+Japanese news and blog websites to build the search index for Myaku. Also
+handles the Japanese analysis and quality scoring of crawled articles.
 
 Implemented in the myaku Python module (see the [myaku][3] module directory).
-Uses MongoDB for storage of the search index as well as Redis for caching search
-result pages.
+Uses MongoDB for storage of the search index as well as Redis for caching
+search result pages.
 
 #### Search Index MongoDB Database
 
-MongoDB database for storing the search index and associated data created by the
-Crawler service.
+MongoDB database for storing the search index and associated data created by
+the Crawler service.
 
 ### MyakuWeb Search API
 
 REST API for making searches for articles using the search index.
 
-Implemented with Python using Django (see the [myakuweb-apiserver][4] directory).
-Uses celery for async tasks and Redis for caching search results. Served using
-uWSGI.
+Implemented with Python using Django (see the [myakuweb-apiserver][4]
+directory).  Uses celery for async tasks and Redis for caching search results.
+Served using uWSGI.
 
 ### Search Index Redis Caches
 
-Redis caches used by the MyakuWeb Search API and Crawler services to cache search
-results for faster retreival than query the full search index stored with MongoDB.
+Redis caches used by the MyakuWeb Search API and Crawler services to cache
+search results for faster retrieval than querying the full search index stored
+with MongoDB.
 
-The project uses two Redis caches. One is used to perputually cache the first page
-of search results for every search query so that the first page can always be
-retreived quickly, and the other is used to preemptively cache pages of search
-results that are likely to be requested by a user based on their recent requests.
+The project uses two Redis caches. One is used to perpetually cache the first
+page of search results for every search query so that the first page can always
+be retrieved quickly, and the other is used to preemptively cache pages of
+search results that are likely to be requested by a user based on their recent
+requests.
 
 ### Nginx Reverse Proxy Server
 
-Nginx server that serves as the entrypoint for all external requests to one of the
-project's services.
+Nginx server that serves as the entrypoint for all external requests to one of
+the project's services.
 
 Handles forwarding search API requests to the search API service, and directly
 handles serving the static file requests for the MyakuWeb React client app.
@@ -88,11 +91,11 @@ The React client app itself is implemented in TypeScript (see the
 
 ### Article Rescorer
 
-Service that periodically runs a task to update the quality scores of articles in
-the search index. This periodic rescoring is necessary because how well articles
-score for some score factors such as publication recency changes over time causing
-the quality score of previously crawled articles to change since they were first
-indexed.
+Service that periodically runs a task to update the quality scores of articles
+in the search index. This periodic rescoring is necessary because how well
+articles score for some score factors such as publication recency changes over
+time causing the quality score of previously crawled articles to change since
+they were first indexed.
 
 Implemented in the myaku Python module (see the [myaku][3] module directory).
 
@@ -106,9 +109,9 @@ Implemented as a Python script (see the [docker/mongobackup][6] directory).
 ### Test Runner
 
 Runner for all of the test suites for all of the different components of the
-project. This includes running the PyTest tests for the Python myaku module, the
-Jest tests for the MyakuWeb React client app, and the Selenium tests for the
-delivery and rendering of the client app.
+project. This includes running the PyTest tests for the Python myaku module,
+the Jest tests for the MyakuWeb React client app, and the Selenium tests for
+the delivery and rendering of the client app.
 
 Implemented as a Python script (see the [docker/myaku_run-tests][7] directory).
 
