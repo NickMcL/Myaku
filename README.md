@@ -73,10 +73,10 @@ search results for faster retrieval than querying the full search index stored
 in a MongoDB database.
 
 The project uses two Redis caches. One is used to perpetually cache the first
-page of search results for every search query so that the first page can always
-be retrieved quickly, and the other is used to preemptively cache pages of
-search results that are likely to be requested by a user based on their recent
-requests.
+page of search results for every search query so that the first page for any
+query can always be retrieved quickly, and the other is used to preemptively
+cache pages of search results that are likely to be requested by a user based
+on their recent requests.
 
 ### Nginx Reverse Proxy Server
 
@@ -94,8 +94,8 @@ The React client app itself is implemented in TypeScript (see the
 Service that periodically runs a task to update the quality scores of articles
 in the search index. This periodic rescoring is necessary because how well
 articles score for some score factors such as publication recency changes over
-time causing the quality score of previously crawled articles to change since
-they were first indexed.
+time causing the overall quality score of previously crawled articles to change
+over time after being initially indexed.
 
 Implemented in the myaku Python module (see the [myaku][3] module directory).
 
