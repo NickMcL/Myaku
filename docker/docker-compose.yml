@@ -6,7 +6,7 @@
 version: "3.7"
 services:
   crawler:
-    image: friedrice2/myaku_crawler:1.8.0
+    image: friedrice2/myaku_crawler:1.8.1
     volumes:
       - type: volume
         source: crawler_log
@@ -34,7 +34,7 @@ services:
     networks:
       - crawler_net
   rescore:
-    image: friedrice2/myaku_rescore:1.5.0
+    image: friedrice2/myaku_rescore:1.5.1
     volumes:
       - type: volume
         source: rescore_log
@@ -60,7 +60,7 @@ services:
     networks:
       - crawler_net
   web:
-    image: friedrice2/myaku_web:2.2.0
+    image: friedrice2/myaku_web:2.2.1
     volumes:
       - type: volume
         source: web_log
@@ -108,7 +108,7 @@ services:
     networks:
       - web_net
   web-worker:
-    image: friedrice2/myaku_web:2.2.0
+    image: friedrice2/myaku_web:2.2.1
     entrypoint:
       - celery
       - -A
