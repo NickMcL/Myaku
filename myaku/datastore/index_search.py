@@ -50,7 +50,11 @@ class ArticleIndexSearcher(object):
         self.close()
 
     def _get_query_article_count(self, query: Query) -> int:
-        """Get the total number of articles in the db matching the query."""
+        """Get the total number of articles in the db matching the query.
+
+        Does not consider the page number of the query when counting the number
+        of matching articles in the database.
+        """
         query_field = self._db.QUERY_TYPE_QUERY_FIELD_MAP[query.query_type]
 
         cursor = self._db.found_lexical_item_collection.aggregate([

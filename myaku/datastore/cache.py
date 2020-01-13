@@ -288,6 +288,29 @@ class FirstPageCache(object):
 
         return new_article_key > page.search_results[-1].get_rank_key()
 
+    @_require_cache_connection
+    def increment_total_result_count(
+        self, query: Query, increment_amount: int
+    ) -> None:
+        """Increment the total result count cached for the given query.
+
+        Does nothing if the given query does not currently have an entry in the
+        cache.
+
+        Args:
+            query: Query whose cached total result count to increment.
+            increment_amount: Amount to increment the total result by.
+        """
+        cached_results = self._redis_client.get(f'query:{query.query_str}')
+        if cached_results is None:
+            return
+
+        page = SearchResultPage(query=query)
+        serialize.deserialize_search_results(cached_results, page)
+        page.total_results += increment_amount
+        serialized_results = serialize.serialize_search_results(page)
+        self._redis_client.set(f'query:{query.query_str}', serialized_results)
+
 
 @utils.add_method_debug_logging
 class NextPageCache(object):

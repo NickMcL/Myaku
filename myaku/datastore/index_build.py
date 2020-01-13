@@ -1,6 +1,7 @@
 """Objects for building the Myaku article index."""
 
 import logging
+from dataclasses import dataclass
 from typing import Dict, List
 
 from bson.objectid import ObjectId
@@ -25,6 +26,22 @@ from myaku.datatypes import (
 _log = logging.getLogger(__name__)
 
 
+@dataclass
+class _IndexedLexicalItemInfo(object):
+    """Tracked info for a lexical item indexed by the ArticleIndexBuilder.
+
+    Attributes:
+        base_form: Base form of the tracked lexical item.
+        new_article_count: The number of new articles indexed that contained
+            the tracked lexical item.
+        best_article_rank_key: The highest ranking article rank key out of the
+            articles indexed that contained the tracked lexical item.
+    """
+    base_form: str
+    new_article_count: int
+    best_article_rank_key: ArticleRankKey
+
+
 @utils.add_method_debug_logging
 class ArticleIndexBuilder(object):
     """Builder for the Myaku article index."""
@@ -34,10 +51,12 @@ class ArticleIndexBuilder(object):
         """Initialize the index database connection."""
         self._db = ArticleIndexDb(DataAccessMode.READ_WRITE)
 
-        # Track the best article rank key seen for each found lexical item
-        # written to the index for use when updating the article index first
-        # page cache on builder close.
-        self._fli_best_rank_key_map: Dict[str, ArticleRankKey] = {}
+        # Track various info for each found lexical item written to the index
+        # for use when updating the article index first page cache on builder
+        # close.
+        # Maps a found lexical item base form to the tracked info for that
+        # lexical item.
+        self._indexed_fli_info_map: Dict[str, _IndexedLexicalItemInfo] = {}
 
     def close(self) -> None:
         """Close the index database connection."""
@@ -58,36 +77,40 @@ class ArticleIndexBuilder(object):
     # during this function, so switch to info level if logging.
     @utils.set_package_log_level(logging.INFO)
     def _update_first_page_cache(self) -> None:
-        """Update the first page cache with the newly indexed articles.
+        """Update the first page cache to reflect the newly indexed articles.
 
-        The articles newly indexed by this object are tracked over the object's
-        lifetime using the _fli_best_rank_key_map.
-        The best article rank key data stored in this map is then used by this
-        function to determine which keys in the first page cache need to be
-        updated.
+        Uses the info tracked in the self._indexed_fli_info_map over the
+        lifetime of this builder in order to make the cache updates in place
+        instead of recaching from the database if possible.
         """
         _log.info('Beginning first page cache update...')
         first_page_cache = FirstPageCache()
         update_count = 0
-        best_key_map = self._fli_best_rank_key_map
+        fli_info_map = self._indexed_fli_info_map
         with ArticleIndexSearcher() as searcher:
-            for i, (base_form, best_key) in enumerate(best_key_map.items()):
+            for i, (base_form, fli_info) in enumerate(fli_info_map.items()):
                 if i % 1000 == 0:
-                    _log.info(f'Updated {i:,} / {len(best_key_map):,} keys')
+                    _log.info(f'Updated {i:,} / {len(fli_info_map):,} keys')
 
+                query_to_update = Query(base_form, 1)
                 needs_recache = first_page_cache.is_recache_required(
-                    Query(base_form, 1), best_key
+                    query_to_update, fli_info.best_article_rank_key
                 )
                 if needs_recache:
                     search_result_page = searcher.search_articles_using_db(
-                        Query(base_form, 1)
+                        query_to_update
                     )
                     first_page_cache.set(search_result_page)
                     update_count += 1
+                else:
+                    first_page_cache.increment_total_result_count(
+                        query_to_update, fli_info.new_article_count
+                    )
+
         _log.info(
             f'Completed first page cache update with {update_count:,} '
-            f'keys updated and {len(best_key_map) - update_count:,} keys not '
-            f'needing updating'
+            f'keys needing recaching and {len(fli_info_map) - update_count:,} '
+            f'keys updated in place'
         )
 
     def _is_article_text_stored(self, article: JpnArticle) -> bool:
@@ -217,15 +240,15 @@ class ArticleIndexBuilder(object):
         }
         return article_oid_map
 
-    def _update_fli_best_rank_key(
+    def _update_tracked_fli_info(
         self, found_lexical_items: List[FoundJpnLexicalItem]
     ) -> None:
-        """Update the best rank key for the found lexical items.
+        """Update the tracked info for the given found lexical items.
 
-        The highest quality score for each found lexical item is tracked in
-        order to determine which found lexical item entries in the first page
-        cache for the article index need to be updated when an
-        ArticleIndexBuilder object is closed.
+        Various information is tracked for the found lexical items indexed by
+        this builder in order to efficiently update found lexical item entries
+        in the first page cache for the article index when the builder is
+        closed.
         """
         for fli in found_lexical_items:
             rank_key = ArticleRankKey(
@@ -233,9 +256,14 @@ class ArticleIndexBuilder(object):
                 fli.article.last_updated_datetime,
                 fli.article.database_id,
             )
-            best_rank_key = self._fli_best_rank_key_map.get(fli.base_form)
-            if best_rank_key is None or rank_key > best_rank_key:
-                self._fli_best_rank_key_map[fli.base_form] = rank_key
+            info = self._indexed_fli_info_map.get(fli.base_form)
+            if info is None:
+                info = _IndexedLexicalItemInfo(fli.base_form, 0, rank_key)
+
+            info.new_article_count += 1
+            if rank_key > info.best_article_rank_key:
+                info.best_article_rank_key = rank_key
+            self._indexed_fli_info_map[fli.base_form] = info
 
     def write_found_lexical_items(
             self, found_lexical_items: List[FoundJpnLexicalItem],
@@ -248,8 +276,8 @@ class ArticleIndexBuilder(object):
                 database.
             write_articles: If True, will write all of the articles referenced
                 by the given found lexical items to the database as well. If
-                False, will assume the articles referenced by the the given
-                found lexical items are already in the database.
+                False, will assume the articles referenced by the given found
+                lexical items are already in the database.
 
         Returns:
             True if all of the given found lexical items were written to the
@@ -278,6 +306,6 @@ class ArticleIndexBuilder(object):
         self._db.write_with_log(
             found_lexical_item_docs, self._db.found_lexical_item_collection
         )
-        self._update_fli_best_rank_key(safe_article_flis)
+        self._update_tracked_fli_info(safe_article_flis)
 
         return len(safe_article_flis) == len(found_lexical_items)
