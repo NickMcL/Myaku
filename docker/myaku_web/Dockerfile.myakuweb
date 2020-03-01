@@ -17,7 +17,7 @@ RUN apt-get install -y python3.7-dev python3.7-gdbm
 ENV PYTHON_BIN python3.7
 
 # Install latest pip.
-RUN $PYTHON_BIN -m pip install pip==19.3.1
+RUN $PYTHON_BIN -m pip install pip==20.0.2
 
 # Install gettext-base for envsubst.
 RUN apt-get install gettext-base
