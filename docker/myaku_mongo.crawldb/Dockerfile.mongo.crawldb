@@ -1,6 +1,6 @@
 # Adds scrips for setting up the db for Myaku to the base mongo image.
 
-FROM mongo:4.2.2 AS base
+FROM mongo:4.2.3 AS base
 
 ENV RUN_FILES_DIR /run_files
 ENV MYAKU_MONGO_SEED_JS_PATH $RUN_FILES_DIR/myaku_mongo_seed.js
