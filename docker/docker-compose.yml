@@ -93,7 +93,7 @@ services:
     networks:
       - web_net
   web-rabbit:
-    image: rabbitmq:3.8.2
+    image: rabbitmq:3.8.3
     hostname: web-rabbit
     volumes:
       - type: volume
