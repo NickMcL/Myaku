@@ -444,64 +444,6 @@ INITIAL_CRAWL_EXPECTED_ARTICLE_DOCS = [
     },
     {
         'full_text':
-            'Asahi Article 8 (Column, Normal)\n\n'
-            'けれども私は偉大な破壊を愛していた。運命に従順な人間の姿は奇妙に'
-            '美しいものである。\n\n'
-            '麹町のあらゆる大邸宅が嘘のように消え失せて余燼をたてており、上品'
-            'な父と娘がたった一つの赤皮のトランクをはさんで濠端の緑草の上に'
-            '坐っている。\n\n'
-            '見出し\n\n'
-            '片側に余燼をあげる茫々たる廃墟がなければ、平和なピクニックと全く'
-            '変るところがない。',
-        'title': 'Asahi Article 8 (Column, Normal)',
-        'author': None,
-        'source_url': 'https://www.asahi.com/articles/8.html',
-        'source_name': 'Asahi Shinbun',
-        'blog_oid': None,
-        'blog_article_order_num': None,
-        'blog_section_name': None,
-        'blog_section_order_num': None,
-        'blog_section_article_order_num': None,
-        'publication_datetime': datetime.fromisoformat('2018-07-15T09:11:00'),
-        'last_updated_datetime': datetime.fromisoformat('2018-07-15T09:11:00'),
-        'last_crawled_datetime': INITIAL_DATETIME,
-        'text_hash':
-            '3336d6795dd690824cd1b42901dfc1a2ec9b3752da0dfb46fb47f2f43c59ab1d',
-        'alnum_count': 173,
-        'has_video': False,
-        'tags': ['Tag 4', 'Tag 8', 'Tag 2'],
-        'quality_score': -1000,
-    },
-    {
-        'full_text':
-            'Asahi Article 14 (Column, Normal, Video)\n\n'
-            '見出し\n\n'
-            '私は血を見ることが非常に嫌いで、いつか私の眼前で自動車が衝突した'
-            'とき、私はクルリと振向いて逃げだしていた。\n\n'
-            'けれども、私は偉大な破壊が好きであった。私は爆弾や焼夷弾に戦きな'
-            'がら、狂暴な破壊に劇しく亢奮していたが、それにも拘らず、このとき'
-            'ほど人間を愛しなつかしんでいた時はないような思いがする。',
-        'title': 'Asahi Article 14 (Column, Normal, Video)',
-        'author': None,
-        'source_url': 'https://www.asahi.com/articles/14.html',
-        'source_name': 'Asahi Shinbun',
-        'blog_oid': None,
-        'blog_article_order_num': None,
-        'blog_section_name': None,
-        'blog_section_order_num': None,
-        'blog_section_article_order_num': None,
-        'publication_datetime': datetime.fromisoformat('2018-07-14T19:45:00'),
-        'last_updated_datetime': datetime.fromisoformat('2018-07-14T19:45:00'),
-        'last_crawled_datetime': INITIAL_DATETIME,
-        'text_hash':
-            '5500ceb0a076e11039ae8f94fb5f80aec0e465070c413a4797b6293ed335613c',
-        'alnum_count': 170,
-        'has_video': True,
-        'tags': ['Tag 4'],
-        'quality_score': 0,
-    },
-    {
-        'full_text':
             'Asahi Editorial 15\n\n'
             '伝統とは何か？　国民性とは何か？　日本人には必然の性格があって、'
             'どうしても和服を発明し、それを着なければならないような決定的な素'
@@ -755,31 +697,6 @@ UPDATE_CRAWL_EXPECTED_ARTICLE_DOCS.extend([
     },
     {
         'full_text':
-            'Asahi Article 26 (Column, Normal)\n\n'
-            'だが、堕落ということの驚くべき平凡さや平凡な当然さに比べると、あ'
-            'のすさまじい偉大な破壊の愛情や運命に従順な人間達の美しさも、泡沫'
-            'のような虚しい幻影にすぎないという気持がする。',
-        'title': 'Asahi Article 26 (Column, Normal)',
-        'author': None,
-        'source_url': 'https://www.asahi.com/articles/26.html',
-        'source_name': 'Asahi Shinbun',
-        'blog_oid': None,
-        'blog_article_order_num': None,
-        'blog_section_name': None,
-        'blog_section_order_num': None,
-        'blog_section_article_order_num': None,
-        'publication_datetime': datetime.fromisoformat('2018-08-15T07:49:00'),
-        'last_updated_datetime': datetime.fromisoformat('2018-08-15T07:49:00'),
-        'last_crawled_datetime': UPDATE_DATETIME,
-        'text_hash':
-            'e8ea2623e449ff8020174ef80e3c71814536f70b663eab031c63f5f269b507c8',
-        'alnum_count': 109,
-        'has_video': False,
-        'tags': ['Tag 8', 'Tag 2', 'Tag 7'],
-        'quality_score': -1000,
-    },
-    {
-        'full_text':
             'Asahi Editorial 27\n\n'
             'キモノとは何ぞや？　洋服との交流が千年ばかり遅かっただけだ。\n\n'
             'そうして、限られた手法以外に、新らたな発明を暗示する別の手法が与'
@@ -841,11 +758,6 @@ CRAWL_SKIP_DOC_EXPECTED_FIELD_COUNT = 4
 INITIAL_CRAWL_EXPECTED_CRAWL_SKIP_DOCS = [
     {
         'source_url': 'https://www.asahi.com/articles/6.html',
-        'source_name': 'Asahi Shinbun',
-        'last_crawled_datetime': INITIAL_DATETIME,
-    },
-    {
-        'source_url': 'https://www.asahi.com/articles/11.html',
         'source_name': 'Asahi Shinbun',
         'last_crawled_datetime': INITIAL_DATETIME,
     },
@@ -1033,68 +945,6 @@ INITIAL_CRAWL_EXPECTED_FLI_QUERY_DOCS = {
             'article_quality_score': 0,
             'article_last_updated_datetime':
                 datetime.fromisoformat('2018-07-14T23:30:00'),
-            'quality_score_exact': 0,
-            'quality_score_definite': 0,
-            'quality_score_possible': 0,
-        },
-        {
-            'base_form': 'けれども',
-            'base_form_definite_group': 'けれども',
-            'base_form_possible_group': 'けれども',
-            'article_oid': 'Asahi Article 8 (Column, Normal)',
-            'found_positions': [{'index': 34, 'len': 4}],
-            'found_positions_exact_count': 1,
-            'found_positions_definite_count': 1,
-            'found_positions_possible_count': 1,
-            'possible_interps': [
-                {
-                    'interp_sources': [1],
-                    'mecab_interp': {
-                        'parts_of_speech': ['接続詞'],
-                        'conjugated_type': None,
-                        'conjugated_form': None
-                    },
-                    'jmdict_interp_entry_id': None
-                }
-            ],
-            'interp_position_map': None,
-            'quality_score_exact_mod': 0,
-            'quality_score_definite_mod': 0,
-            'quality_score_possible_mod': 0,
-            'article_quality_score': -1000,
-            'article_last_updated_datetime':
-                datetime.fromisoformat('2018-07-15T09:11:00'),
-            'quality_score_exact': -1000,
-            'quality_score_definite': -1000,
-            'quality_score_possible': -1000,
-        },
-        {
-            'base_form': 'けれども',
-            'base_form_definite_group': 'けれども',
-            'base_form_possible_group': 'けれども',
-            'article_oid': 'Asahi Article 14 (Column, Normal, Video)',
-            'found_positions': [{'index': 102, 'len': 4}],
-            'found_positions_exact_count': 1,
-            'found_positions_definite_count': 1,
-            'found_positions_possible_count': 1,
-            'possible_interps': [
-                {
-                    'interp_sources': [1],
-                    'mecab_interp': {
-                        'parts_of_speech': ['接続詞'],
-                        'conjugated_type': None,
-                        'conjugated_form': None
-                    },
-                    'jmdict_interp_entry_id': None
-                }
-            ],
-            'interp_position_map': None,
-            'quality_score_exact_mod': 0,
-            'quality_score_definite_mod': 0,
-            'quality_score_possible_mod': 0,
-            'article_quality_score': 0,
-            'article_last_updated_datetime':
-                datetime.fromisoformat('2018-07-14T19:45:00'),
             'quality_score_exact': 0,
             'quality_score_definite': 0,
             'quality_score_possible': 0,
@@ -1592,65 +1442,36 @@ UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS['恰幅'] = [{
     'quality_score_definite': -1000,
     'quality_score_possible': -1000,
 }]
-UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS['美しさ'] = [
-    {
-        'base_form': '美しさ',
-        'base_form_definite_group': '美しさ',
-        'base_form_possible_group': '美しさ',
-        'article_oid': 'Asahi Article 26 (Column, Normal)',
-        'found_positions': [{'index': 92, 'len': 3}],
-        'found_positions_exact_count': 1,
-        'found_positions_definite_count': 1,
-        'found_positions_possible_count': 1,
-        'possible_interps': [
-            {
-                'interp_sources': [2, 3],
-                'mecab_interp': None,
-                'jmdict_interp_entry_id': '2765450'
-            }
-        ],
-        'interp_position_map': None,
-        'quality_score_exact_mod': 0,
-        'quality_score_definite_mod': 0,
-        'quality_score_possible_mod': 0,
-        'article_quality_score': -1000,
-        'article_last_updated_datetime':
-            datetime.fromisoformat('2018-08-15T07:49:00'),
-        'quality_score_exact': -1000,
-        'quality_score_definite': -1000,
-        'quality_score_possible': -1000,
-    },
-    {
-        'base_form': '美しさ',
-        'base_form_definite_group': '美しさ',
-        'base_form_possible_group': '美しさ',
-        'article_oid': 'Asahi Editorial 28',
-        'found_positions': [
-            {'index': 70, 'len': 3},
-            {'index': 63, 'len': 3}
-        ],
-        'found_positions_exact_count': 2,
-        'found_positions_definite_count': 2,
-        'found_positions_possible_count': 2,
-        'possible_interps': [
-            {
-                'interp_sources': [2, 3],
-                'mecab_interp': None,
-                'jmdict_interp_entry_id': '2765450'
-            }
-        ],
-        'interp_position_map': None,
-        'quality_score_exact_mod': 750,
-        'quality_score_definite_mod': 750,
-        'quality_score_possible_mod': 750,
-        'article_quality_score': -1000,
-        'article_last_updated_datetime':
-            datetime.fromisoformat('2018-08-14T20:00:00'),
-        'quality_score_exact': -250,
-        'quality_score_definite': -250,
-        'quality_score_possible': -250,
-    },
-]
+UPDATE_CRAWL_EXPECTED_FLI_QUERY_DOCS['美しさ'] = [{
+    'base_form': '美しさ',
+    'base_form_definite_group': '美しさ',
+    'base_form_possible_group': '美しさ',
+    'article_oid': 'Asahi Editorial 28',
+    'found_positions': [
+        {'index': 70, 'len': 3},
+        {'index': 63, 'len': 3}
+    ],
+    'found_positions_exact_count': 2,
+    'found_positions_definite_count': 2,
+    'found_positions_possible_count': 2,
+    'possible_interps': [
+        {
+            'interp_sources': [2, 3],
+            'mecab_interp': None,
+            'jmdict_interp_entry_id': '2765450'
+        }
+    ],
+    'interp_position_map': None,
+    'quality_score_exact_mod': 750,
+    'quality_score_definite_mod': 750,
+    'quality_score_possible_mod': 750,
+    'article_quality_score': -1000,
+    'article_last_updated_datetime':
+        datetime.fromisoformat('2018-08-14T20:00:00'),
+    'quality_score_exact': -250,
+    'quality_score_definite': -250,
+    'quality_score_possible': -250,
+}]
 
 
 @enum.unique
@@ -1771,9 +1592,6 @@ class MockRequestsSession(object):
         'https://www.asahi.com/news/':
             os.path.join(TEST_DIR, 'test_html/asahi/news_top_initial.html'),
 
-        'https://www.asahi.com/rensai/featurelist.html':
-            os.path.join(TEST_DIR, 'test_html/asahi/column_top_initial.html'),
-
         'https://www.asahi.com/news/editorial.html':
             os.path.join(
                 TEST_DIR,
@@ -1790,24 +1608,6 @@ class MockRequestsSession(object):
             os.path.join(
                 TEST_DIR,
                 'test_html/asahi/news_article_6_silver.html'
-            ),
-
-        'https://www.asahi.com/articles/8.html':
-            os.path.join(
-                TEST_DIR,
-                'test_html/asahi/column_article_8.html'
-            ),
-
-        'https://www.asahi.com/articles/11.html':
-            os.path.join(
-                TEST_DIR,
-                'test_html/asahi/column_article_11_gold.html'
-            ),
-
-        'https://www.asahi.com/articles/14.html':
-            os.path.join(
-                TEST_DIR,
-                'test_html/asahi/column_article_14.html'
             ),
 
         'https://www.asahi.com/articles/15.html':
@@ -1898,9 +1698,6 @@ class MockRequestsSession(object):
         'https://www.asahi.com/news/':
             os.path.join(TEST_DIR, 'test_html/asahi/news_top_update.html'),
 
-        'https://www.asahi.com/rensai/featurelist.html':
-            os.path.join(TEST_DIR, 'test_html/asahi/column_top_update.html'),
-
         'https://www.asahi.com/news/editorial.html':
             os.path.join(
                 TEST_DIR,
@@ -1911,12 +1708,6 @@ class MockRequestsSession(object):
             os.path.join(
                 TEST_DIR,
                 'test_html/asahi/news_article_21.html'
-            ),
-
-        'https://www.asahi.com/articles/26.html':
-            os.path.join(
-                TEST_DIR,
-                'test_html/asahi/column_article_26.html'
             ),
 
         'https://www.asahi.com/articles/27.html':
@@ -1949,9 +1740,6 @@ class MockRequestsSession(object):
 
         'https://www.asahi.com/news/':
             os.path.join(TEST_DIR, 'test_html/asahi/news_top_update.html'),
-
-        'https://www.asahi.com/rensai/featurelist.html':
-            os.path.join(TEST_DIR, 'test_html/asahi/column_top_update.html'),
 
         'https://www.asahi.com/news/editorial.html':
             os.path.join(

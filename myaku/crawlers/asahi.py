@@ -265,12 +265,6 @@ class AsahiCrawler(CrawlerABC):
         )
         crawls.append(news_most_recent_crawl)
 
-        column_most_recent_crawl = Crawl(
-            self.SOURCE_NAME, 'Column most recent',
-            self.crawl_column_most_recent()
-        )
-        crawls.append(column_most_recent_crawl)
-
         editorial_archive_crawl = Crawl(
             self.SOURCE_NAME, 'Editorial archive',
             self.crawl_editorial_archive()
