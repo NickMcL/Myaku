@@ -10,7 +10,7 @@ mecab-python3==0.996.3
 more-itertools==7.2.0
 packaging==19.2
 pluggy==0.13.1
-py==1.8.1
+py==1.10.0
 pymongo==3.10.1
 pyparsing==2.4.6
 pytest==5.3.2
